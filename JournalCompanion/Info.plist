@@ -24,5 +24,7 @@
 		<string>location</string>
 		<string>fetch</string>
 	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

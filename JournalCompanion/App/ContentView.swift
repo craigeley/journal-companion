@@ -12,114 +12,119 @@ struct ContentView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
-    @State private var showEntryList = false
     @State private var showSettings = false
+    @State private var selectedTab = 0
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
     @State private var selectedVaultURL: URL?
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                if vaultManager.isVaultAccessible {
-                    mainContent
-                } else {
-                    vaultSetup
-                }
+        ZStack {
+            if vaultManager.isVaultAccessible {
+                tabContent
+            } else {
+                vaultSetup
+            }
 
-                // Floating action button
-                if vaultManager.isVaultAccessible {
-                    VStack {
+            // Floating action button
+            if vaultManager.isVaultAccessible {
+                VStack {
+                    Spacer()
+                    HStack {
                         Spacer()
-                        HStack {
-                            Spacer()
-                            Button {
-                                showQuickEntry = true
-                            } label: {
-                                Image(systemName: "square.and.pencil")
-                                    .font(.title2)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 4)
-                            }
-                            .padding()
+                        Button {
+                            showQuickEntry = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.title2)
+                                .foregroundStyle(.white)
+                                .frame(width: 56, height: 56)
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
                         }
+                        .padding()
                     }
                 }
             }
-            .sheet(isPresented: $showQuickEntry) {
-                let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
-                QuickEntryView(viewModel: viewModel)
-            }
-            .sheet(isPresented: $showEntryList) {
-                let viewModel = EntryListViewModel(vaultManager: vaultManager, locationService: locationService)
-                EntryListView(viewModel: viewModel)
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .environmentObject(vaultManager)
-                    .environmentObject(locationService)
-                    .environmentObject(visitTracker)
-            }
+        }
+        .sheet(isPresented: $showQuickEntry) {
+            let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
+            QuickEntryView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(vaultManager)
+                .environmentObject(locationService)
+                .environmentObject(visitTracker)
         }
     }
 
-    private var mainContent: some View {
-        List {
-            Section {
-                Button {
-                    showEntryList = true
-                } label: {
-                    Label("Browse Entries", systemImage: "doc.text")
+    private var tabContent: some View {
+        TabView(selection: $selectedTab) {
+            entriesTab
+                .tabItem {
+                    Label("Entries", systemImage: "doc.text")
                 }
-            }
+                .tag(0)
 
-            Section("Places") {
-                if vaultManager.isLoadingPlaces {
-                    HStack {
-                        ProgressView()
-                        Text("Loading places...")
-                            .foregroundStyle(.secondary)
+            placesTab
+                .tabItem {
+                    Label("Places", systemImage: "mappin.circle")
+                }
+                .tag(1)
+
+            mapTab
+                .tabItem {
+                    Label("Map", systemImage: "map")
+                }
+                .tag(2)
+        }
+    }
+
+    private var entriesTab: some View {
+        let viewModel = EntryListViewModel(
+            vaultManager: vaultManager,
+            locationService: locationService
+        )
+        return EntryListView(viewModel: viewModel)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
                     }
-                } else {
-                    Text("\(vaultManager.places.count) places loaded")
-                        .foregroundStyle(.secondary)
+                }
+            }
+    }
 
-                    if !vaultManager.places.isEmpty {
-                        ForEach(vaultManager.places.prefix(5)) { place in
-                            PlaceRow(place: place)
-                        }
-
-                        if vaultManager.places.count > 5 {
-                            Text("+ \(vaultManager.places.count - 5) more")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
+    private var placesTab: some View {
+        let viewModel = PlacesListViewModel(vaultManager: vaultManager)
+        return PlacesListView(viewModel: viewModel)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
                     }
                 }
             }
-        }
-        .navigationTitle("Journal Companion")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gear")
+    }
+
+    private var mapTab: some View {
+        let viewModel = MapViewModel(vaultManager: vaultManager)
+        return MapView(viewModel: viewModel)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
                 }
             }
-        }
-        .task {
-            if vaultManager.places.isEmpty {
-                do {
-                    _ = try await vaultManager.loadPlaces()
-                } catch {
-                    // Silently fail - user can manually reload from settings
-                }
-            }
-        }
     }
 
     private var vaultSetup: some View {

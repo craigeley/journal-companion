@@ -9,7 +9,6 @@ import SwiftUI
 
 struct EntryListView: View {
     @StateObject var viewModel: EntryListViewModel
-    @Environment(\.dismiss) var dismiss
 
     @State private var selectedEntry: Entry?
     @State private var showEditView = false
@@ -34,13 +33,6 @@ struct EntryListView: View {
             .navigationTitle("Entries")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $viewModel.searchText, prompt: "Search entries")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
             .task {
                 if viewModel.entries.isEmpty {
                     await viewModel.loadEntries()

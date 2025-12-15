@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
+    @State private var showEntryList = false
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
     @State private var selectedVaultURL: URL?
@@ -51,11 +52,23 @@ struct ContentView: View {
                 let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
                 QuickEntryView(viewModel: viewModel)
             }
+            .sheet(isPresented: $showEntryList) {
+                let viewModel = EntryListViewModel(vaultManager: vaultManager)
+                EntryListView(viewModel: viewModel)
+            }
         }
     }
 
     private var mainContent: some View {
         List {
+            Section {
+                Button {
+                    showEntryList = true
+                } label: {
+                    Label("Browse Entries", systemImage: "doc.text")
+                }
+            }
+
             Section("Places") {
                 if vaultManager.isLoadingPlaces {
                     HStack {

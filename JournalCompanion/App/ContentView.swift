@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
     @State private var showEntryList = false
+    @State private var showSettings = false
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
     @State private var selectedVaultURL: URL?
@@ -56,6 +57,12 @@ struct ContentView: View {
                 let viewModel = EntryListViewModel(vaultManager: vaultManager, locationService: locationService)
                 EntryListView(viewModel: viewModel)
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environmentObject(vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(visitTracker)
+            }
         }
     }
 
@@ -92,82 +99,24 @@ struct ContentView: View {
                         }
                     }
                 }
-
-                Button("Reload Places") {
-                    Task {
-                        _ = try? await vaultManager.loadPlaces()
-                    }
-                }
-            }
-
-            Section("Visit Tracking") {
-                if !locationService.hasAlwaysAuthorization {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Enable automatic visit tracking to get notified when you visit places.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button {
-                            Task {
-                                locationService.requestAlwaysAuthorization()
-                                let granted = await visitTracker.requestNotificationPermission()
-                                if granted {
-                                    print("Notification permission granted")
-                                }
-                            }
-                        } label: {
-                            Label("Enable Visit Tracking", systemImage: "location.circle")
-                        }
-                    }
-                } else {
-                    HStack {
-                        Image(systemName: visitTracker.isMonitoring ? "location.fill" : "location")
-                            .foregroundStyle(visitTracker.isMonitoring ? .green : .secondary)
-
-                        VStack(alignment: .leading) {
-                            Text("Visit Tracking")
-                                .font(.body)
-                            Text(visitTracker.isMonitoring ? "Active" : "Inactive")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
-                        Toggle("", isOn: .init(
-                            get: { visitTracker.isMonitoring },
-                            set: { enabled in
-                                if enabled {
-                                    visitTracker.startMonitoring()
-                                } else {
-                                    visitTracker.stopMonitoring()
-                                }
-                            }
-                        ))
-                    }
-
-                    if !visitTracker.recentVisits.isEmpty {
-                        Text("\(visitTracker.recentVisits.count) recent visits tracked")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-
-            Section {
-                Button("Reset Vault") {
-                    vaultManager.clearVault()
-                }
-                .foregroundStyle(.red)
             }
         }
         .navigationTitle("Journal Companion")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gear")
+                }
+            }
+        }
         .task {
             if vaultManager.places.isEmpty {
                 do {
                     _ = try await vaultManager.loadPlaces()
                 } catch {
-                    // Silently fail - user can manually reload
+                    // Silently fail - user can manually reload from settings
                 }
             }
         }

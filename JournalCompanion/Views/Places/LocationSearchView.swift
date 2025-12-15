@@ -84,8 +84,8 @@ struct LocationSearchView: View {
             if let mapItem = response.mapItems.first {
                 // Extract location details
                 selectedLocationName = mapItem.name
-                // Note: Using placemark for now as MKAddress API is still evolving in iOS 26.0
-                selectedAddress = mapItem.placemark.title
+                // Use completion subtitle for address (already formatted by MapKit)
+                selectedAddress = !completion.subtitle.isEmpty ? completion.subtitle : nil
                 selectedCoordinates = mapItem.location.coordinate
 
                 dismiss()

@@ -58,13 +58,12 @@ class PlaceCreationViewModel: ObservableObject {
         self.locationService = locationService
     }
 
-    /// Validation - name is required and must not conflict
+    /// Validation - name is required and must not conflict (pure computed property)
     var isValid: Bool {
         let trimmedName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Name required
         guard !trimmedName.isEmpty else {
-            nameError = "Name is required"
             return false
         }
 
@@ -72,13 +71,26 @@ class PlaceCreationViewModel: ObservableObject {
         let sanitized = Place.sanitizeFilename(trimmedName)
         let exists = vaultManager.places.contains { $0.id == sanitized }
 
-        if exists {
-            nameError = "A place with this name already exists"
-            return false
+        return !exists
+    }
+
+    /// Update validation error message (call this explicitly, not during view rendering)
+    func validateName() {
+        let trimmedName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty else {
+            nameError = "Name is required"
+            return
         }
 
-        nameError = nil
-        return true
+        let sanitized = Place.sanitizeFilename(trimmedName)
+        let exists = vaultManager.places.contains { $0.id == sanitized }
+
+        if exists {
+            nameError = "A place with this name already exists"
+        } else {
+            nameError = nil
+        }
     }
 
     /// Create and save place

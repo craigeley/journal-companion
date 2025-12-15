@@ -120,6 +120,9 @@ struct PlaceCreationView: View {
             .onAppear {
                 isNameFieldFocused = true
             }
+            .onChange(of: viewModel.placeName) { _, _ in
+                viewModel.validateName()
+            }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") {
                     viewModel.errorMessage = nil

@@ -54,8 +54,9 @@ class MapViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // React to filter changes
+        // React to filter changes (debounced to avoid rapid updates)
         Publishers.CombineLatest($selectedCalloutTypes, $selectedTags)
+            .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _, _ in
                 self?.applyFilters()
             }

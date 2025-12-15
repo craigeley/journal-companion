@@ -32,7 +32,14 @@ struct MapView: View {
             .navigationBarTitleDisplayMode(.large)
             .task {
                 await viewModel.loadPlacesIfNeeded()
+            }
+            .onChange(of: viewModel.placesWithCoordinates.map(\.id)) { _, _ in
                 cameraPosition = viewModel.calculateInitialRegion()
+            }
+            .onAppear {
+                if !viewModel.placesWithCoordinates.isEmpty {
+                    cameraPosition = viewModel.calculateInitialRegion()
+                }
             }
             .sheet(item: $selectedPlace) { place in
                 PlaceEditView(viewModel: PlaceEditViewModel(

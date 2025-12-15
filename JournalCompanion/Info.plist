@@ -5,10 +5,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Journal Companion needs your location to suggest nearby places when creating entries.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Journal Companion tracks your visits to automatically suggest logging them. Location is only used when you visit places, and all data stays private in your Obsidian vault.</string>
 </dict>
 </plist>

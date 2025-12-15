@@ -46,6 +46,42 @@ struct QuickEntryView: View {
                         .focused($isTextFieldFocused)
                 }
 
+                // Weather Section
+                if let weather = viewModel.weatherData {
+                    Section("Weather") {
+                        HStack {
+                            Text(weather.conditionEmoji)
+                                .font(.title)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(weather.temperature)°F")
+                                    .font(.headline)
+                                Text(weather.condition)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("Humidity: \(weather.humidity)%")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if let aqi = weather.aqi {
+                                    Text("AQI: \(aqi)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } else if viewModel.isFetchingWeather {
+                    Section("Weather") {
+                        HStack {
+                            ProgressView()
+                            Text("Fetching weather...")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // Details Section
                 Section("Details") {
                     DatePicker("Time", selection: $viewModel.timestamp)

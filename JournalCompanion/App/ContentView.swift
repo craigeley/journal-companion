@@ -53,7 +53,7 @@ struct ContentView: View {
                 QuickEntryView(viewModel: viewModel)
             }
             .sheet(isPresented: $showEntryList) {
-                let viewModel = EntryListViewModel(vaultManager: vaultManager)
+                let viewModel = EntryListViewModel(vaultManager: vaultManager, locationService: locationService)
                 EntryListView(viewModel: viewModel)
             }
         }

@@ -42,6 +42,25 @@ actor EntryWriter {
         try await addToDayFile(entry: entry)
     }
 
+    /// Update an existing entry
+    func update(entry: Entry) async throws {
+        let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
+        let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
+
+        // Check that the file exists
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            throw EntryError.fileNotFound(entry.filename)
+        }
+
+        // Generate updated markdown
+        let markdown = entry.toMarkdown()
+
+        // Overwrite the existing file
+        try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
+
+        print("✓ Updated entry: \(entry.filename).md")
+    }
+
     /// Add entry callout to day file
     private func addToDayFile(entry: Entry) async throws {
         let calendar = Calendar.current
@@ -156,6 +175,7 @@ actor EntryWriter {
 // MARK: - Errors
 enum EntryError: LocalizedError {
     case fileAlreadyExists(String)
+    case fileNotFound(String)
     case invalidEntry
     case invalidDate
     case dayFileUpdateFailed
@@ -164,6 +184,8 @@ enum EntryError: LocalizedError {
         switch self {
         case .fileAlreadyExists(let name):
             return "Entry \(name) already exists. Please wait a minute and try again."
+        case .fileNotFound(let name):
+            return "Entry file not found: \(name)"
         case .invalidEntry:
             return "Entry data is invalid."
         case .invalidDate:

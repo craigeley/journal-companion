@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import CoreLocation
 
 @MainActor
 class EntryListViewModel: ObservableObject {
@@ -16,11 +17,17 @@ class EntryListViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
-    private let vaultManager: VaultManager
+    let vaultManager: VaultManager
+    let locationService: LocationService
     private var cancellables = Set<AnyCancellable>()
 
-    init(vaultManager: VaultManager) {
+    var places: [Place] {
+        vaultManager.places
+    }
+
+    init(vaultManager: VaultManager, locationService: LocationService) {
         self.vaultManager = vaultManager
+        self.locationService = locationService
 
         // Setup search filtering
         $searchText
@@ -91,5 +98,11 @@ class EntryListViewModel: ObservableObject {
 
         return grouped.map { (date: $0.key, entries: $0.value) }
             .sorted { $0.date > $1.date }
+    }
+
+    /// Look up place callout by place name
+    func callout(for placeName: String?) -> String? {
+        guard let placeName = placeName else { return nil }
+        return places.first { $0.name == placeName }?.callout
     }
 }

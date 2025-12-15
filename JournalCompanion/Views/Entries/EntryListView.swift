@@ -11,6 +11,9 @@ struct EntryListView: View {
     @StateObject var viewModel: EntryListViewModel
     @Environment(\.dismiss) var dismiss
 
+    @State private var selectedEntry: Entry?
+    @State private var showEditView = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -46,6 +49,25 @@ struct EntryListView: View {
             .refreshable {
                 await viewModel.loadEntries()
             }
+            .sheet(isPresented: $showEditView) {
+                if let entry = selectedEntry {
+                    EntryEditView(
+                        viewModel: EntryEditViewModel(
+                            entry: entry,
+                            vaultManager: viewModel.vaultManager,
+                            locationService: viewModel.locationService
+                        )
+                    )
+                }
+            }
+            .onChange(of: showEditView) { _, isShowing in
+                if !isShowing {
+                    // Refresh entries when edit view closes
+                    Task {
+                        await viewModel.loadEntries()
+                    }
+                }
+            }
         }
     }
 
@@ -54,7 +76,12 @@ struct EntryListView: View {
             ForEach(viewModel.entriesByDate(), id: \.date) { section in
                 Section {
                     ForEach(section.entries) { entry in
-                        EntryRowView(entry: entry)
+                        EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedEntry = entry
+                                showEditView = true
+                            }
                     }
                 } header: {
                     Text(section.date, style: .date)
@@ -68,6 +95,7 @@ struct EntryListView: View {
 // MARK: - Entry Row
 struct EntryRowView: View {
     let entry: Entry
+    let placeCallout: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -78,9 +106,10 @@ struct EntryRowView: View {
                     .foregroundStyle(.secondary)
 
                 if let place = entry.place {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.blue)
+                    Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
+                        .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
+                        .font(.caption)
+                        .imageScale(.small)
                     Text(place)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -135,11 +164,13 @@ struct EntryRowView: View {
         default: return "🌤️"
         }
     }
+
 }
 
 // MARK: - Preview
 #Preview {
     let vaultManager = VaultManager()
-    let viewModel = EntryListViewModel(vaultManager: vaultManager)
+    let locationService = LocationService()
+    let viewModel = EntryListViewModel(vaultManager: vaultManager, locationService: locationService)
     return EntryListView(viewModel: viewModel)
 }

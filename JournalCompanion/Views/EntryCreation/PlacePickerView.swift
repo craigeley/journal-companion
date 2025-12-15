@@ -92,8 +92,8 @@ struct PlaceRow: View {
     var body: some View {
         HStack {
             // Icon
-            Image(systemName: iconName(for: place.callout))
-                .foregroundStyle(colorForCallout(place.callout))
+            Image(systemName: PlaceIcon.systemName(for: place.callout))
+                .foregroundStyle(PlaceIcon.color(for: place.callout))
                 .frame(width: 32)
 
             // Place info
@@ -116,44 +116,6 @@ struct PlaceRow: View {
         }
         .padding(.vertical, 4)
     }
-
-    private func iconName(for callout: String) -> String {
-        switch callout {
-        case "school": return "graduationcap.fill"
-        case "park": return "tree.fill"
-        case "cafe", "restaurant": return "cup.and.saucer.fill"
-        case "grocery": return "cart.fill"
-        case "home", "residence": return "house.fill"
-        case "bar": return "wineglass.fill"
-        case "shop": return "bag.fill"
-        case "medical": return "cross.case.fill"
-        case "airport": return "airplane"
-        case "hotel": return "bed.double.fill"
-        case "library": return "books.vertical.fill"
-        case "zoo": return "pawprint.fill"
-        case "museum": return "building.columns.fill"
-        default: return "mappin.circle.fill"
-        }
-    }
-
-    private func colorForCallout(_ callout: String) -> Color {
-        switch callout {
-        case "school": return .blue
-        case "park": return .green
-        case "cafe", "restaurant": return .orange
-        case "grocery": return .green.opacity(0.8)
-        case "home", "residence": return .purple
-        case "bar": return .red
-        case "shop": return .pink
-        case "medical": return .red
-        case "airport": return .blue
-        case "hotel": return .indigo
-        case "library": return .brown
-        case "zoo": return .orange
-        case "museum": return .gray
-        default: return .blue
-        }
-    }
 }
 
 // MARK: - Place Row With Distance
@@ -163,8 +125,8 @@ struct PlaceRowWithDistance: View {
     var body: some View {
         HStack {
             // Icon
-            Image(systemName: iconName(for: placeWithDistance.place.callout))
-                .foregroundStyle(colorForCallout(placeWithDistance.place.callout))
+            Image(systemName: PlaceIcon.systemName(for: placeWithDistance.place.callout))
+                .foregroundStyle(PlaceIcon.color(for: placeWithDistance.place.callout))
                 .frame(width: 32)
 
             // Place info
@@ -191,44 +153,6 @@ struct PlaceRowWithDistance: View {
                 .clipShape(Capsule())
         }
         .padding(.vertical, 4)
-    }
-
-    private func iconName(for callout: String) -> String {
-        switch callout {
-        case "school": return "graduationcap.fill"
-        case "park": return "tree.fill"
-        case "cafe", "restaurant": return "cup.and.saucer.fill"
-        case "grocery": return "cart.fill"
-        case "home", "residence": return "house.fill"
-        case "bar": return "wineglass.fill"
-        case "shop": return "bag.fill"
-        case "medical": return "cross.case.fill"
-        case "airport": return "airplane"
-        case "hotel": return "bed.double.fill"
-        case "library": return "books.vertical.fill"
-        case "zoo": return "pawprint.fill"
-        case "museum": return "building.columns.fill"
-        default: return "mappin.circle.fill"
-        }
-    }
-
-    private func colorForCallout(_ callout: String) -> Color {
-        switch callout {
-        case "school": return .blue
-        case "park": return .green
-        case "cafe", "restaurant": return .orange
-        case "grocery": return .green.opacity(0.8)
-        case "home", "residence": return .purple
-        case "bar": return .red
-        case "shop": return .pink
-        case "medical": return .red
-        case "airport": return .blue
-        case "hotel": return .indigo
-        case "library": return .brown
-        case "zoo": return .orange
-        case "museum": return .gray
-        default: return .blue
-        }
     }
 }
 

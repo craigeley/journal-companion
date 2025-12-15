@@ -73,7 +73,6 @@ actor EntryReader {
         var dateCreated: Date?
         var tags: [String] = []
         var place: String?
-        let placeCallout: String? = nil  // Not stored in entry files, only used during creation
         var temperature: Int?
         var condition: String?
         var aqi: Int?
@@ -152,7 +151,7 @@ actor EntryReader {
             dateCreated: date,
             tags: tags,
             place: place,
-            placeCallout: placeCallout,
+            placeCallout: nil,  // Will be looked up from Places at display time
             content: bodyContent,
             temperature: temperature,
             condition: condition,

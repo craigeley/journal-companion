@@ -44,10 +44,11 @@ struct PlaceMapPin: View {
         pin: nil,
         color: nil,
         url: nil,
-        aliases: []
+        aliases: [],
+        content: ""
     )
 
-    return HStack(spacing: 20) {
+    HStack(spacing: 20) {
         PlaceMapPin(place: samplePlace, isSelected: false)
         PlaceMapPin(place: samplePlace, isSelected: true)
     }

@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
+    @State private var showPlaceCreation = false
     @State private var showSettings = false
     @State private var selectedTab = 0
     @State private var vaultError: String?
@@ -26,16 +27,25 @@ struct ContentView: View {
                 vaultSetup
             }
 
-            // Floating action button
+            // Floating action button (context-aware)
             if vaultManager.isVaultAccessible {
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
                         Button {
-                            showQuickEntry = true
+                            // Context-aware action based on selected tab
+                            if selectedTab == 0 {
+                                // Entries tab - create entry
+                                showQuickEntry = true
+                            } else {
+                                // Places tab (1) or Map tab (2) - create place
+                                showPlaceCreation = true
+                            }
                         } label: {
-                            Image(systemName: "square.and.pencil")
+                            // Context-aware icon
+                            let iconName = selectedTab == 0 ? "square.and.pencil" : "mappin.circle"
+                            Image(systemName: iconName)
                                 .font(.title2)
                                 .foregroundStyle(.white)
                                 .frame(width: 56, height: 56)
@@ -51,6 +61,10 @@ struct ContentView: View {
         .sheet(isPresented: $showQuickEntry) {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
             QuickEntryView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showPlaceCreation) {
+            let viewModel = PlaceCreationViewModel(vaultManager: vaultManager, locationService: locationService)
+            PlaceCreationView(viewModel: viewModel)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()

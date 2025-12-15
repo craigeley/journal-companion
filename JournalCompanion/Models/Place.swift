@@ -19,6 +19,7 @@ struct Place: Identifiable, Codable, Sendable {
     var color: String?  // RGB format: rgb(72,133,237)
     var url: String?
     var aliases: [String]
+    var content: String  // Body text after YAML frontmatter
 
     var filename: String {
         id + ".md"
@@ -59,7 +60,7 @@ struct Place: Identifiable, Codable, Sendable {
         yaml += "aliases: \(aliases)\n"
         yaml += "---\n\n"
 
-        return yaml
+        return yaml + content
     }
 
     /// Parse Place from markdown file content
@@ -106,6 +107,26 @@ struct Place: Identifiable, Codable, Sendable {
             return []
         }()
 
+        // Extract body content after frontmatter
+        let bodyContent: String = {
+            let lines = content.components(separatedBy: .newlines)
+            guard lines.count > 2, lines[0] == "---" else { return "" }
+
+            // Find closing ---
+            var endIndex = -1
+            for (index, line) in lines.enumerated() where index > 0 {
+                if line == "---" {
+                    endIndex = index
+                    break
+                }
+            }
+
+            guard endIndex > 0, endIndex + 1 < lines.count else { return "" }
+
+            let bodyLines = Array(lines[(endIndex + 1)...])
+            return bodyLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        }()
+
         return Place(
             id: name,
             name: name,
@@ -116,7 +137,8 @@ struct Place: Identifiable, Codable, Sendable {
             pin: frontmatter["pin"] as? String,
             color: frontmatter["color"] as? String,
             url: frontmatter["url"] as? String,
-            aliases: aliases
+            aliases: aliases,
+            content: bodyContent
         )
     }
 

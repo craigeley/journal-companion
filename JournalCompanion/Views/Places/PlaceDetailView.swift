@@ -127,7 +127,8 @@ struct PlaceDetailView: View {
         pin: "mappin.circle.fill",
         color: "orange",
         url: "https://example.com",
-        aliases: ["The Sample", "Sample Coffee Shop"]
+        aliases: ["The Sample", "Sample Coffee Shop"],
+        content: ""
     )
-    return PlaceDetailView(place: samplePlace)
+    PlaceDetailView(place: samplePlace)
 }

@@ -162,7 +162,7 @@ struct PlaceRowWithDistance: View {
         places: [
             Place(id: "test", name: "Test Place", location: nil, address: "123 Main St",
                   tags: ["place", "cafe"], callout: "cafe", pin: nil, color: nil,
-                  url: nil, aliases: [])
+                  url: nil, aliases: [], content: "")
         ],
         currentLocation: nil,
         selectedPlace: .constant(nil)

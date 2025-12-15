@@ -12,7 +12,6 @@ struct MapView: View {
     @StateObject var viewModel: MapViewModel
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedPlace: Place?
-    @State private var showPlaceDetail = false
 
     var body: some View {
         NavigationStack {
@@ -35,10 +34,11 @@ struct MapView: View {
                 await viewModel.loadPlacesIfNeeded()
                 cameraPosition = viewModel.calculateInitialRegion()
             }
-            .sheet(isPresented: $showPlaceDetail) {
-                if let place = selectedPlace {
-                    PlaceDetailView(place: place)
-                }
+            .sheet(item: $selectedPlace) { place in
+                PlaceEditView(viewModel: PlaceEditViewModel(
+                    place: place,
+                    vaultManager: viewModel.vaultManager
+                ))
             }
         }
     }
@@ -54,7 +54,6 @@ struct MapView: View {
                         )
                         .onTapGesture {
                             selectedPlace = place
-                            showPlaceDetail = true
                         }
                     }
                 }

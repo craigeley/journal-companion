@@ -10,7 +10,6 @@ import SwiftUI
 struct PlacesListView: View {
     @StateObject var viewModel: PlacesListViewModel
     @State private var selectedPlace: Place?
-    @State private var showPlaceDetail = false
 
     var body: some View {
         NavigationStack {
@@ -38,10 +37,11 @@ struct PlacesListView: View {
             .refreshable {
                 await viewModel.reloadPlaces()
             }
-            .sheet(isPresented: $showPlaceDetail) {
-                if let place = selectedPlace {
-                    PlaceDetailView(place: place)
-                }
+            .sheet(item: $selectedPlace) { place in
+                PlaceEditView(viewModel: PlaceEditViewModel(
+                    place: place,
+                    vaultManager: viewModel.vaultManager
+                ))
             }
         }
     }
@@ -55,7 +55,6 @@ struct PlacesListView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedPlace = place
-                                showPlaceDetail = true
                             }
                     }
                 } header: {

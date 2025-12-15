@@ -64,6 +64,19 @@ struct MapFilterView: View {
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             }
+        } footer: {
+            HStack(spacing: 16) {
+                Button("Select All") {
+                    viewModel.selectAllCalloutTypes()
+                }
+                .disabled(viewModel.selectedCalloutTypes.count == viewModel.allCalloutTypes.count)
+
+                Button("Deselect All") {
+                    viewModel.deselectAllCalloutTypes()
+                }
+                .disabled(viewModel.selectedCalloutTypes.isEmpty)
+            }
+            .font(.subheadline)
         }
     }
 
@@ -87,6 +100,19 @@ struct MapFilterView: View {
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
             }
+        } footer: {
+            HStack(spacing: 16) {
+                Button("Select All") {
+                    viewModel.selectAllTags()
+                }
+                .disabled(viewModel.selectedTags.count == viewModel.availableTags.count)
+
+                Button("Deselect All") {
+                    viewModel.deselectAllTags()
+                }
+                .disabled(viewModel.selectedTags.isEmpty)
+            }
+            .font(.subheadline)
         }
     }
 

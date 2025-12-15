@@ -176,6 +176,26 @@ class MapViewModel: ObservableObject {
         selectedTags = Set(availableTags)
     }
 
+    /// Select all callout types
+    func selectAllCalloutTypes() {
+        selectedCalloutTypes = Set(allCalloutTypes)
+    }
+
+    /// Deselect all callout types
+    func deselectAllCalloutTypes() {
+        selectedCalloutTypes.removeAll()
+    }
+
+    /// Select all tags
+    func selectAllTags() {
+        selectedTags = Set(availableTags)
+    }
+
+    /// Deselect all tags
+    func deselectAllTags() {
+        selectedTags.removeAll()
+    }
+
     /// Check if any filters are active (not all selected)
     var hasActiveFilters: Bool {
         selectedCalloutTypes.count < allCalloutTypes.count ||

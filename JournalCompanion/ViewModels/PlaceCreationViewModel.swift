@@ -53,9 +53,25 @@ class PlaceCreationViewModel: ObservableObject {
         "service"
     ]
 
-    init(vaultManager: VaultManager, locationService: LocationService) {
+    init(
+        vaultManager: VaultManager,
+        locationService: LocationService,
+        initialLocationName: String? = nil,
+        initialAddress: String? = nil,
+        initialCoordinates: CLLocationCoordinate2D? = nil
+    ) {
         self.vaultManager = vaultManager
         self.locationService = locationService
+
+        // Pre-populate location data if provided
+        self.selectedLocationName = initialLocationName
+        self.selectedAddress = initialAddress
+        self.selectedCoordinates = initialCoordinates
+
+        // Auto-populate place name from location name
+        if let locationName = initialLocationName {
+            self.placeName = locationName
+        }
     }
 
     /// Validation - name is required and must not conflict (pure computed property)

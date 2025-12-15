@@ -36,8 +36,8 @@ struct PlaceCreationView: View {
                         showLocationSearch = true
                     } label: {
                         HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.blue)
+                            Image(systemName: viewModel.selectedLocationName != nil ? "checkmark.circle.fill" : "magnifyingglass")
+                                .foregroundStyle(viewModel.selectedLocationName != nil ? .green : .blue)
                             if let locationName = viewModel.selectedLocationName {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(locationName)
@@ -53,6 +53,9 @@ struct PlaceCreationView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
+                            Text(viewModel.selectedLocationName != nil ? "Change" : "")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
                             Image(systemName: "chevron.right")
                                 .foregroundStyle(.tertiary)
                                 .font(.caption)
@@ -118,7 +121,10 @@ struct PlaceCreationView: View {
                 }
             }
             .onAppear {
-                isNameFieldFocused = true
+                // Only auto-focus name field if it's empty (not pre-populated)
+                if viewModel.placeName.isEmpty {
+                    isNameFieldFocused = true
+                }
             }
             .onChange(of: viewModel.placeName) { _, _ in
                 viewModel.validateName()

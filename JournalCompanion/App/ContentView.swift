@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct ContentView: View {
     @EnvironmentObject var vaultManager: VaultManager
@@ -13,6 +14,10 @@ struct ContentView: View {
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
     @State private var showPlaceCreation = false
+    @State private var showLocationSearchForNewPlace = false
+    @State private var pendingLocationName: String?
+    @State private var pendingAddress: String?
+    @State private var pendingCoordinates: CLLocationCoordinate2D?
     @State private var showSettings = false
     @State private var selectedTab = 0
     @State private var vaultError: String?
@@ -39,8 +44,8 @@ struct ContentView: View {
                                 // Entries tab - create entry
                                 showQuickEntry = true
                             } else {
-                                // Places tab (1) or Map tab (2) - create place
-                                showPlaceCreation = true
+                                // Places tab (1) or Map tab (2) - start with location search
+                                showLocationSearchForNewPlace = true
                             }
                         } label: {
                             // Context-aware icon
@@ -62,8 +67,36 @@ struct ContentView: View {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
             QuickEntryView(viewModel: viewModel)
         }
-        .sheet(isPresented: $showPlaceCreation) {
-            let viewModel = PlaceCreationViewModel(vaultManager: vaultManager, locationService: locationService)
+        .sheet(isPresented: $showLocationSearchForNewPlace) {
+            LocationSearchView(
+                selectedLocationName: $pendingLocationName,
+                selectedAddress: $pendingAddress,
+                selectedCoordinates: $pendingCoordinates
+            )
+        }
+        .onChange(of: showLocationSearchForNewPlace) { oldValue, newValue in
+            // When location search dismisses
+            if !newValue {
+                // If location was selected, show creation form
+                if pendingLocationName != nil {
+                    showPlaceCreation = true
+                }
+                // If cancelled without selection, flow ends
+            }
+        }
+        .sheet(isPresented: $showPlaceCreation, onDismiss: {
+            // Clear pending location data
+            pendingLocationName = nil
+            pendingAddress = nil
+            pendingCoordinates = nil
+        }) {
+            let viewModel = PlaceCreationViewModel(
+                vaultManager: vaultManager,
+                locationService: locationService,
+                initialLocationName: pendingLocationName,
+                initialAddress: pendingAddress,
+                initialCoordinates: pendingCoordinates
+            )
             PlaceCreationView(viewModel: viewModel)
         }
         .sheet(isPresented: $showSettings) {

@@ -16,11 +16,28 @@ class MapViewModel: ObservableObject {
     @Published var placesWithCoordinates: [Place] = []
     @Published var isLoading = false
 
+    // Filter state
+    @Published var filteredPlaces: [Place] = []
+    @Published var selectedCalloutTypes: Set<String> = []
+    @Published var selectedTags: Set<String> = []
+    @Published var availableTags: [String] = []
+
     let vaultManager: VaultManager
     private var cancellables = Set<AnyCancellable>()
 
+    // All available callout types
+    let allCalloutTypes: [String] = [
+        "place", "cafe", "restaurant", "park", "school", "home",
+        "shop", "grocery", "bar", "medical", "airport", "hotel",
+        "library", "zoo", "museum", "workout", "concert", "movie",
+        "entertainment", "service"
+    ]
+
     init(vaultManager: VaultManager) {
         self.vaultManager = vaultManager
+
+        // Initialize filters to "all selected" (show everything)
+        self.selectedCalloutTypes = Set(allCalloutTypes)
 
         // Filter places with valid coordinates
         vaultManager.$places
@@ -30,7 +47,19 @@ class MapViewModel: ObservableObject {
                     return CLLocationCoordinate2DIsValid(location)
                 }
             }
-            .assign(to: &$placesWithCoordinates)
+            .sink { [weak self] places in
+                self?.placesWithCoordinates = places
+                self?.updateAvailableTags()
+                self?.applyFilters()
+            }
+            .store(in: &cancellables)
+
+        // React to filter changes
+        Publishers.CombineLatest($selectedCalloutTypes, $selectedTags)
+            .sink { [weak self] _, _ in
+                self?.applyFilters()
+            }
+            .store(in: &cancellables)
 
         vaultManager.$isLoadingPlaces
             .assign(to: &$isLoading)
@@ -47,7 +76,7 @@ class MapViewModel: ObservableObject {
     }
 
     func calculateInitialRegion() -> MapCameraPosition {
-        let coordinates = placesWithCoordinates.compactMap { $0.location }
+        let coordinates = filteredPlaces.compactMap { $0.location }
 
         guard !coordinates.isEmpty else {
             // Default fallback region
@@ -84,5 +113,72 @@ class MapViewModel: ObservableObject {
             center: center,
             span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
         ))
+    }
+
+    // MARK: - Filtering
+
+    /// Extract unique tags from current places with coordinates
+    private func updateAvailableTags() {
+        let allTags = placesWithCoordinates.flatMap { $0.tags }
+        let uniqueTags = Set(allTags)
+            .filter { !$0.isEmpty && $0 != "place" }
+            .sorted()
+
+        availableTags = uniqueTags
+
+        // Initialize tag selection to all available tags
+        if selectedTags.isEmpty && !uniqueTags.isEmpty {
+            selectedTags = Set(uniqueTags)
+        }
+    }
+
+    /// Apply callout and tag filters to places
+    private func applyFilters() {
+        filteredPlaces = placesWithCoordinates.filter { place in
+            // Filter by callout type
+            let matchesCallout = selectedCalloutTypes.contains(place.callout)
+
+            // Filter by tags (ANY matching - place needs at least one selected tag)
+            let matchesTags: Bool = {
+                // If no tags are selected or available, show all places
+                if selectedTags.isEmpty || availableTags.isEmpty {
+                    return true
+                }
+                // Place must have at least one tag that's selected
+                return place.tags.contains { selectedTags.contains($0) }
+            }()
+
+            return matchesCallout && matchesTags
+        }
+    }
+
+    /// Toggle a callout type selection
+    func toggleCalloutType(_ callout: String) {
+        if selectedCalloutTypes.contains(callout) {
+            selectedCalloutTypes.remove(callout)
+        } else {
+            selectedCalloutTypes.insert(callout)
+        }
+    }
+
+    /// Toggle a tag selection
+    func toggleTag(_ tag: String) {
+        if selectedTags.contains(tag) {
+            selectedTags.remove(tag)
+        } else {
+            selectedTags.insert(tag)
+        }
+    }
+
+    /// Reset all filters to default (all selected)
+    func resetFilters() {
+        selectedCalloutTypes = Set(allCalloutTypes)
+        selectedTags = Set(availableTags)
+    }
+
+    /// Check if any filters are active (not all selected)
+    var hasActiveFilters: Bool {
+        selectedCalloutTypes.count < allCalloutTypes.count ||
+        (!availableTags.isEmpty && selectedTags.count < availableTags.count)
     }
 }

@@ -97,6 +97,25 @@ actor EntryWriter {
         print("✓ Migrated entry from \(oldEntry.filename) to \(newEntry.filename)")
     }
 
+    /// Delete an entry
+    func delete(entry: Entry) async throws {
+        let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
+        let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
+
+        // Check that the file exists
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            throw EntryError.fileNotFound(entry.filename)
+        }
+
+        // Remove from day file first
+        try await removeFromDayFile(entry: entry)
+
+        // Delete the entry file
+        try fileManager.removeItem(at: fileURL)
+
+        print("✓ Deleted entry: \(entry.filename).md")
+    }
+
     /// Add entry callout to day file
     private func addToDayFile(entry: Entry) async throws {
         let calendar = Calendar.current

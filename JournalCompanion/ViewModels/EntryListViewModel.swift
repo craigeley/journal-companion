@@ -105,4 +105,20 @@ class EntryListViewModel: ObservableObject {
         guard let placeName = placeName else { return nil }
         return places.first { $0.name == placeName }?.callout
     }
+
+    /// Delete an entry
+    func deleteEntry(_ entry: Entry) async throws {
+        guard let vaultURL = vaultManager.vaultURL else {
+            throw NSError(domain: "EntryListViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "No vault configured"])
+        }
+
+        let writer = EntryWriter(vaultURL: vaultURL)
+        try await writer.delete(entry: entry)
+
+        // Remove from local arrays
+        entries.removeAll { $0.id == entry.id }
+        filteredEntries.removeAll { $0.id == entry.id }
+
+        print("✓ Deleted entry from list")
+    }
 }

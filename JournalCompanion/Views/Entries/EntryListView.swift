@@ -12,6 +12,8 @@ struct EntryListView: View {
 
     @State private var selectedEntry: Entry?
     @State private var showEditView = false
+    @State private var entryToDelete: Entry?
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -60,6 +62,22 @@ struct EntryListView: View {
                     }
                 }
             }
+            .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    if let entry = entryToDelete {
+                        Task {
+                            do {
+                                try await viewModel.deleteEntry(entry)
+                            } catch {
+                                print("❌ Failed to delete entry: \(error)")
+                            }
+                        }
+                    }
+                }
+            } message: {
+                Text("This will permanently delete the entry and cannot be undone.")
+            }
         }
     }
 
@@ -73,6 +91,14 @@ struct EntryListView: View {
                             .onTapGesture {
                                 selectedEntry = entry
                                 showEditView = true
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    entryToDelete = entry
+                                    showDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                     }
                 } header: {

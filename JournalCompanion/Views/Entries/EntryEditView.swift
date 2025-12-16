@@ -164,6 +164,7 @@ struct EntryEditView: View {
             .sheet(isPresented: $showPlaceDetails) {
                 if let place = viewModel.selectedPlace {
                     PlaceDetailView(place: place)
+                        .environmentObject(viewModel.vaultManager)
                 }
             }
             .task {

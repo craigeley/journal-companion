@@ -13,6 +13,7 @@ struct WikiText: View {
     let lineLimit: Int?
     let font: Font
 
+    @EnvironmentObject var vaultManager: VaultManager
     @State private var selectedPlace: Place?
 
     init(
@@ -37,6 +38,7 @@ struct WikiText: View {
             })
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
+                    .environmentObject(vaultManager)
             }
     }
 

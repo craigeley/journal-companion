@@ -11,6 +11,12 @@ import CoreLocation
 struct PlaceDetailView: View {
     let place: Place
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var vaultManager: VaultManager
+
+    @State private var recentEntries: [Entry] = []
+    @State private var isLoadingEntries = false
+    @State private var selectedEntry: Entry?
+    @State private var showEditView = false
 
     var body: some View {
         NavigationStack {
@@ -92,13 +98,42 @@ struct PlaceDetailView: View {
                     }
                 }
 
-                // Metadata
-                Section("Details") {
-                    if let pin = place.pin {
-                        LabeledContent("Pin", value: pin)
-                    }
-                    if let color = place.color {
-                        LabeledContent("Color", value: color)
+                // Recent Entries
+                Section("Recent Entries") {
+                    if isLoadingEntries {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else if recentEntries.isEmpty {
+                        Text("No entries yet")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(recentEntries) { entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(entry.dateCreated, style: .date)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text("•")
+                                        .foregroundStyle(.secondary)
+                                    Text(entry.dateCreated, style: .time)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                WikiText(
+                                    text: entry.content,
+                                    places: vaultManager.places,
+                                    lineLimit: 2,
+                                    font: .body
+                                )
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedEntry = entry
+                                showEditView = true
+                            }
+                        }
                     }
                 }
             }
@@ -111,6 +146,49 @@ struct PlaceDetailView: View {
                     }
                 }
             }
+            .task {
+                await loadRecentEntries()
+            }
+            .sheet(isPresented: $showEditView) {
+                if let entry = selectedEntry {
+                    EntryEditView(
+                        viewModel: EntryEditViewModel(
+                            entry: entry,
+                            vaultManager: vaultManager,
+                            locationService: LocationService()
+                        )
+                    )
+                }
+            }
+            .onChange(of: showEditView) { _, isShowing in
+                if !isShowing {
+                    // Reload entries when edit view closes
+                    Task {
+                        await loadRecentEntries()
+                    }
+                }
+            }
+        }
+    }
+
+    private func loadRecentEntries() async {
+        isLoadingEntries = true
+        defer { isLoadingEntries = false }
+
+        guard let vaultURL = vaultManager.vaultURL else { return }
+
+        do {
+            let reader = EntryReader(vaultURL: vaultURL)
+            let allEntries = try await reader.loadEntries(limit: 100)
+
+            // Filter entries that reference this place
+            let placeEntries = allEntries.filter { $0.place == place.name }
+
+            // Take 5 most recent (already sorted newest first)
+            recentEntries = Array(placeEntries.prefix(5))
+        } catch {
+            print("❌ Failed to load entries for place: \(error)")
+            recentEntries = []
         }
     }
 }

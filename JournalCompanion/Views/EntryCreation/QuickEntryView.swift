@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import JournalingSuggestions
 
 struct QuickEntryView: View {
     @StateObject var viewModel: QuickEntryViewModel
@@ -37,6 +38,28 @@ struct QuickEntryView: View {
                                 .font(.caption)
                         }
                     }
+                }
+
+                // Suggestions Section
+                Section {
+                    Button {
+                        viewModel.requestJournalingSuggestions()
+                    } label: {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.purple)
+                            Text("Get Suggestions")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                        }
+                    }
+                } footer: {
+                    Text("See AI-powered suggestions from your day: photos, workouts, places, and more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Entry Section
@@ -151,6 +174,15 @@ struct QuickEntryView: View {
                     selectedPlace: $viewModel.selectedPlace
                 )
             }
+            .journalingSuggestionsPicker(
+                isPresented: $viewModel.showSuggestionsPicker,
+                onCompletion: { suggestion in
+                    // User selected a suggestion
+                    Task {
+                        await viewModel.handleSuggestion(suggestion)
+                    }
+                }
+            )
         }
     }
 }

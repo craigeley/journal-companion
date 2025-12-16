@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B6FF4B2C2EF060190004FE81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		B6FF4B1E2EF060180004FE81 /* JournalCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JournalCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6FF4B2B2EF060190004FE81 /* JournalCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6FF4B352EF060190004FE81 /* JournalCompanionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalCompanionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JournalingSuggestions.framework; path = System/Library/Frameworks/JournalingSuggestions.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -65,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +97,7 @@
 				B6FF4B202EF060180004FE81 /* JournalCompanion */,
 				B6FF4B2E2EF060190004FE81 /* JournalCompanionTests */,
 				B6FF4B382EF060190004FE81 /* JournalCompanionUITests */,
+				B6FF4C402EF107AB0004FE81 /* Frameworks */,
 				B6FF4B1F2EF060180004FE81 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -103,6 +110,14 @@
 				B6FF4B352EF060190004FE81 /* JournalCompanionUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B6FF4C402EF107AB0004FE81 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

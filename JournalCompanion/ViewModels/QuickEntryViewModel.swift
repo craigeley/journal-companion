@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import Combine
+import JournalingSuggestions
 
 @MainActor
 class QuickEntryViewModel: ObservableObject {
@@ -21,6 +22,8 @@ class QuickEntryViewModel: ObservableObject {
     @Published var currentLocation: CLLocation?
     @Published var weatherData: WeatherData?
     @Published var isFetchingWeather: Bool = false
+    @Published var showSuggestionsPicker: Bool = false
+    @Published var selectedSuggestion: JournalingSuggestion?
 
     let vaultManager: VaultManager
     private let locationService: LocationService
@@ -125,5 +128,56 @@ class QuickEntryViewModel: ObservableObject {
     /// Remove a tag
     func removeTag(_ tag: String) {
         tags.removeAll { $0 == tag }
+    }
+
+    /// Request journaling suggestions from iOS
+    func requestJournalingSuggestions() {
+        showSuggestionsPicker = true
+    }
+
+    /// Handle a selected journaling suggestion
+    func handleSuggestion(_ suggestion: JournalingSuggestion) async {
+        selectedSuggestion = suggestion
+
+        // Extract location from suggestion if available
+        let locations = await suggestion.content(forType: JournalingSuggestion.Location.self)
+        if let firstLocation = locations.first,
+           let location = firstLocation.location,
+           let locationDate = firstLocation.date {
+
+            // Set timestamp to when the suggestion occurred
+            timestamp = locationDate
+
+            // Try to match against existing places
+            if let matchedPlace = findMatchingPlace(for: location) {
+                selectedPlace = matchedPlace
+            }
+
+            // Fetch weather for suggestion location and date
+            currentLocation = location
+            await fetchWeather(for: location)
+        }
+
+        // Pre-populate entry text with suggestion title
+        let suggestedText = suggestion.title
+        if !suggestedText.isEmpty {
+            entryText = suggestedText + "\n\n"
+        }
+    }
+
+    /// Find a matching Place based on location proximity
+    private func findMatchingPlace(for location: CLLocation) -> Place? {
+        // Search for places within 100 meters
+        vaultManager.places.first { place in
+            guard let placeLocation = place.location else { return false }
+
+            let placeCoordinate = CLLocation(
+                latitude: placeLocation.latitude,
+                longitude: placeLocation.longitude
+            )
+
+            let distance = location.distance(from: placeCoordinate)
+            return distance <= 100 // Within 100 meters
+        }
     }
 }

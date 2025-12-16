@@ -30,39 +30,60 @@ struct WeatherData: Sendable {
 }
 
 actor WeatherService {
-    /// Fetch current weather for a location
-    func fetchWeather(for location: CLLocation) async throws -> WeatherData {
-        // Get current weather from WeatherKit
+    /// Fetch weather for a location at a specific date/time
+    func fetchWeather(for location: CLLocation, date: Date = Date()) async throws -> WeatherData {
         let service = WeatherKit.WeatherService.shared
-        let weather = try await service.weather(for: location)
 
-        let currentWeather = weather.currentWeather
+        // Determine if we need historical or current weather
+        let now = Date()
+        let timeDifference = now.timeIntervalSince(date)
 
-        // Convert temperature to Fahrenheit and round
-        let tempF = Int(currentWeather.temperature.converted(to: .fahrenheit).value.rounded())
+        // If date is within 1 hour of now, use current weather
+        // Otherwise, try to get hourly historical weather
+        if abs(timeDifference) < 3600 {
+            // Use current weather
+            let weather = try await service.weather(for: location)
+            let currentWeather = weather.currentWeather
 
-        // Get condition description
-        let condition = currentWeather.condition.description
+            let tempF = Int(currentWeather.temperature.converted(to: .fahrenheit).value.rounded())
+            let condition = currentWeather.condition.description
+            let humidity = Int((currentWeather.humidity * 100).rounded())
 
-        // Get humidity percentage
-        let humidity = Int((currentWeather.humidity * 100).rounded())
+            return WeatherData(
+                temperature: tempF,
+                condition: condition,
+                humidity: humidity,
+                aqi: nil
+            )
+        } else {
+            // Try to get historical hourly weather
+            // WeatherKit provides hourly forecasts and historical data
+            let hourlyWeather = try await service.weather(
+                for: location,
+                including: .hourly(startDate: date, endDate: date.addingTimeInterval(3600))
+            )
 
-        // Note: WeatherKit doesn't directly expose AQI in a simple way
-        // Air quality data requires additional API calls and is region-dependent
-        // Setting to nil for now - can be enhanced later
-        let aqi: Int? = nil
+            // Get the first hour's weather (closest to requested time)
+            guard let weatherHour = hourlyWeather.first else {
+                throw NSError(domain: "WeatherService", code: 404, userInfo: [NSLocalizedDescriptionKey: "No weather data available for this time"])
+            }
 
-        return WeatherData(
-            temperature: tempF,
-            condition: condition,
-            humidity: humidity,
-            aqi: aqi
-        )
+            let tempF = Int(weatherHour.temperature.converted(to: .fahrenheit).value.rounded())
+            let condition = weatherHour.condition.description
+            let humidity = Int((weatherHour.humidity * 100).rounded())
+
+            return WeatherData(
+                temperature: tempF,
+                condition: condition,
+                humidity: humidity,
+                aqi: nil
+            )
+        }
     }
 
     /// Fetch weather for coordinates
-    func fetchWeather(latitude: Double, longitude: Double) async throws -> WeatherData {
+    func fetchWeather(latitude: Double, longitude: Double, date: Date = Date()) async throws -> WeatherData {
         let location = CLLocation(latitude: latitude, longitude: longitude)
-        return try await fetchWeather(for: location)
+        return try await fetchWeather(for: location, date: date)
     }
 }

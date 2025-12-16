@@ -71,7 +71,7 @@ struct QuickEntryView: View {
 
                 // Weather Section
                 if let weather = viewModel.weatherData {
-                    Section("Weather") {
+                    Section {
                         HStack {
                             Text(weather.conditionEmoji)
                                 .font(.title)
@@ -93,6 +93,30 @@ struct QuickEntryView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
+                        }
+
+                        // Show refresh button if weather is stale
+                        if viewModel.weatherIsStale {
+                            Button {
+                                Task {
+                                    await viewModel.refreshWeather()
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Refresh Weather")
+                                    Spacer()
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                        }
+                    } header: {
+                        Text("Weather")
+                    } footer: {
+                        if viewModel.weatherIsStale {
+                            Text("Date or location changed. Tap to refresh weather.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
                         }
                     }
                 } else if viewModel.isFetchingWeather {

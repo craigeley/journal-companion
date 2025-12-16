@@ -25,6 +25,11 @@ class QuickEntryViewModel: ObservableObject {
     @Published var showSuggestionsPicker: Bool = false
     @Published var selectedSuggestion: JournalingSuggestion?
 
+    // Track initial values to detect when weather becomes stale
+    private var initialTimestamp: Date?
+    private var initialLocation: CLLocation?
+    private var weatherFetchedAt: Date?
+
     let vaultManager: VaultManager
     private let locationService: LocationService
     private let weatherService = WeatherService()
@@ -51,8 +56,18 @@ class QuickEntryViewModel: ObservableObject {
         defer { isFetchingWeather = false }
 
         do {
-            let weather = try await weatherService.fetchWeather(for: location)
+            let weather = try await weatherService.fetchWeather(for: location, date: timestamp)
             weatherData = weather
+            weatherFetchedAt = Date()
+
+            // Track initial values for staleness detection
+            if initialTimestamp == nil {
+                initialTimestamp = timestamp
+            }
+            if initialLocation == nil {
+                initialLocation = location
+            }
+
             print("✓ Fetched weather: \(weather.temperature)°F, \(weather.condition)")
         } catch {
             print("❌ Failed to fetch weather: \(error)")
@@ -60,8 +75,39 @@ class QuickEntryViewModel: ObservableObject {
         }
     }
 
+    /// Refresh weather data (updates initial tracking values)
+    func refreshWeather() async {
+        guard let location = currentLocation else { return }
+
+        // Reset tracking to current values
+        initialTimestamp = timestamp
+        initialLocation = location
+
+        // Fetch fresh weather
+        await fetchWeather(for: location)
+    }
+
     var isValid: Bool {
         !entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Check if weather data is stale (timestamp or location changed significantly)
+    var weatherIsStale: Bool {
+        guard weatherData != nil else { return false }
+        guard let initialTimestamp, let initialLocation else { return false }
+
+        // Check if timestamp changed by more than 15 minutes
+        let timeDiff = abs(timestamp.timeIntervalSince(initialTimestamp))
+        let timestampChanged = timeDiff > 15 * 60 // 15 minutes
+
+        // Check if location changed by more than 100 meters
+        var locationChanged = false
+        if let currentLocation {
+            let distance = currentLocation.distance(from: initialLocation)
+            locationChanged = distance > 100 // 100 meters
+        }
+
+        return timestampChanged || locationChanged
     }
 
     /// Create and save entry
@@ -116,6 +162,10 @@ class QuickEntryViewModel: ObservableObject {
         selectedPlace = nil
         timestamp = Date()
         tags = ["entry", "iPhone"]
+        weatherData = nil
+        initialTimestamp = nil
+        initialLocation = nil
+        weatherFetchedAt = nil
     }
 
     /// Add a tag if not already present

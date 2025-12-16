@@ -58,7 +58,8 @@ struct ContentView: View {
                                 .clipShape(Circle())
                                 .shadow(radius: 4)
                         }
-                        .padding()
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 70) // Extra padding to float above tab bar
                     }
                 }
             }

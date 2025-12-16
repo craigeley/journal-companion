@@ -431,6 +431,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JournalCompanion/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "This app can create person records that connect to your contacts so you can add people to your visits and entries. All information stays on your device.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Journal Companion tracks your visits to automatically suggest logging them. Location is only used when you visit places, and all data stays private in your Obsidian vault.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Journal Companion needs your location to suggest nearby places when creating entries.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -469,6 +471,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JournalCompanion/Info.plist;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSContactsUsageDescription = "This app can create person records that connect to your contacts so you can add people to your visits and entries. All information stays on your device.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Journal Companion tracks your visits to automatically suggest logging them. Location is only used when you visit places, and all data stays private in your Obsidian vault.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Journal Companion needs your location to suggest nearby places when creating entries.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

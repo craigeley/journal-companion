@@ -13,6 +13,8 @@ class VaultManager: ObservableObject {
     @Published var isVaultAccessible = false
     @Published var places: [Place] = []
     @Published var isLoadingPlaces = false
+    @Published var people: [Person] = []
+    @Published var isLoadingPeople = false
 
     private let userDefaults = UserDefaults.standard
     private static let vaultBookmarkKey = "vaultSecurityBookmark"
@@ -24,6 +26,7 @@ class VaultManager: ObservableObject {
             do {
                 _ = try await restoreVault()
                 _ = try await loadPlaces()
+                _ = try await loadPeople()
             } catch {
                 // No saved vault or failed to restore - user will need to select one
                 print("No saved vault found")
@@ -165,6 +168,27 @@ class VaultManager: ObservableObject {
         return places
     }
 
+    /// Load all people from the vault
+    func loadPeople() async throws -> [Person] {
+        guard let vaultURL = vaultURL else {
+            throw VaultError.noVault
+        }
+
+        await MainActor.run {
+            self.isLoadingPeople = true
+        }
+
+        let reader = PersonReader(vaultURL: vaultURL)
+        let people = try await reader.loadPeople()
+
+        await MainActor.run {
+            self.people = people
+            self.isLoadingPeople = false
+        }
+
+        return people
+    }
+
     /// Get URL for a specific directory in the vault
     func getDirectoryURL(_ path: String) -> URL? {
         guard let vaultURL = vaultURL else { return nil }
@@ -178,6 +202,7 @@ class VaultManager: ObservableObject {
         vaultURL = nil
         isVaultAccessible = false
         places = []
+        people = []
     }
 }
 

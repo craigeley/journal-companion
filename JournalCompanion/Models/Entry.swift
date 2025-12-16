@@ -12,6 +12,7 @@ struct Entry: Identifiable, Codable, Sendable {
     var dateCreated: Date
     var tags: [String]
     var place: String?  // Place name (without brackets)
+    var people: [String]  // Array of person names (without brackets)
     var placeCallout: String?  // Place callout type (e.g., "cafe", "park", "home")
     var content: String
 
@@ -72,6 +73,14 @@ struct Entry: Identifiable, Codable, Sendable {
             yaml += "place: \"[[\(place)]]\"\n"
         }
 
+        // People as YAML array of wikilinks
+        if !people.isEmpty {
+            yaml += "people:\n"
+            for person in people {
+                yaml += "  - \"[[\(person)]]\"\n"
+            }
+        }
+
         // Weather data (optional)
         if let temp = temperature {
             yaml += "temp: \(temp)\n"
@@ -92,12 +101,13 @@ struct Entry: Identifiable, Codable, Sendable {
     }
 
     /// Create a new entry with current timestamp
-    static func create(content: String, place: String? = nil, tags: [String] = ["entry", "iPhone"]) -> Entry {
+    static func create(content: String, place: String? = nil, people: [String] = [], tags: [String] = ["entry", "iPhone"]) -> Entry {
         Entry(
             id: UUID().uuidString,
             dateCreated: Date(),
             tags: tags,
             place: place,
+            people: people,
             content: content
         )
     }

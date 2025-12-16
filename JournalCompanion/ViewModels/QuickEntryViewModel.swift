@@ -127,6 +127,7 @@ class QuickEntryViewModel: ObservableObject {
                 dateCreated: timestamp,
                 tags: tags,
                 place: selectedPlace?.name,
+                people: [],  // TODO: Will be populated in Phase 4
                 placeCallout: selectedPlace?.callout,
                 content: entryText
             )

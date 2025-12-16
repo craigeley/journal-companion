@@ -85,6 +85,7 @@ class EntryEditViewModel: ObservableObject {
             dateCreated: timestamp,
             tags: tags,
             place: selectedPlace?.name,
+            people: originalEntry.people,  // Preserve existing people (will be editable in Phase 7)
             placeCallout: selectedPlace?.callout,
             content: entryText,
             temperature: temperature,

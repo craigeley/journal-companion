@@ -73,6 +73,7 @@ actor EntryReader {
         var dateCreated: Date?
         var tags: [String] = []
         var place: String?
+        var people: [String] = []
         var temperature: Int?
         var condition: String?
         var aqi: Int?
@@ -80,6 +81,7 @@ actor EntryReader {
 
         let lines = frontmatter.components(separatedBy: .newlines)
         var inTags = false
+        var inPeople = false
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -114,27 +116,50 @@ actor EntryReader {
                 tags.append(tag)
             } else if trimmed.hasPrefix("place:") {
                 inTags = false
+                inPeople = false
                 let placeString = trimmed.replacingOccurrences(of: "place:", with: "").trimmingCharacters(in: .whitespaces)
                 // Extract place name from wikilink [[Name]]
                 place = placeString.replacingOccurrences(of: "\"[[", with: "")
                     .replacingOccurrences(of: "]]\"", with: "")
+            } else if trimmed.hasPrefix("people:") {
+                inTags = false
+                inPeople = true
+                let peopleString = trimmed.replacingOccurrences(of: "people:", with: "").trimmingCharacters(in: .whitespaces)
+
+                // Check if inline format: people: [[[Name1]], [[Name2]]]
+                if !peopleString.isEmpty {
+                    // For inline, we would need to parse multiple wikilinks
+                    // But our YAML format uses multi-line array, so this should be empty
+                    inPeople = true
+                }
+            } else if inPeople && trimmed.hasPrefix("- ") {
+                // Extract person name from wikilink: - "[[Name]]"
+                let value = trimmed.replacingOccurrences(of: "- ", with: "")
+                    .replacingOccurrences(of: "\"[[", with: "")
+                    .replacingOccurrences(of: "]]\"", with: "")
+                people.append(value)
             } else if trimmed.hasPrefix("temp:") {
+                inPeople = false
                 inTags = false
                 let tempString = trimmed.replacingOccurrences(of: "temp:", with: "").trimmingCharacters(in: .whitespaces)
                 temperature = Int(tempString)
             } else if trimmed.hasPrefix("cond:") {
                 inTags = false
+                inPeople = false
                 condition = trimmed.replacingOccurrences(of: "cond:", with: "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("humidity:") {
                 inTags = false
+                inPeople = false
                 let humidityString = trimmed.replacingOccurrences(of: "humidity:", with: "").trimmingCharacters(in: .whitespaces)
                 humidity = Int(humidityString)
             } else if trimmed.hasPrefix("aqi:") {
                 inTags = false
+                inPeople = false
                 let aqiString = trimmed.replacingOccurrences(of: "aqi:", with: "").trimmingCharacters(in: .whitespaces)
                 aqi = Int(aqiString)
             } else if !trimmed.isEmpty && !trimmed.hasPrefix("-") {
                 inTags = false
+                inPeople = false
             }
         }
 
@@ -151,6 +176,7 @@ actor EntryReader {
             dateCreated: date,
             tags: tags,
             place: place,
+            people: people,
             placeCallout: nil,  // Will be looked up from Places at display time
             content: bodyContent,
             temperature: temperature,

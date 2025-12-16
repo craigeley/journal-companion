@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
+    @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
     @State private var showLocationSearchForNewPlace = false
     @State private var pendingLocationName: String?
@@ -43,14 +44,18 @@ struct ContentView: View {
                             if selectedTab == 0 {
                                 // Entries tab - create entry
                                 showQuickEntry = true
+                            } else if selectedTab == 1 {
+                                // People tab - create person
+                                showPersonCreation = true
                             } else {
-                                // Places tab (1) or Map tab (2) - start with location search
+                                // Places tab (2) or Map tab (3) - start with location search
                                 showLocationSearchForNewPlace = true
                             }
                         } label: {
-                            // Context-aware icon
-                            let iconName = selectedTab == 0 ? "square.and.pencil" : "mappin.circle"
-                            Image(systemName: iconName)
+                            // Context-aware icon based on selected tab
+                            Image(systemName: selectedTab == 0 ? "square.and.pencil" :
+                                               selectedTab == 1 ? "person.crop.circle.badge.plus" :
+                                               "mappin.circle")
                                 .font(.title2)
                                 .foregroundStyle(.white)
                                 .frame(width: 56, height: 56)
@@ -67,6 +72,10 @@ struct ContentView: View {
         .sheet(isPresented: $showQuickEntry) {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
             QuickEntryView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showPersonCreation) {
+            let viewModel = PersonCreationViewModel(vaultManager: vaultManager)
+            PersonCreationView(viewModel: viewModel)
         }
         .sheet(isPresented: $showLocationSearchForNewPlace) {
             LocationSearchView(
@@ -116,17 +125,23 @@ struct ContentView: View {
                 }
                 .tag(0)
 
+            peopleTab
+                .tabItem {
+                    Label("People", systemImage: "person.2")
+                }
+                .tag(1)
+
             placesTab
                 .tabItem {
                     Label("Places", systemImage: "mappin.circle")
                 }
-                .tag(1)
+                .tag(2)
 
             mapTab
                 .tabItem {
                     Label("Map", systemImage: "map")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
 
@@ -136,6 +151,20 @@ struct ContentView: View {
             locationService: locationService
         )
         return EntryListView(viewModel: viewModel)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
+    }
+
+    private var peopleTab: some View {
+        let viewModel = PeopleListViewModel(vaultManager: vaultManager)
+        return PeopleListView(viewModel: viewModel)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {

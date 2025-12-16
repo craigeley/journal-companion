@@ -12,6 +12,7 @@ struct EntryEditView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var showPlacePicker = false
+    @State private var showPlaceDetails = false
 
     var body: some View {
         NavigationStack {
@@ -27,10 +28,20 @@ struct EntryEditView: View {
                 Section("Location") {
                     if let place = viewModel.selectedPlace {
                         HStack {
-                            Image(systemName: PlaceIcon.systemName(for: place.callout))
-                                .foregroundStyle(PlaceIcon.color(for: place.callout))
-                            Text(place.name)
+                            // Tappable area for place name/icon
+                            HStack {
+                                Image(systemName: PlaceIcon.systemName(for: place.callout))
+                                    .foregroundStyle(PlaceIcon.color(for: place.callout))
+                                Text(place.name)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                showPlaceDetails = true
+                            }
+
                             Spacer()
+
+                            // Keep existing "Change" button
                             Button("Change") {
                                 showPlacePicker = true
                             }
@@ -149,6 +160,11 @@ struct EntryEditView: View {
                     currentLocation: viewModel.currentLocation,
                     selectedPlace: $viewModel.selectedPlace
                 )
+            }
+            .sheet(isPresented: $showPlaceDetails) {
+                if let place = viewModel.selectedPlace {
+                    PlaceDetailView(place: place)
+                }
             }
             .task {
                 await viewModel.detectCurrentLocation()

@@ -13,6 +13,8 @@ struct QuickEntryView: View {
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
     @State private var showPlacePicker = false
+    @State private var showPersonPicker = false
+    @State private var selectedPersonForDetail: Person?
 
     var body: some View {
         NavigationStack {
@@ -36,6 +38,47 @@ struct QuickEntryView: View {
                             Image(systemName: "chevron.right")
                                 .foregroundStyle(.tertiary)
                                 .font(.caption)
+                        }
+                    }
+                }
+
+                // People Section
+                Section("People") {
+                    Button {
+                        showPersonPicker = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "person.2.fill")
+                                .foregroundStyle(.purple)
+                            if viewModel.selectedPeople.isEmpty {
+                                Text("Select People")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(viewModel.selectedPeople.count) selected")
+                                    .foregroundStyle(.primary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                        }
+                    }
+
+                    // People chips (if any selected)
+                    if !viewModel.selectedPeople.isEmpty {
+                        FlowLayout(spacing: 8) {
+                            ForEach(viewModel.selectedPeople, id: \.self) { personName in
+                                PersonChip(
+                                    name: personName,
+                                    onTap: {
+                                        // Find person and show detail
+                                        selectedPersonForDetail = viewModel.vaultManager.people.first { $0.name == personName }
+                                    },
+                                    onDelete: {
+                                        viewModel.selectedPeople.removeAll { $0 == personName }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -198,6 +241,16 @@ struct QuickEntryView: View {
                     selectedPlace: $viewModel.selectedPlace
                 )
             }
+            .sheet(isPresented: $showPersonPicker) {
+                PersonPickerView(
+                    people: viewModel.vaultManager.people,
+                    selectedPeople: $viewModel.selectedPeople
+                )
+            }
+            .sheet(item: $selectedPersonForDetail) { person in
+                PersonDetailView(person: person)
+                    .environmentObject(viewModel.vaultManager)
+            }
             .journalingSuggestionsPicker(
                 isPresented: $viewModel.showSuggestionsPicker,
                 onCompletion: { suggestion in
@@ -231,6 +284,50 @@ struct TagChip: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color.blue.opacity(0.1))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Person Chip
+struct PersonChip: View {
+    let name: String
+    let onTap: (() -> Void)?
+    let onDelete: () -> Void
+
+    init(name: String, onTap: (() -> Void)? = nil, onDelete: @escaping () -> Void) {
+        self.name = name
+        self.onTap = onTap
+        self.onDelete = onDelete
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            // Tappable area for person name/icon
+            HStack(spacing: 4) {
+                Image(systemName: "person.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.purple)
+                Text(name)
+                    .font(.caption)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap?()
+            }
+
+            // Separate delete button
+            Button {
+                onDelete()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.purple.opacity(0.1))
         .clipShape(Capsule())
     }
 }

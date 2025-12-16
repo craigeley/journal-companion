@@ -16,6 +16,7 @@ class EntryEditViewModel: ObservableObject {
     @Published var entryText: String
     @Published var timestamp: Date
     @Published var selectedPlace: Place?
+    @Published var selectedPeople: [String]
     @Published var tags: [String]
     @Published var temperature: Int?
     @Published var condition: String?
@@ -47,6 +48,7 @@ class EntryEditViewModel: ObservableObject {
         // Pre-populate with existing entry data
         self.entryText = entry.content
         self.timestamp = entry.dateCreated
+        self.selectedPeople = entry.people
         self.tags = entry.tags
         self.temperature = entry.temperature
         self.condition = entry.condition
@@ -85,7 +87,7 @@ class EntryEditViewModel: ObservableObject {
             dateCreated: timestamp,
             tags: tags,
             place: selectedPlace?.name,
-            people: originalEntry.people,  // Preserve existing people (will be editable in Phase 7)
+            people: selectedPeople,
             placeCallout: selectedPlace?.callout,
             content: entryText,
             temperature: temperature,
@@ -163,6 +165,7 @@ class EntryEditViewModel: ObservableObject {
         entryText != originalEntry.content ||
         timestamp != originalEntry.dateCreated ||
         selectedPlace?.name != originalEntry.place ||
+        selectedPeople != originalEntry.people ||
         tags != originalEntry.tags ||
         temperature != originalEntry.temperature ||
         condition != originalEntry.condition ||

@@ -86,7 +86,7 @@ struct EntryListView: View {
             ForEach(viewModel.entriesByDate(), id: \.date) { section in
                 Section {
                     ForEach(section.entries) { entry in
-                        EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place), places: viewModel.places)
+                        EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place), places: viewModel.places, people: viewModel.people)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedEntry = entry
@@ -115,6 +115,7 @@ struct EntryRowView: View {
     let entry: Entry
     let placeCallout: String?
     let places: [Place]
+    let people: [Person]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -152,6 +153,7 @@ struct EntryRowView: View {
             WikiText(
                 text: entry.content,
                 places: places,
+                people: people,
                 lineLimit: 3,
                 font: .body
             )

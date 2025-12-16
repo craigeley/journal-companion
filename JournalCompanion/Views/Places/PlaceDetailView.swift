@@ -124,6 +124,7 @@ struct PlaceDetailView: View {
                                 WikiText(
                                     text: entry.content,
                                     places: vaultManager.places,
+                                    people: vaultManager.people,
                                     lineLimit: 2,
                                     font: .body
                                 )

@@ -10,20 +10,24 @@ import SwiftUI
 struct WikiText: View {
     let text: String
     let places: [Place]
+    let people: [Person]
     let lineLimit: Int?
     let font: Font
 
     @EnvironmentObject var vaultManager: VaultManager
     @State private var selectedPlace: Place?
+    @State private var selectedPerson: Person?
 
     init(
         text: String,
         places: [Place],
+        people: [Person] = [],
         lineLimit: Int? = nil,
         font: Font = .body
     ) {
         self.text = text
         self.places = places
+        self.people = people
         self.lineLimit = lineLimit
         self.font = font
     }
@@ -40,10 +44,14 @@ struct WikiText: View {
                 PlaceDetailView(place: place)
                     .environmentObject(vaultManager)
             }
+            .sheet(item: $selectedPerson) { person in
+                PersonDetailView(person: person)
+                    .environmentObject(vaultManager)
+            }
     }
 
     private var attributedString: AttributedString {
-        let links = WikiLinkParser.parse(text, places: places)
+        let links = WikiLinkParser.parse(text, places: places, people: people)
 
         guard !links.isEmpty else {
             return AttributedString(text)
@@ -63,9 +71,19 @@ struct WikiText: View {
             var linkText = AttributedString(link.displayText)
 
             if link.isValid {
-                // Blue, tappable link
-                linkText.foregroundColor = .blue
-                linkText.link = URL(string: "app://place/\(link.place!.id)")
+                switch link.linkType {
+                case .place:
+                    // Blue, tappable place link
+                    linkText.foregroundColor = .blue
+                    linkText.link = URL(string: "app://place/\(link.place!.id)")
+                case .person:
+                    // Purple, tappable person link
+                    linkText.foregroundColor = .purple
+                    linkText.link = URL(string: "app://person/\(link.person!.id)")
+                case .unknown:
+                    // Gray, non-tappable text
+                    linkText.foregroundColor = .secondary
+                }
             } else {
                 // Gray, non-tappable text
                 linkText.foregroundColor = .secondary
@@ -85,12 +103,19 @@ struct WikiText: View {
     }
 
     private func handleLinkTap(url: URL) {
-        guard url.scheme == "app",
-              url.host == "place",
-              let placeId = url.pathComponents.last else {
+        guard url.scheme == "app" else { return }
+
+        switch url.host {
+        case "place":
+            guard let placeId = url.pathComponents.last else { return }
+            selectedPlace = places.first { $0.id == placeId }
+
+        case "person":
+            guard let personId = url.pathComponents.last else { return }
+            selectedPerson = people.first { $0.id == personId }
+
+        default:
             return
         }
-
-        selectedPlace = places.first { $0.id == placeId }
     }
 }

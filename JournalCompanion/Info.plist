@@ -24,5 +24,7 @@
 		<string>location</string>
 		<string>fetch</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>Link journal entries to people in your contacts.</string>
 </dict>
 </plist>

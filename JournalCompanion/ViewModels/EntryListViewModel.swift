@@ -25,6 +25,10 @@ class EntryListViewModel: ObservableObject {
         vaultManager.places
     }
 
+    var people: [Person] {
+        vaultManager.people
+    }
+
     init(vaultManager: VaultManager, locationService: LocationService) {
         self.vaultManager = vaultManager
         self.locationService = locationService

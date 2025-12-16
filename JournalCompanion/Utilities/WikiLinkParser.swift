@@ -7,27 +7,63 @@
 
 import Foundation
 
+enum WikiLinkType {
+    case place
+    case person
+    case unknown
+}
+
 struct WikiLink: Identifiable {
     let id = UUID()
-    let target: String                  // Target name for matching (e.g., "Willy St Co-Op")
-    let displayText: String             // Text to display (e.g., "co-op")
+    let target: String                  // Target name for matching (e.g., "Willy St Co-Op" or "Alice Smith")
+    let displayText: String             // Text to display (e.g., "co-op" or "Alice")
     let range: Range<String.Index>      // Position in original text
-    let isValid: Bool                   // Whether place exists
+    let linkType: WikiLinkType          // Type of link (place, person, or unknown)
+    let isValid: Bool                   // Whether place or person exists
     let place: Place?                   // Resolved place if valid
+    let person: Person?                 // Resolved person if valid
 }
 
 struct WikiLinkParser {
-    /// Parse wiki-links from text and validate against places
-    static func parse(_ text: String, places: [Place]) -> [WikiLink] {
+    /// Parse wiki-links from text and validate against places and people
+    static func parse(_ text: String, places: [Place], people: [Person]) -> [WikiLink] {
         let links = extractLinks(text)
         return links.map { (target, displayText, range) in
-            let matchedPlace = findPlace(named: target, in: places)
+            // Try to match as place first
+            if let matchedPlace = findPlace(named: target, in: places) {
+                return WikiLink(
+                    target: target,
+                    displayText: displayText,
+                    range: range,
+                    linkType: .place,
+                    isValid: true,
+                    place: matchedPlace,
+                    person: nil
+                )
+            }
+
+            // Try to match as person
+            if let matchedPerson = findPerson(named: target, in: people) {
+                return WikiLink(
+                    target: target,
+                    displayText: displayText,
+                    range: range,
+                    linkType: .person,
+                    isValid: true,
+                    place: nil,
+                    person: matchedPerson
+                )
+            }
+
+            // No match found
             return WikiLink(
                 target: target,
                 displayText: displayText,
                 range: range,
-                isValid: matchedPlace != nil,
-                place: matchedPlace
+                linkType: .unknown,
+                isValid: false,
+                place: nil,
+                person: nil
             )
         }
     }
@@ -76,5 +112,11 @@ struct WikiLinkParser {
         return places.first(where: { place in
             place.aliases.contains(where: { $0.lowercased() == lowercasedName })
         })
+    }
+
+    /// Find person by name (case-insensitive)
+    private static func findPerson(named name: String, in people: [Person]) -> Person? {
+        let lowercasedName = name.lowercased()
+        return people.first { $0.name.lowercased() == lowercasedName }
     }
 }

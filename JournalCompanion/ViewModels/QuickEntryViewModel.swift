@@ -14,6 +14,7 @@ import JournalingSuggestions
 class QuickEntryViewModel: ObservableObject {
     @Published var entryText: String = ""
     @Published var selectedPlace: Place?
+    @Published var selectedPeople: [String] = []
     @Published var timestamp: Date = Date()
     @Published var tags: [String] = ["entry", "iPhone"]
     @Published var isCreating: Bool = false
@@ -127,7 +128,7 @@ class QuickEntryViewModel: ObservableObject {
                 dateCreated: timestamp,
                 tags: tags,
                 place: selectedPlace?.name,
-                people: [],  // TODO: Will be populated in Phase 4
+                people: selectedPeople,
                 placeCallout: selectedPlace?.callout,
                 content: entryText
             )

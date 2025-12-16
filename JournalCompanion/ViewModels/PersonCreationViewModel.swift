@@ -23,6 +23,7 @@ class PersonCreationViewModel: ObservableObject {
     @Published var contactEmail: String = ""
     @Published var contactPhone: String = ""
     @Published var contactAddress: String = ""
+    @Published var contactBirthday: DateComponents?
 
     // UI state
     @Published var isCreating: Bool = false
@@ -101,6 +102,12 @@ class PersonCreationViewModel: ObservableObject {
             let formatter = CNPostalAddressFormatter()
             contactAddress = formatter.string(from: addr)
         }
+
+        // Import birthday (if available)
+        if let birthday = contact.birthday {
+            // CNContact.birthday is already DateComponents with month/day (and possibly year)
+            contactBirthday = birthday
+        }
     }
 
     /// Create and save person
@@ -128,7 +135,7 @@ class PersonCreationViewModel: ObservableObject {
                 email: contactEmail.isEmpty ? nil : contactEmail,
                 phone: contactPhone.isEmpty ? nil : contactPhone,
                 address: contactAddress.isEmpty ? nil : contactAddress,
-                birthday: nil,  // MVP: can be added later via edit
+                birthday: contactBirthday,  // Use contact birthday if available
                 metDate: nil,   // MVP: can be added later via edit
                 socialMedia: [:],  // Start with no social media
                 color: nil,
@@ -163,5 +170,6 @@ class PersonCreationViewModel: ObservableObject {
         contactEmail = ""
         contactPhone = ""
         contactAddress = ""
+        contactBirthday = nil
     }
 }

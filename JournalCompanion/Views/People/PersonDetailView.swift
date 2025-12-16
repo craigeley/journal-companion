@@ -232,13 +232,42 @@ struct PersonDetailView: View {
     }
 
     private func formatBirthday(_ birthday: DateComponents) -> String {
-        let calendar = Calendar.current
-        if let date = calendar.date(from: birthday) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM d"
-            return formatter.string(from: date)
+        guard birthday.month != nil, birthday.day != nil else {
+            return "Unknown"
         }
-        return "Unknown"
+
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+
+        if birthday.year != nil {
+            // Full birthdate with year - show date and calculate age
+            let components = birthday
+            guard let birthDate = calendar.date(from: components) else {
+                return "Unknown"
+            }
+
+            formatter.dateFormat = "MMMM d, yyyy"
+            let dateString = formatter.string(from: birthDate)
+
+            // Calculate age
+            let now = Date()
+            let ageComponents = calendar.dateComponents([.year], from: birthDate, to: now)
+            if let age = ageComponents.year {
+                return "\(dateString) (age \(age))"
+            } else {
+                return dateString
+            }
+        } else {
+            // Only month/day available - show without year
+            var components = birthday
+            components.year = calendar.component(.year, from: Date())  // Temporary for formatting
+
+            if let date = calendar.date(from: components) {
+                formatter.dateFormat = "MMMM d"
+                return formatter.string(from: date)
+            }
+            return "Unknown"
+        }
     }
 }
 

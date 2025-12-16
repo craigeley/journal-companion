@@ -60,7 +60,13 @@ struct Person: Identifiable, Codable, Sendable {
         }
 
         if let birthday = birthday, let month = birthday.month, let day = birthday.day {
-            yaml += String(format: "birthday: %02d-%02d\n", month, day)
+            if let year = birthday.year {
+                // Write YYYY-MM-DD format when year is available
+                yaml += String(format: "birthday: %04d-%02d-%02d\n", year, month, day)
+            } else {
+                // Write MM-DD format for legacy data without year
+                yaml += String(format: "birthday: %02d-%02d\n", month, day)
+            }
         }
 
         if let metDate = metDate {
@@ -94,16 +100,32 @@ struct Person: Identifiable, Codable, Sendable {
 
         let name = String(filename.dropLast(3))  // Remove .md extension
 
-        // Parse birthday (MM-DD format)
+        // Parse birthday (supports both MM-DD and YYYY-MM-DD formats, stores year if available)
         let birthday: DateComponents? = {
             guard let birthdayString = frontmatter["birthday"] as? String else { return nil }
             let components = birthdayString.split(separator: "-")
-            guard components.count == 2,
-                  let month = Int(components[0]),
-                  let day = Int(components[1]) else {
+
+            var year: Int?
+            var month: Int?
+            var day: Int?
+
+            if components.count == 2 {
+                // MM-DD format (legacy, no year)
+                month = Int(components[0])
+                day = Int(components[1])
+            } else if components.count == 3 {
+                // YYYY-MM-DD format (ISO 8601) - store all components including year
+                year = Int(components[0])
+                month = Int(components[1])
+                day = Int(components[2])
+            }
+
+            guard let month = month, let day = day else {
                 return nil
             }
+
             var dateComponents = DateComponents()
+            dateComponents.year = year  // Store year if available
             dateComponents.month = month
             dateComponents.day = day
             return dateComponents

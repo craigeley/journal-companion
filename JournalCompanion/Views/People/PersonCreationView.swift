@@ -86,6 +86,12 @@ struct PersonCreationView: View {
                                     .multilineTextAlignment(.trailing)
                             }
                         }
+                        if let birthday = viewModel.contactBirthday {
+                            LabeledContent("Birthday") {
+                                Text(formatBirthdayPreview(birthday))
+                                    .font(.caption)
+                            }
+                        }
                     }
                 }
 
@@ -145,6 +151,20 @@ struct PersonCreationView: View {
                 }
             }
         }
+    }
+
+    private func formatBirthdayPreview(_ birthday: DateComponents) -> String {
+        guard birthday.month != nil, birthday.day != nil else {
+            return "Unknown"
+        }
+        var components = birthday
+        components.year = Calendar.current.component(.year, from: Date())
+        if let date = Calendar.current.date(from: components) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM d"
+            return formatter.string(from: date)
+        }
+        return "Unknown"
     }
 }
 

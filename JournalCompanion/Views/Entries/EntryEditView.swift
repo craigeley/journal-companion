@@ -55,18 +55,70 @@ struct EntryEditView: View {
 
                 // Weather Section (if exists)
                 if viewModel.temperature != nil || viewModel.condition != nil {
-                    Section("Weather") {
+                    Section {
                         if let temp = viewModel.temperature {
-                            Text("Temperature: \(temp)°")
+                            HStack {
+                                Text("Temperature")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(temp)°F")
+                            }
                         }
                         if let condition = viewModel.condition {
-                            Text("Condition: \(condition)")
-                        }
-                        if let aqi = viewModel.aqi {
-                            Text("AQI: \(aqi)")
+                            HStack {
+                                Text("Condition")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(condition)
+                            }
                         }
                         if let humidity = viewModel.humidity {
-                            Text("Humidity: \(humidity)%")
+                            HStack {
+                                Text("Humidity")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(humidity)%")
+                            }
+                        }
+                        if let aqi = viewModel.aqi {
+                            HStack {
+                                Text("AQI")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(aqi)")
+                            }
+                        }
+
+                        // Show refresh button if weather is stale
+                        if viewModel.weatherIsStale {
+                            Button {
+                                Task {
+                                    await viewModel.refreshWeather()
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Refresh Weather")
+                                    Spacer()
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                        }
+                    } header: {
+                        Text("Weather")
+                    } footer: {
+                        if viewModel.weatherIsStale {
+                            Text("Date or location changed. Tap to refresh weather.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                } else if viewModel.isFetchingWeather {
+                    Section("Weather") {
+                        HStack {
+                            ProgressView()
+                            Text("Fetching weather...")
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -109,6 +161,21 @@ struct EntryEditView: View {
                 if let error = viewModel.saveError {
                     Text(error)
                 }
+            }
+            .alert("Move Entry File?", isPresented: $viewModel.showDateChangeWarning) {
+                Button("Cancel", role: .cancel) {
+                    // Just dismiss - don't save
+                }
+                Button("Save") {
+                    Task {
+                        await viewModel.confirmDateChange()
+                        if viewModel.saveError == nil {
+                            dismiss()
+                        }
+                    }
+                }
+            } message: {
+                Text("Changing the date will move this entry to a different day file. Continue?")
             }
         }
     }

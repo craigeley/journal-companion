@@ -61,6 +61,42 @@ actor EntryWriter {
         print("✓ Updated entry: \(entry.filename).md")
     }
 
+    /// Update entry when date has changed (requires file migration)
+    func updateWithDateChange(oldEntry: Entry, newEntry: Entry) async throws {
+        // Validate old file exists
+        let oldDirectoryURL = vaultURL.appendingPathComponent(oldEntry.directoryPath)
+        let oldFileURL = oldDirectoryURL.appendingPathComponent(oldEntry.filename + ".md")
+
+        guard fileManager.fileExists(atPath: oldFileURL.path) else {
+            throw EntryError.fileNotFound(oldEntry.filename)
+        }
+
+        // Create new directory if needed
+        let newDirectoryURL = vaultURL.appendingPathComponent(newEntry.directoryPath)
+        try fileManager.createDirectory(
+            at: newDirectoryURL,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        // Write entry to new location
+        let newFileURL = newDirectoryURL.appendingPathComponent(newEntry.filename + ".md")
+        let markdown = newEntry.toMarkdown()
+        try markdown.write(to: newFileURL, atomically: true, encoding: .utf8)
+
+        print("✓ Created entry file at new location: \(newEntry.filename).md")
+
+        // Remove old file
+        try fileManager.removeItem(at: oldFileURL)
+        print("✓ Removed old entry file: \(oldEntry.filename).md")
+
+        // Update day file references
+        try await removeFromDayFile(entry: oldEntry)
+        try await addToDayFile(entry: newEntry)
+
+        print("✓ Migrated entry from \(oldEntry.filename) to \(newEntry.filename)")
+    }
+
     /// Add entry callout to day file
     private func addToDayFile(entry: Entry) async throws {
         let calendar = Calendar.current
@@ -148,6 +184,65 @@ actor EntryWriter {
         // Write day file atomically
         try content.write(to: dayFileURL, atomically: true, encoding: .utf8)
         print("✓ Updated day file: \(dayFilename)")
+    }
+
+    /// Remove entry callout from day file
+    private func removeFromDayFile(entry: Entry) async throws {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day], from: entry.dateCreated)
+
+        guard let year = components.year,
+              let _ = components.month,
+              let _ = components.day else {
+            throw EntryError.invalidDate
+        }
+
+        // Generate day file path: Days/YYYY/MM-Month/YYYY-MM-DD.md
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MM-MMMM"
+        let monthString = monthFormatter.string(from: entry.dateCreated)
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "yyyy-MM-dd"
+        let dayFilename = dayFormatter.string(from: entry.dateCreated) + ".md"
+
+        let dayDir = vaultURL.appendingPathComponent("Days/\(year)/\(monthString)")
+        let dayFileURL = dayDir.appendingPathComponent(dayFilename)
+
+        // If day file doesn't exist, nothing to remove
+        guard fileManager.fileExists(atPath: dayFileURL.path) else {
+            return
+        }
+
+        // Read existing day file
+        var content = try String(contentsOf: dayFileURL, encoding: .utf8)
+
+        // Get the entry filename for matching
+        let entryFilename = entry.filename
+
+        // Check if this entry is referenced
+        guard content.contains("![[\(entryFilename)]]") else {
+            print("Entry not found in day file: \(dayFilename)")
+            return
+        }
+
+        // Remove the callout block containing this entry
+        // Pattern: Match from "> [!..." through the embed line and trailing newlines
+        let pattern = "> \\[!.*?\\n> !\\[\\[\(NSRegularExpression.escapedPattern(for: entryFilename))\\]\\]\\n*"
+
+        if let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) {
+            let range = NSRange(content.startIndex..., in: content)
+            content = regex.stringByReplacingMatches(
+                in: content,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Write updated day file atomically
+        try content.write(to: dayFileURL, atomically: true, encoding: .utf8)
+        print("✓ Removed entry from day file: \(dayFilename)")
     }
 
     /// Determine callout type based on entry tags and place

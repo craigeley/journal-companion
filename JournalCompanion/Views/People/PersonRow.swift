@@ -28,14 +28,24 @@ struct PersonRow: View {
                 Text(person.name)
                     .font(.body)
 
+                // Show contact info (phone or email) and pronouns
                 HStack(spacing: 4) {
-                    Text(person.relationshipType.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let phone = person.phone {
+                        Text(phone)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let email = person.email {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                    if let pronouns = person.pronouns {
+                    if (person.phone != nil || person.email != nil) && person.pronouns != nil {
                         Text("•")
                             .foregroundStyle(.secondary)
+                    }
+
+                    if let pronouns = person.pronouns {
                         Text(pronouns)
                             .font(.caption)
                             .foregroundStyle(.secondary)

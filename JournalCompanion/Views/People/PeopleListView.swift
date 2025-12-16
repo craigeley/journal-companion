@@ -47,18 +47,12 @@ struct PeopleListView: View {
 
     private var peopleList: some View {
         List {
-            ForEach(viewModel.peopleByRelationshipType(), id: \.type) { section in
-                Section {
-                    ForEach(section.people) { person in
-                        PersonRow(person: person)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedPerson = person
-                            }
+            ForEach(viewModel.filteredPeople) { person in
+                PersonRow(person: person)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedPerson = person
                     }
-                } header: {
-                    Text(section.type.rawValue.capitalized)
-                }
             }
         }
         .listStyle(.insetGrouped)

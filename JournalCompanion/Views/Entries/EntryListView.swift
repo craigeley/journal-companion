@@ -44,7 +44,6 @@ struct EntryListView: View {
                     }
                 }
             }
-            .searchable(text: $viewModel.searchText, prompt: "Search entries")
             .task {
                 if viewModel.entries.isEmpty {
                     await viewModel.loadEntries()

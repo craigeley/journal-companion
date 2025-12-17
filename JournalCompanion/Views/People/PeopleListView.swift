@@ -41,7 +41,6 @@ struct PeopleListView: View {
                     }
                 }
             }
-            .searchable(text: $viewModel.searchText, prompt: "Search people")
             .task {
                 await viewModel.loadPeopleIfNeeded()
             }

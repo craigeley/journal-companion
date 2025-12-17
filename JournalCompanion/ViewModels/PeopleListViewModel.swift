@@ -16,16 +16,30 @@ class PeopleListViewModel: ObservableObject {
     @Published var isLoading = false
 
     let vaultManager: VaultManager
+    let searchCoordinator: SearchCoordinator?
     private var cancellables = Set<AnyCancellable>()
 
     var people: [Person] {
         vaultManager.people
     }
 
-    init(vaultManager: VaultManager) {
+    init(vaultManager: VaultManager, searchCoordinator: SearchCoordinator? = nil) {
         self.vaultManager = vaultManager
+        self.searchCoordinator = searchCoordinator
 
-        // Setup search filtering with debounce
+        // Subscribe to SearchCoordinator (if provided)
+        if let searchCoordinator = searchCoordinator {
+            searchCoordinator.$searchText
+                .sink { [weak self] text in
+                    // Only filter if People tab (1) is active
+                    if searchCoordinator.activeTab == 1 {
+                        self?.filterPeople(searchText: text)
+                    }
+                }
+                .store(in: &cancellables)
+        }
+
+        // Keep existing $searchText subscription for backward compatibility
         $searchText
             .debounce(for: 0.3, scheduler: DispatchQueue.main)
             .sink { [weak self] searchText in

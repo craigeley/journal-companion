@@ -13,6 +13,7 @@ struct JournalCompanionApp: App {
     @StateObject private var locationService = LocationService()
     @StateObject private var visitTracker = SignificantLocationTracker()
     @StateObject private var templateManager = TemplateManager()
+    @StateObject private var searchCoordinator = SearchCoordinator()
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +22,7 @@ struct JournalCompanionApp: App {
                 .environmentObject(locationService)
                 .environmentObject(visitTracker)
                 .environmentObject(templateManager)
+                .environmentObject(searchCoordinator)
         }
     }
 }

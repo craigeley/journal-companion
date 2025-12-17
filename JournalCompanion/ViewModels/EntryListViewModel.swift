@@ -19,6 +19,7 @@ class EntryListViewModel: ObservableObject {
 
     let vaultManager: VaultManager
     let locationService: LocationService
+    let searchCoordinator: SearchCoordinator?
     private var cancellables = Set<AnyCancellable>()
 
     var places: [Place] {
@@ -29,11 +30,24 @@ class EntryListViewModel: ObservableObject {
         vaultManager.people
     }
 
-    init(vaultManager: VaultManager, locationService: LocationService) {
+    init(vaultManager: VaultManager, locationService: LocationService, searchCoordinator: SearchCoordinator? = nil) {
         self.vaultManager = vaultManager
         self.locationService = locationService
+        self.searchCoordinator = searchCoordinator
 
-        // Setup search filtering
+        // Subscribe to SearchCoordinator (if provided)
+        if let searchCoordinator = searchCoordinator {
+            searchCoordinator.$searchText
+                .sink { [weak self] text in
+                    // Only filter if Entries tab (0) is active
+                    if searchCoordinator.activeTab == 0 {
+                        self?.filterEntries(searchText: text)
+                    }
+                }
+                .store(in: &cancellables)
+        }
+
+        // Keep existing $searchText subscription for backward compatibility
         $searchText
             .debounce(for: 0.3, scheduler: DispatchQueue.main)
             .sink { [weak self] searchText in

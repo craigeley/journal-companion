@@ -17,16 +17,42 @@ class PlacesListViewModel: ObservableObject {
     @Published var isLoading = false
 
     let vaultManager: VaultManager
+    let searchCoordinator: SearchCoordinator?
     private var cancellables = Set<AnyCancellable>()
 
     var places: [Place] {
         vaultManager.places
     }
 
-    init(vaultManager: VaultManager) {
+    init(vaultManager: VaultManager, searchCoordinator: SearchCoordinator? = nil) {
         self.vaultManager = vaultManager
+        self.searchCoordinator = searchCoordinator
 
-        // Setup search filtering with debounce
+        // Subscribe to SearchCoordinator (if provided)
+        if let searchCoordinator = searchCoordinator {
+            searchCoordinator.$searchText
+                .sink { [weak self] text in
+                    // Only filter if Places tab (2) is active
+                    if searchCoordinator.activeTab == 2 {
+                        self?.filterPlaces(searchText: text)
+                    }
+                }
+                .store(in: &cancellables)
+
+            // Subscribe to filter changes (callout types and tags)
+            Publishers.CombineLatest(
+                searchCoordinator.$selectedCalloutTypes,
+                searchCoordinator.$selectedTags
+            )
+            .sink { [weak self] callouts, tags in
+                if searchCoordinator.activeTab == 2 {
+                    self?.applyFilters(callouts: callouts, tags: tags)
+                }
+            }
+            .store(in: &cancellables)
+        }
+
+        // Keep existing $searchText subscription for backward compatibility
         $searchText
             .debounce(for: 0.3, scheduler: DispatchQueue.main)
             .sink { [weak self] searchText in
@@ -78,6 +104,19 @@ class PlacesListViewModel: ObservableObject {
                 place.tags.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
                 (place.address?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
+        }
+    }
+
+    /// Apply callout type and tag filters (used by SearchCoordinator)
+    private func applyFilters(callouts: Set<String>, tags: Set<String>) {
+        filteredPlaces = places.filter { place in
+            // Match callout type (if any callouts selected)
+            let matchesCallout = callouts.isEmpty || callouts.contains(place.callout)
+
+            // Match tags (if any tags selected, place must have at least one matching tag)
+            let matchesTags = tags.isEmpty || place.tags.contains { tags.contains($0) }
+
+            return matchesCallout && matchesTags
         }
     }
 

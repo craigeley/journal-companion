@@ -42,7 +42,6 @@ struct PlacesListView: View {
                     }
                 }
             }
-            .searchable(text: $viewModel.searchText, prompt: "Search places")
             .task {
                 await viewModel.loadPlacesIfNeeded()
             }
@@ -64,6 +63,30 @@ struct PlacesListView: View {
 
     private var placesList: some View {
         List {
+            // View on Map navigation section
+            Section {
+                NavigationLink {
+                    let mapViewModel = MapViewModel(vaultManager: viewModel.vaultManager)
+                    MapView(viewModel: mapViewModel)
+                        .environmentObject(locationService)
+                        .environmentObject(templateManager)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "map.fill")
+                            .foregroundStyle(.blue)
+                            .frame(width: 32)
+                        Text("View on Map")
+                            .font(.body)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            // Existing place sections
             ForEach(viewModel.placesByCallout, id: \.callout) { section in
                 Section {
                     ForEach(section.places) { place in

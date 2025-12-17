@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var templateManager: TemplateManager
     @EnvironmentObject var visitTracker: SignificantLocationTracker
+    @EnvironmentObject var searchCoordinator: SearchCoordinator
     @State private var showQuickEntry = false
     @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
@@ -45,12 +46,14 @@ struct ContentView: View {
                 vaultSetup
             }
 
-            // Floating action button (context-aware)
-            if vaultManager.isVaultAccessible {
+            // Floating buttons (hide on search tab)
+            if vaultManager.isVaultAccessible && selectedTab != 3 {
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
+
+                        // FAB (right side)
                         Button {
                             // Context-aware action based on selected tab
                             if selectedTab == 0 {
@@ -59,8 +62,8 @@ struct ContentView: View {
                             } else if selectedTab == 1 {
                                 // People tab - create person
                                 showPersonCreation = true
-                            } else {
-                                // Places tab (2) or Map tab (3) - start with location search
+                            } else if selectedTab == 2 {
+                                // Places tab - start with location search
                                 showLocationSearchForNewPlace = true
                             }
                         } label: {
@@ -76,10 +79,11 @@ struct ContentView: View {
                                 .shadow(radius: 4)
                         }
                         .padding(.trailing, 20)
-                        .padding(.bottom, 70) // Extra padding to float above tab bar
                     }
+                    .padding(.bottom, 70) // Extra padding to float above tab bar
                 }
             }
+
         }
         .sheet(isPresented: $showQuickEntry) {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
@@ -185,6 +189,43 @@ struct ContentView: View {
                 checkAndShowHealthKitAuth()
             }
         }
+        .onChange(of: selectedTab) { _, _ in
+            // Clear search when switching tabs
+            searchCoordinator.searchText = ""
+        }
+        .sheet(item: $searchCoordinator.selectedEntry) { entry in
+            // Entry detail from search
+            EntryDetailView(entry: entry)
+                .environmentObject(vaultManager)
+                .environmentObject(locationService)
+                .environmentObject(templateManager)
+        }
+        .sheet(item: $searchCoordinator.selectedPerson) { person in
+            // Person detail from search
+            let viewModel = PersonEditViewModel(
+                person: person,
+                vaultManager: vaultManager,
+                templateManager: templateManager
+            )
+            PersonEditView(viewModel: viewModel)
+                .environmentObject(templateManager)
+        }
+        .sheet(item: $searchCoordinator.selectedPlace) { place in
+            // Place detail from search
+            PlaceDetailView(place: place)
+                .environmentObject(vaultManager)
+                .environmentObject(locationService)
+                .environmentObject(templateManager)
+        }
+    }
+
+    private var tabAccessibilityName: String {
+        switch selectedTab {
+        case 0: return "entries"
+        case 1: return "people"
+        case 2: return "places"
+        default: return "items"
+        }
     }
 
     private func checkAndShowHealthKitAuth() {
@@ -204,54 +245,93 @@ struct ContentView: View {
 
     private var tabContent: some View {
         TabView(selection: $selectedTab) {
-            entriesTab
-                .tabItem {
-                    Label("Entries", systemImage: "doc.text")
-                }
-                .tag(0)
+            Tab(value: 0) {
+                entriesTab
+            } label: {
+                Label("Entries", systemImage: "doc.text")
+            }
 
-            peopleTab
-                .tabItem {
-                    Label("People", systemImage: "person.2")
-                }
-                .tag(1)
+            Tab(value: 1) {
+                peopleTab
+            } label: {
+                Label("People", systemImage: "person.2")
+            }
 
-            placesTab
-                .tabItem {
-                    Label("Places", systemImage: "mappin.circle")
-                }
-                .tag(2)
+            Tab(value: 2) {
+                placesTab
+            } label: {
+                Label("Places", systemImage: "mappin.circle")
+            }
 
-            mapTab
-                .tabItem {
-                    Label("Map", systemImage: "map")
+            Tab(value: 3, role: .search) {
+                NavigationStack {
+                    UniversalSearchView(
+                        coordinator: searchCoordinator,
+                        entryViewModel: EntryListViewModel(
+                            vaultManager: vaultManager,
+                            locationService: locationService,
+                            searchCoordinator: searchCoordinator
+                        ),
+                        peopleViewModel: PeopleListViewModel(
+                            vaultManager: vaultManager,
+                            searchCoordinator: searchCoordinator
+                        ),
+                        placesViewModel: PlacesListViewModel(
+                            vaultManager: vaultManager,
+                            searchCoordinator: searchCoordinator
+                        )
+                    )
+                    .environmentObject(vaultManager)
+                    .navigationTitle("Search")
+                    .searchable(text: $searchCoordinator.searchText)
+                    .searchToolbarBehavior(.minimize)
                 }
-                .tag(3)
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+            }
+        }
+        .tabViewSearchActivation(.searchTabSelection)
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .onChange(of: selectedTab) { oldValue, newValue in
+            // Update active tab in coordinator
+            searchCoordinator.activeTab = newValue
+        }
+    }
+
+    private var searchPrompt: String {
+        switch selectedTab {
+        case 0: return "Search entries"
+        case 1: return "Search people"
+        case 2: return "Search places"
+        default: return "Search"
         }
     }
 
     private var entriesTab: some View {
         let viewModel = EntryListViewModel(
             vaultManager: vaultManager,
-            locationService: locationService
+            locationService: locationService,
+            searchCoordinator: searchCoordinator
         )
         return EntryListView(viewModel: viewModel)
     }
 
     private var peopleTab: some View {
-        let viewModel = PeopleListViewModel(vaultManager: vaultManager)
+        let viewModel = PeopleListViewModel(
+            vaultManager: vaultManager,
+            searchCoordinator: searchCoordinator
+        )
         return PeopleListView(viewModel: viewModel)
     }
 
     private var placesTab: some View {
-        let viewModel = PlacesListViewModel(vaultManager: vaultManager)
+        let viewModel = PlacesListViewModel(
+            vaultManager: vaultManager,
+            searchCoordinator: searchCoordinator
+        )
         return PlacesListView(viewModel: viewModel)
     }
 
-    private var mapTab: some View {
-        let viewModel = MapViewModel(vaultManager: vaultManager)
-        return MapView(viewModel: viewModel)
-    }
 
     private var vaultSetup: some View {
         VStack(spacing: 20) {

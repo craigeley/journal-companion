@@ -15,7 +15,6 @@ struct MapView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedPlace: Place?
     @State private var showFilterSheet = false
-    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -66,13 +65,6 @@ struct MapView: View {
                         }
                     }
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
             }
             .task {
                 await viewModel.loadPlacesIfNeeded()
@@ -93,10 +85,6 @@ struct MapView: View {
                     .environmentObject(viewModel.vaultManager)
                     .environmentObject(locationService)
                     .environmentObject(templateManager)
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .environmentObject(viewModel.vaultManager)
             }
         }
     }

@@ -17,7 +17,7 @@ struct PersonRow: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             // Icon (person silhouette with relationship color)
             Image(systemName: "person.circle.fill")
                 .foregroundStyle(colorForRelationship(person.relationshipType))
@@ -28,8 +28,9 @@ struct PersonRow: View {
                 Text(person.name)
                     .font(.body)
 
-                // Show contact info (phone or email) and pronouns
+                // Always show secondary info line for consistent alignment
                 HStack(spacing: 4) {
+                    // Show contact info (phone or email) first
                     if let phone = person.phone {
                         Text(phone)
                             .font(.caption)
@@ -40,17 +41,28 @@ struct PersonRow: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if (person.phone != nil || person.email != nil) && person.pronouns != nil {
+                    // Separator if we have contact info
+                    if (person.phone != nil || person.email != nil) {
                         Text("•")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
+                    // Show relationship type if no contact info
+                    if person.phone == nil && person.email == nil {
+                        Text(person.relationshipType.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Show pronouns
                     if let pronouns = person.pronouns {
                         Text(pronouns)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(height: 16, alignment: .leading) // Fixed height for alignment
 
                 // Show tags if not empty
                 if !person.tags.isEmpty {

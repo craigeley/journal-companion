@@ -31,8 +31,8 @@ class PeopleListViewModel: ObservableObject {
         if let searchCoordinator = searchCoordinator {
             searchCoordinator.$searchText
                 .sink { [weak self] text in
-                    // Only filter if People tab (1) is active
-                    if searchCoordinator.activeTab == 1 {
+                    // Filter if People tab (1) or Search tab (3) is active
+                    if searchCoordinator.activeTab == 1 || searchCoordinator.activeTab == 3 {
                         self?.filterPeople(searchText: text)
                     }
                 }

@@ -39,8 +39,8 @@ class EntryListViewModel: ObservableObject {
         if let searchCoordinator = searchCoordinator {
             searchCoordinator.$searchText
                 .sink { [weak self] text in
-                    // Only filter if Entries tab (0) is active
-                    if searchCoordinator.activeTab == 0 {
+                    // Filter if Entries tab (0) or Search tab (3) is active
+                    if searchCoordinator.activeTab == 0 || searchCoordinator.activeTab == 3 {
                         self?.filterEntries(searchText: text)
                     }
                 }

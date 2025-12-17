@@ -11,7 +11,6 @@ struct UniversalSearchView: View {
     @ObservedObject var coordinator: SearchCoordinator
     @EnvironmentObject var vaultManager: VaultManager
     @Environment(\.dismiss) var dismiss
-    @FocusState private var isSearchFieldFocused: Bool
     @State private var showFilterSheet = false
 
     // ViewModels for search results
@@ -21,68 +20,19 @@ struct UniversalSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search field
-            searchFieldRow
-
             // Filter chips (only for Places tab)
             if coordinator.activeTab == 2 {
                 filterChipsView
             }
 
-            // Results scroll view
+            // Results
             resultsScrollView
-        }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(radius: 20)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 16)
-        .frame(maxHeight: 500) // Leave room for tab bar
-        .onAppear {
-            isSearchFieldFocused = true
         }
         .sheet(isPresented: $showFilterSheet) {
             // Filter sheet for Places
             if let placesViewModel = placesViewModel {
                 UniversalFilterView(coordinator: coordinator, placesViewModel: placesViewModel)
             }
-        }
-    }
-
-    // MARK: - Search Field
-
-    private var searchFieldRow: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField(searchPrompt, text: $coordinator.searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .focused($isSearchFieldFocused)
-
-            if !coordinator.searchText.isEmpty {
-                Button {
-                    coordinator.searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-    }
-
-    private var searchPrompt: String {
-        switch coordinator.activeTab {
-        case 0: return "Search entries..."
-        case 1: return "Search people..."
-        case 2: return "Search places..."
-        default: return "Search..."
         }
     }
 
@@ -138,31 +88,65 @@ struct UniversalSearchView: View {
                 }
             }
         }
-        .gesture(
-            DragGesture().onChanged { _ in
-                isSearchFieldFocused = false // Hide keyboard on scroll
-            }
-        )
     }
 
     @ViewBuilder
     private var resultsView: some View {
         switch coordinator.activeTab {
         case 0:
+            // Entries tab - show only entries
             if let entryViewModel = entryViewModel {
                 entryResultsView(entryViewModel)
             }
         case 1:
+            // People tab - show only people
             if let peopleViewModel = peopleViewModel {
                 peopleResultsView(peopleViewModel)
             }
         case 2:
+            // Places tab - show only places
             if let placesViewModel = placesViewModel {
                 placesResultsView(placesViewModel)
+            }
+        case 3:
+            // Search tab - show ALL results
+            VStack(spacing: 0) {
+                if let entryViewModel = entryViewModel, !entryViewModel.filteredEntries.isEmpty {
+                    sectionHeader("Entries")
+                    entryResultsView(entryViewModel)
+                }
+
+                if let peopleViewModel = peopleViewModel, !peopleViewModel.filteredPeople.isEmpty {
+                    sectionHeader("People")
+                    peopleResultsView(peopleViewModel)
+                }
+
+                if let placesViewModel = placesViewModel, !placesViewModel.filteredPlaces.isEmpty {
+                    sectionHeader("Places")
+                    placesResultsView(placesViewModel)
+                }
+
+                // Show message if no results at all
+                if let entryVM = entryViewModel,
+                   let peopleVM = peopleViewModel,
+                   let placesVM = placesViewModel,
+                   entryVM.filteredEntries.isEmpty && peopleVM.filteredPeople.isEmpty && placesVM.filteredPlaces.isEmpty {
+                    noResultsView(for: "any items")
+                }
             }
         default:
             EmptyView()
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
     }
 
     // MARK: - Entry Results

@@ -32,8 +32,8 @@ class PlacesListViewModel: ObservableObject {
         if let searchCoordinator = searchCoordinator {
             searchCoordinator.$searchText
                 .sink { [weak self] text in
-                    // Only filter if Places tab (2) is active
-                    if searchCoordinator.activeTab == 2 {
+                    // Filter if Places tab (2) or Search tab (3) is active
+                    if searchCoordinator.activeTab == 2 || searchCoordinator.activeTab == 3 {
                         self?.filterPlaces(searchText: text)
                     }
                 }
@@ -45,7 +45,8 @@ class PlacesListViewModel: ObservableObject {
                 searchCoordinator.$selectedTags
             )
             .sink { [weak self] callouts, tags in
-                if searchCoordinator.activeTab == 2 {
+                // Apply filters if Places tab (2) or Search tab (3) is active
+                if searchCoordinator.activeTab == 2 || searchCoordinator.activeTab == 3 {
                     self?.applyFilters(callouts: callouts, tags: tags)
                 }
             }

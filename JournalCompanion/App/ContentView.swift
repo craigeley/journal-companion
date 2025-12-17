@@ -32,6 +32,11 @@ struct ContentView: View {
     @State private var hasRequestedHealthKitAuth = UserDefaults.standard.bool(forKey: "hasRequestedHealthKitAuth")
     @State private var showHealthKitAuth = false
 
+    // Shared ViewModels for tabs and search
+    @State private var entryViewModel: EntryListViewModel?
+    @State private var peopleViewModel: PeopleListViewModel?
+    @State private var placesViewModel: PlacesListViewModel?
+
     // Debug: Manual trigger for HealthKit auth
     private func showHealthKitAuthManually() {
         print("🔧 DEBUG: Manually triggering HealthKit auth")
@@ -84,6 +89,28 @@ struct ContentView: View {
                 }
             }
 
+        }
+        .onAppear {
+            // Initialize shared ViewModels once
+            if entryViewModel == nil {
+                entryViewModel = EntryListViewModel(
+                    vaultManager: vaultManager,
+                    locationService: locationService,
+                    searchCoordinator: searchCoordinator
+                )
+            }
+            if peopleViewModel == nil {
+                peopleViewModel = PeopleListViewModel(
+                    vaultManager: vaultManager,
+                    searchCoordinator: searchCoordinator
+                )
+            }
+            if placesViewModel == nil {
+                placesViewModel = PlacesListViewModel(
+                    vaultManager: vaultManager,
+                    searchCoordinator: searchCoordinator
+                )
+            }
         }
         .sheet(isPresented: $showQuickEntry) {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
@@ -265,26 +292,23 @@ struct ContentView: View {
 
             Tab(value: 3, role: .search) {
                 NavigationStack {
-                    UniversalSearchView(
-                        coordinator: searchCoordinator,
-                        entryViewModel: EntryListViewModel(
-                            vaultManager: vaultManager,
-                            locationService: locationService,
-                            searchCoordinator: searchCoordinator
-                        ),
-                        peopleViewModel: PeopleListViewModel(
-                            vaultManager: vaultManager,
-                            searchCoordinator: searchCoordinator
-                        ),
-                        placesViewModel: PlacesListViewModel(
-                            vaultManager: vaultManager,
-                            searchCoordinator: searchCoordinator
+                    if let entryVM = entryViewModel,
+                       let peopleVM = peopleViewModel,
+                       let placesVM = placesViewModel {
+                        UniversalSearchView(
+                            coordinator: searchCoordinator,
+                            entryViewModel: entryVM,
+                            peopleViewModel: peopleVM,
+                            placesViewModel: placesVM
                         )
-                    )
-                    .environmentObject(vaultManager)
-                    .navigationTitle("Search")
-                    .searchable(text: $searchCoordinator.searchText)
-                    .searchToolbarBehavior(.minimize)
+                        .environmentObject(vaultManager)
+                        .navigationTitle("Search")
+                        .searchable(text: $searchCoordinator.searchText)
+                        .searchToolbarBehavior(.minimize)
+                    } else {
+                        ProgressView("Loading...")
+                            .navigationTitle("Search")
+                    }
                 }
             } label: {
                 Label("Search", systemImage: "magnifyingglass")
@@ -308,28 +332,33 @@ struct ContentView: View {
     }
 
     private var entriesTab: some View {
-        let viewModel = EntryListViewModel(
-            vaultManager: vaultManager,
-            locationService: locationService,
-            searchCoordinator: searchCoordinator
-        )
-        return EntryListView(viewModel: viewModel)
+        Group {
+            if let viewModel = entryViewModel {
+                EntryListView(viewModel: viewModel)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
     }
 
     private var peopleTab: some View {
-        let viewModel = PeopleListViewModel(
-            vaultManager: vaultManager,
-            searchCoordinator: searchCoordinator
-        )
-        return PeopleListView(viewModel: viewModel)
+        Group {
+            if let viewModel = peopleViewModel {
+                PeopleListView(viewModel: viewModel)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
     }
 
     private var placesTab: some View {
-        let viewModel = PlacesListViewModel(
-            vaultManager: vaultManager,
-            searchCoordinator: searchCoordinator
-        )
-        return PlacesListView(viewModel: viewModel)
+        Group {
+            if let viewModel = placesViewModel {
+                PlacesListView(viewModel: viewModel)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
     }
 
 

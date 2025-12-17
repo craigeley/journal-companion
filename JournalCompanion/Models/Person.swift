@@ -46,7 +46,10 @@ struct Person: Identifiable, Codable, Sendable {
         yaml += "relationship: \(relationshipType.rawValue)\n"
 
         if !tags.isEmpty {
-            yaml += "tags: \(tags)\n"
+            yaml += "tags:\n"
+            for tag in tags {
+                yaml += "  - \(tag)\n"
+            }
         }
 
         if let email = email {

@@ -37,12 +37,6 @@ struct ContentView: View {
     @State private var peopleViewModel: PeopleListViewModel?
     @State private var placesViewModel: PlacesListViewModel?
 
-    // Debug: Manual trigger for HealthKit auth
-    private func showHealthKitAuthManually() {
-        print("🔧 DEBUG: Manually triggering HealthKit auth")
-        showHealthKitAuth = true
-    }
-
     var body: some View {
         ZStack {
             if vaultManager.isVaultAccessible {
@@ -89,28 +83,6 @@ struct ContentView: View {
                 }
             }
 
-        }
-        .onAppear {
-            // Initialize shared ViewModels once
-            if entryViewModel == nil {
-                entryViewModel = EntryListViewModel(
-                    vaultManager: vaultManager,
-                    locationService: locationService,
-                    searchCoordinator: searchCoordinator
-                )
-            }
-            if peopleViewModel == nil {
-                peopleViewModel = PeopleListViewModel(
-                    vaultManager: vaultManager,
-                    searchCoordinator: searchCoordinator
-                )
-            }
-            if placesViewModel == nil {
-                placesViewModel = PlacesListViewModel(
-                    vaultManager: vaultManager,
-                    searchCoordinator: searchCoordinator
-                )
-            }
         }
         .sheet(isPresented: $showQuickEntry) {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
@@ -205,6 +177,27 @@ struct ContentView: View {
                 }
         }
         .onAppear {
+            // Initialize shared ViewModels once
+            if entryViewModel == nil {
+                entryViewModel = EntryListViewModel(
+                    vaultManager: vaultManager,
+                    locationService: locationService,
+                    searchCoordinator: searchCoordinator
+                )
+            }
+            if peopleViewModel == nil {
+                peopleViewModel = PeopleListViewModel(
+                    vaultManager: vaultManager,
+                    searchCoordinator: searchCoordinator
+                )
+            }
+            if placesViewModel == nil {
+                placesViewModel = PlacesListViewModel(
+                    vaultManager: vaultManager,
+                    searchCoordinator: searchCoordinator
+                )
+            }
+
             // Show HealthKit authorization on first launch
             print("🏁 ContentView appeared. hasRequestedHealthKitAuth: \(hasRequestedHealthKitAuth), vaultAccessible: \(vaultManager.isVaultAccessible)")
             checkAndShowHealthKitAuth()
@@ -243,15 +236,6 @@ struct ContentView: View {
                 .environmentObject(vaultManager)
                 .environmentObject(locationService)
                 .environmentObject(templateManager)
-        }
-    }
-
-    private var tabAccessibilityName: String {
-        switch selectedTab {
-        case 0: return "entries"
-        case 1: return "people"
-        case 2: return "places"
-        default: return "items"
         }
     }
 
@@ -319,15 +303,6 @@ struct ContentView: View {
         .onChange(of: selectedTab) { oldValue, newValue in
             // Update active tab in coordinator
             searchCoordinator.activeTab = newValue
-        }
-    }
-
-    private var searchPrompt: String {
-        switch selectedTab {
-        case 0: return "Search entries"
-        case 1: return "Search people"
-        case 2: return "Search places"
-        default: return "Search"
         }
     }
 

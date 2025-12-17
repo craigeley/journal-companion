@@ -6,17 +6,13 @@
 //
 
 import Foundation
-import Combine
 import SwiftUI
 
 @MainActor
 class SearchCoordinator: ObservableObject {
     // MARK: - Search State
 
-    /// Whether the search drawer is currently visible
-    @Published var isSearching: Bool = false
-
-    /// The currently active tab (0 = Entries, 1 = People, 2 = Places)
+    /// The currently active tab (0 = Entries, 1 = People, 2 = Places, 3 = Search)
     @Published var activeTab: Int = 0
 
     /// The current search text
@@ -41,37 +37,17 @@ class SearchCoordinator: ObservableObject {
     /// Selected place for detail presentation from search
     @Published var selectedPlace: Place?
 
-    // MARK: - Private Properties
-
-    private var cancellables = Set<AnyCancellable>()
-
     // MARK: - Initialization
 
     init() {
         // Initialize filters to "all selected" (no filtering)
         selectedCalloutTypes = Set(allCalloutTypes)
-
-        // Debounce search text to avoid excessive filtering
-        $searchText
-            .debounce(for: 0.3, scheduler: DispatchQueue.main)
-            .sink { _ in
-                // Filtering happens in ViewModels via subscription
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Public Methods
 
-    /// Present the search drawer for the specified tab
-    func presentSearch(for tab: Int) {
-        activeTab = tab
-        isSearching = true
-        searchText = ""
-    }
-
-    /// Dismiss the search drawer and clear state
+    /// Dismiss the search and clear search text
     func dismissSearch() {
-        isSearching = false
         searchText = ""
         // Don't clear filters - preserve them for next search
     }

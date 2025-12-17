@@ -126,8 +126,13 @@ struct PersonDetailView: View {
                 // Notes
                 if !currentPerson.content.isEmpty {
                     Section("Notes") {
-                        Text(currentPerson.content)
-                            .font(.body)
+                        WikiText(
+                            text: currentPerson.content,
+                            places: vaultManager.places,
+                            people: vaultManager.people,
+                            lineLimit: nil,
+                            font: .body
+                        )
                     }
                 }
 

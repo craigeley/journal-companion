@@ -9,6 +9,7 @@ import Foundation
 import CoreLocation
 import Combine
 import JournalingSuggestions
+import HealthKit
 
 @MainActor
 class QuickEntryViewModel: ObservableObject {
@@ -26,6 +27,13 @@ class QuickEntryViewModel: ObservableObject {
     @Published var showSuggestionsPicker: Bool = false
     @Published var selectedSuggestion: JournalingSuggestion?
 
+    // State of Mind properties
+    @Published var moodData: StateOfMindData?
+    @Published var showStateOfMindPicker: Bool = false
+    @Published var tempMoodValence: Double = 0.0
+    @Published var tempMoodLabels: [HKStateOfMind.Label] = []
+    @Published var tempMoodAssociations: [HKStateOfMind.Association] = []
+
     // Track initial values to detect when weather becomes stale
     private var initialTimestamp: Date?
     private var initialLocation: CLLocation?
@@ -34,6 +42,7 @@ class QuickEntryViewModel: ObservableObject {
     let vaultManager: VaultManager
     private let locationService: LocationService
     private let weatherService = WeatherService()
+    private lazy var healthKitService = HealthKitService()
     private var cancellables = Set<AnyCancellable>()
 
     init(vaultManager: VaultManager, locationService: LocationService) {
@@ -141,8 +150,40 @@ class QuickEntryViewModel: ObservableObject {
                 entry.aqi = weather.aqi
             }
 
+            // Add State of Mind data if available
+            if let mood = moodData {
+                entry.moodValence = mood.valence
+                entry.moodLabels = mood.labels
+                entry.moodAssociations = mood.associations
+            }
+
             let writer = EntryWriter(vaultURL: vaultURL)
             try await writer.write(entry: entry)
+
+            // Save to HealthKit (non-fatal if fails)
+            if let mood = moodData {
+                // Check authorization status before attempting to save
+                let authStatus = await healthKitService.authorizationStatus()
+
+                if authStatus == .sharingAuthorized {
+                    do {
+                        let labels = convertToLabels(mood.labels)
+                        let associations = convertToAssociations(mood.associations)
+                        try await healthKitService.saveMood(
+                            valence: mood.valence,
+                            labels: labels,
+                            associations: associations,
+                            date: timestamp
+                        )
+                        print("✓ Saved State of Mind to HealthKit")
+                    } catch {
+                        print("⚠️ Failed to save State of Mind to HealthKit: \(error)")
+                        // Non-fatal: Entry already saved to markdown
+                    }
+                } else {
+                    print("ℹ️ HealthKit authorization not granted. State of Mind saved to markdown only.")
+                }
+            }
 
             // Success!
             showSuccess = true
@@ -168,6 +209,7 @@ class QuickEntryViewModel: ObservableObject {
         initialTimestamp = nil
         initialLocation = nil
         weatherFetchedAt = nil
+        moodData = nil
     }
 
     /// Add a tag if not already present
@@ -230,6 +272,54 @@ class QuickEntryViewModel: ObservableObject {
 
             let distance = location.distance(from: placeCoordinate)
             return distance <= 100 // Within 100 meters
+        }
+    }
+
+    // MARK: - State of Mind Methods
+
+    /// Open State of Mind picker
+    func openStateOfMindPicker() {
+        // Pre-populate if editing existing
+        if let existingMood = moodData {
+            tempMoodValence = existingMood.valence
+            tempMoodLabels = convertToLabels(existingMood.labels)
+            tempMoodAssociations = convertToAssociations(existingMood.associations)
+        } else {
+            tempMoodValence = 0.0
+            tempMoodLabels = []
+            tempMoodAssociations = []
+        }
+        showStateOfMindPicker = true
+    }
+
+    /// Save State of Mind selection from picker
+    func saveStateOfMindSelection() {
+        let labels = tempMoodLabels.map { StateOfMindConstants.displayName(for: $0) }
+        let associations = tempMoodAssociations.map { StateOfMindConstants.displayName(for: $0) }
+        moodData = StateOfMindData(valence: tempMoodValence, labels: labels, associations: associations)
+    }
+
+    /// Clear State of Mind data
+    func clearStateOfMind() {
+        moodData = nil
+        tempMoodValence = 0.0
+        tempMoodLabels = []
+        tempMoodAssociations = []
+    }
+
+    // MARK: - Helper Conversions
+
+    /// Convert string labels to HealthKit Label enums
+    private func convertToLabels(_ strings: [String]) -> [HKStateOfMind.Label] {
+        strings.compactMap { str in
+            StateOfMindConstants.allLabels.first { $0.display == str }?.label
+        }
+    }
+
+    /// Convert string associations to HealthKit Association enums
+    private func convertToAssociations(_ strings: [String]) -> [HKStateOfMind.Association] {
+        strings.compactMap { str in
+            StateOfMindConstants.allAssociations.first { $0.display == str }?.association
         }
     }
 }

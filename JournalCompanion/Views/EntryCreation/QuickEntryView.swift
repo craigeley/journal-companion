@@ -172,6 +172,57 @@ struct QuickEntryView: View {
                     }
                 }
 
+                // State of Mind Section
+                Section {
+                    if let mood = viewModel.moodData {
+                        // Display current mood
+                        HStack {
+                            Text(mood.emoji)
+                                .font(.title)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(mood.description)
+                                    .font(.headline)
+                                if !mood.associations.isEmpty {
+                                    Text(mood.associations.prefix(2).joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button("Edit") { viewModel.openStateOfMindPicker() }
+                                .buttonStyle(.bordered)
+                                .font(.caption)
+                            Button { viewModel.clearStateOfMind() } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } else {
+                        // Show add button
+                        Button {
+                            viewModel.openStateOfMindPicker()
+                        } label: {
+                            HStack {
+                                Image(systemName: "brain.head.profile")
+                                    .foregroundStyle(.purple)
+                                Text("Add State of Mind")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("State of Mind")
+                } footer: {
+                    Text("Track your emotions and mood")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 // Details Section
                 Section("Details") {
                     DatePicker("Time", selection: $viewModel.timestamp)
@@ -250,6 +301,18 @@ struct QuickEntryView: View {
             .sheet(item: $selectedPersonForDetail) { person in
                 PersonDetailView(person: person)
                     .environmentObject(viewModel.vaultManager)
+            }
+            .sheet(isPresented: $viewModel.showStateOfMindPicker) {
+                StateOfMindPickerView(
+                    selectedValence: $viewModel.tempMoodValence,
+                    selectedLabels: $viewModel.tempMoodLabels,
+                    selectedAssociations: $viewModel.tempMoodAssociations
+                )
+                .onDisappear {
+                    if viewModel.showStateOfMindPicker == false {
+                        viewModel.saveStateOfMindSelection()
+                    }
+                }
             }
             .journalingSuggestionsPicker(
                 isPresented: $viewModel.showSuggestionsPicker,

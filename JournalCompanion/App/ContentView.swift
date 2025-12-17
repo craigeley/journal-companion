@@ -24,6 +24,14 @@ struct ContentView: View {
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
     @State private var selectedVaultURL: URL?
+    @State private var hasRequestedHealthKitAuth = UserDefaults.standard.bool(forKey: "hasRequestedHealthKitAuth")
+    @State private var showHealthKitAuth = false
+
+    // Debug: Manual trigger for HealthKit auth
+    private func showHealthKitAuthManually() {
+        print("🔧 DEBUG: Manually triggering HealthKit auth")
+        showHealthKitAuth = true
+    }
 
     var body: some View {
         ZStack {
@@ -114,6 +122,40 @@ struct ContentView: View {
                 .environmentObject(vaultManager)
                 .environmentObject(locationService)
                 .environmentObject(visitTracker)
+        }
+        .sheet(isPresented: $showHealthKitAuth) {
+            HealthKitAuthView()
+                .onDisappear {
+                    UserDefaults.standard.set(true, forKey: "hasRequestedHealthKitAuth")
+                    hasRequestedHealthKitAuth = true
+                }
+        }
+        .onAppear {
+            // Show HealthKit authorization on first launch
+            print("🏁 ContentView appeared. hasRequestedHealthKitAuth: \(hasRequestedHealthKitAuth), vaultAccessible: \(vaultManager.isVaultAccessible)")
+            checkAndShowHealthKitAuth()
+        }
+        .onChange(of: vaultManager.isVaultAccessible) { oldValue, newValue in
+            // When vault becomes accessible, show HealthKit auth if not requested yet
+            print("📦 Vault accessibility changed: \(oldValue) -> \(newValue)")
+            if newValue {
+                checkAndShowHealthKitAuth()
+            }
+        }
+    }
+
+    private func checkAndShowHealthKitAuth() {
+        if !hasRequestedHealthKitAuth && vaultManager.isVaultAccessible {
+            print("💡 Will show HealthKit auth in 0.5 seconds...")
+            // Delay slightly to allow app to settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                print("📱 Showing HealthKit authorization view")
+                showHealthKitAuth = true
+            }
+        } else if hasRequestedHealthKitAuth {
+            print("⏭️ Already requested HealthKit auth, skipping")
+        } else {
+            print("⏭️ Vault not accessible yet, waiting...")
         }
     }
 

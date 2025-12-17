@@ -78,10 +78,15 @@ actor EntryReader {
         var condition: String?
         var aqi: Int?
         var humidity: Int?
+        var moodValence: Double?
+        var moodLabels: [String] = []
+        var moodAssociations: [String] = []
 
         let lines = frontmatter.components(separatedBy: .newlines)
         var inTags = false
         var inPeople = false
+        var inMoodLabels = false
+        var inMoodAssociations = false
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -155,11 +160,38 @@ actor EntryReader {
             } else if trimmed.hasPrefix("aqi:") {
                 inTags = false
                 inPeople = false
+                inMoodLabels = false
+                inMoodAssociations = false
                 let aqiString = trimmed.replacingOccurrences(of: "aqi:", with: "").trimmingCharacters(in: .whitespaces)
                 aqi = Int(aqiString)
+            } else if trimmed.hasPrefix("mood_valence:") {
+                inTags = false
+                inPeople = false
+                inMoodLabels = false
+                inMoodAssociations = false
+                let valenceString = trimmed.replacingOccurrences(of: "mood_valence:", with: "").trimmingCharacters(in: .whitespaces)
+                moodValence = Double(valenceString)
+            } else if trimmed.hasPrefix("mood_labels:") {
+                inTags = false
+                inPeople = false
+                inMoodLabels = true
+                inMoodAssociations = false
+            } else if inMoodLabels && trimmed.hasPrefix("- ") {
+                let label = trimmed.replacingOccurrences(of: "- ", with: "")
+                moodLabels.append(label)
+            } else if trimmed.hasPrefix("mood_associations:") {
+                inTags = false
+                inPeople = false
+                inMoodLabels = false
+                inMoodAssociations = true
+            } else if inMoodAssociations && trimmed.hasPrefix("- ") {
+                let association = trimmed.replacingOccurrences(of: "- ", with: "")
+                moodAssociations.append(association)
             } else if !trimmed.isEmpty && !trimmed.hasPrefix("-") {
                 inTags = false
                 inPeople = false
+                inMoodLabels = false
+                inMoodAssociations = false
             }
         }
 
@@ -182,7 +214,10 @@ actor EntryReader {
             temperature: temperature,
             condition: condition,
             aqi: aqi,
-            humidity: humidity
+            humidity: humidity,
+            moodValence: moodValence,
+            moodLabels: moodLabels.isEmpty ? nil : moodLabels,
+            moodAssociations: moodAssociations.isEmpty ? nil : moodAssociations
         )
     }
 }

@@ -24,7 +24,9 @@
 		<string>location</string>
 		<string>fetch</string>
 	</array>
-	<key>NSContactsUsageDescription</key>
-	<string>Link journal entries to people in your contacts.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>JournalCompanion saves your emotional state to Apple Health to help you track your well-being over time.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>JournalCompanion records your mood and emotions to provide insights into your mental wellness.</string>
 </dict>
 </plist>

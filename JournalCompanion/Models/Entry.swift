@@ -22,6 +22,11 @@ struct Entry: Identifiable, Codable, Sendable {
     var aqi: Int?
     var humidity: Int?
 
+    // Optional State of Mind data
+    var moodValence: Double?
+    var moodLabels: [String]?
+    var moodAssociations: [String]?
+
     /// Generate filename in YYYYMMDDHHmm format
     nonisolated var filename: String {
         let formatter = DateFormatter()
@@ -93,6 +98,23 @@ struct Entry: Identifiable, Codable, Sendable {
         }
         if let humidity = humidity {
             yaml += "humidity: \(humidity)\n"
+        }
+
+        // State of Mind data (optional)
+        if let valence = moodValence {
+            yaml += "mood_valence: \(valence)\n"
+        }
+        if let labels = moodLabels, !labels.isEmpty {
+            yaml += "mood_labels:\n"
+            for label in labels {
+                yaml += "  - \(label)\n"
+            }
+        }
+        if let associations = moodAssociations, !associations.isEmpty {
+            yaml += "mood_associations:\n"
+            for association in associations {
+                yaml += "  - \(association)\n"
+            }
         }
 
         yaml += "---\n\n"

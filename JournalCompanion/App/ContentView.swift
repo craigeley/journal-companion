@@ -138,6 +138,18 @@ struct ContentView: View {
             PlaceEditView(viewModel: viewModel)
                 .environmentObject(templateManager)
         }
+        .onChange(of: showPlaceCreation) { _, isShowing in
+            if !isShowing {
+                // Refresh places when creation view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadPlaces()
+                    } catch {
+                        print("❌ Failed to reload places: \(error)")
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(vaultManager)

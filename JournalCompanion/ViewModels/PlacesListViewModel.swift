@@ -12,6 +12,7 @@ import SwiftUI
 @MainActor
 class PlacesListViewModel: ObservableObject {
     @Published var filteredPlaces: [Place] = []
+    @Published var placesByCallout: [(callout: String, places: [Place])] = []
     @Published var searchText: String = ""
     @Published var isLoading = false
 
@@ -37,6 +38,13 @@ class PlacesListViewModel: ObservableObject {
         vaultManager.$places
             .sink { [weak self] _ in
                 self?.filterPlaces(searchText: self?.searchText ?? "")
+            }
+            .store(in: &cancellables)
+
+        // Update grouped places whenever filteredPlaces changes
+        $filteredPlaces
+            .sink { [weak self] places in
+                self?.updateGroupedPlaces(places)
             }
             .store(in: &cancellables)
     }
@@ -73,13 +81,13 @@ class PlacesListViewModel: ObservableObject {
         }
     }
 
-    /// Group places by callout type
-    func placesByCallout() -> [(callout: String, places: [Place])] {
-        let grouped = Dictionary(grouping: filteredPlaces) { place in
+    /// Update grouped places whenever filteredPlaces changes
+    private func updateGroupedPlaces(_ places: [Place]) {
+        let grouped = Dictionary(grouping: places) { place in
             place.callout
         }
 
-        return grouped.map { (callout: $0.key, places: $0.value) }
+        placesByCallout = grouped.map { (callout: $0.key, places: $0.value) }
             .sorted { $0.callout < $1.callout }
     }
 }

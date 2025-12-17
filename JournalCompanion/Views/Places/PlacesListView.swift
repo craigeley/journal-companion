@@ -64,7 +64,7 @@ struct PlacesListView: View {
 
     private var placesList: some View {
         List {
-            ForEach(viewModel.placesByCallout(), id: \.callout) { section in
+            ForEach(viewModel.placesByCallout, id: \.callout) { section in
                 Section {
                     ForEach(section.places) { place in
                         PlaceRow(place: place)

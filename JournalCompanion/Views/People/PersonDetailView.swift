@@ -108,15 +108,6 @@ struct PersonDetailView: View {
                     }
                 }
 
-                // Social Media
-                if !currentPerson.socialMedia.isEmpty {
-                    Section("Social Media") {
-                        ForEach(Array(currentPerson.socialMedia.sorted(by: { $0.key < $1.key })), id: \.key) { platform, handle in
-                            LabeledContent(platform.capitalized, value: "@\(handle)")
-                        }
-                    }
-                }
-
                 // Tags
                 if templateManager.personTemplate.isEnabled("tags") && !currentPerson.tags.isEmpty {
                     Section("Tags") {
@@ -344,7 +335,6 @@ struct PersonDetailView: View {
         address: "123 Main St, San Francisco, CA",
         birthday: DateComponents(month: 3, day: 15),
         metDate: Date(),
-        socialMedia: ["instagram": "alicesmith"],
         color: "rgb(72,133,237)",
         photoFilename: nil,
         aliases: [],

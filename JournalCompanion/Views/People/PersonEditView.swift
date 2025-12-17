@@ -323,7 +323,6 @@ struct PersonEditView: View {
         address: "123 Main St, San Francisco, CA",
         birthday: DateComponents(year: 1990, month: 3, day: 15),
         metDate: Date(),
-        socialMedia: ["instagram": "alicesmith"],
         color: "rgb(72,133,237)",
         photoFilename: nil,
         aliases: [],

@@ -141,7 +141,6 @@ class PersonEditViewModel: ObservableObject {
                 address: address.isEmpty ? nil : address,
                 birthday: birthday,
                 metDate: originalPerson.metDate,  // Not editable yet
-                socialMedia: originalPerson.socialMedia,  // Not editable yet
                 color: originalPerson.color,
                 photoFilename: originalPerson.photoFilename,
                 aliases: aliases,  // Use edited aliases

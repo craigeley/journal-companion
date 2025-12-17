@@ -18,7 +18,6 @@ struct Person: Identifiable, Codable, Sendable {
     var address: String?
     var birthday: DateComponents?  // Month/day only (no year for privacy)
     var metDate: Date?
-    var socialMedia: [String: String]  // ["instagram": "handle", "twitter": "handle"]
     var color: String?  // RGB format: rgb(72,133,237)
     var photoFilename: String?  // Filename in People/Photos/
     var aliases: [String]  // Alternative names for this person
@@ -146,11 +145,6 @@ struct Person: Identifiable, Codable, Sendable {
             }
         }
 
-        // Social media fields (always write if present, regardless of template)
-        for (platform, handle) in socialMedia.sorted(by: { $0.key < $1.key }) {
-            yaml += "\(platform.lowercased()): \(handle)\n"
-        }
-
         yaml += "---\n\n"
 
         return yaml + content
@@ -234,15 +228,6 @@ struct Person: Identifiable, Codable, Sendable {
             return []
         }()
 
-        // Extract social media (all keys not in reserved set)
-        let reservedKeys = Set(["pronouns", "relationship", "tags", "aliases", "email", "phone", "address", "birthday", "met_date", "color", "photo"])
-        var socialMedia: [String: String] = [:]
-        for (key, value) in frontmatter {
-            if !reservedKeys.contains(key), let stringValue = value as? String {
-                socialMedia[key] = stringValue
-            }
-        }
-
         // Extract relationship type
         let relationshipType: RelationshipType = {
             guard let typeString = frontmatter["relationship"] as? String,
@@ -283,7 +268,6 @@ struct Person: Identifiable, Codable, Sendable {
             address: frontmatter["address"] as? String,
             birthday: birthday,
             metDate: metDate,
-            socialMedia: socialMedia,
             color: frontmatter["color"] as? String,
             photoFilename: frontmatter["photo"] as? String,
             aliases: aliases,

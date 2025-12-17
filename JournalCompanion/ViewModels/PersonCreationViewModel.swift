@@ -197,7 +197,6 @@ class PersonCreationViewModel: ObservableObject {
                 address: contactAddress.isEmpty ? nil : contactAddress,
                 birthday: contactBirthday,  // Use contact birthday if available
                 metDate: nil,   // MVP: can be added later via edit
-                socialMedia: [:],  // Start with no social media
                 color: nil,
                 photoFilename: nil,  // MVP: can be added later
                 aliases: [],  // Start with no aliases

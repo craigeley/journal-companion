@@ -34,7 +34,6 @@ struct PersonTemplateField: TemplateField, Identifiable, Codable, Sendable {
         case aliases([String])
         case date(Date?)  // For metDate
         case dateComponents(DateComponents?)  // For birthday
-        case socialMedia([String: String])
         case color(String?)
 
         var stringValue: String? {
@@ -45,7 +44,6 @@ struct PersonTemplateField: TemplateField, Identifiable, Codable, Sendable {
             case .aliases(let arr): return arr.isEmpty ? nil : arr.joined(separator: ", ")
             case .date: return nil
             case .dateComponents: return nil
-            case .socialMedia(let dict): return dict.isEmpty ? nil : String(describing: dict)
             case .color(let str): return str
             }
         }
@@ -192,7 +190,6 @@ struct PersonTemplate: Codable, Sendable {
                 order: 10,
                 defaultValue: .aliases([])
             )
-            // Note: socialMedia fields are dynamic and handled separately
         ])
     }
 

@@ -37,7 +37,7 @@ class EntryEditViewModel: ObservableObject {
     private var pendingEntry: Entry?
     private let originalEntry: Entry
     let vaultManager: VaultManager
-    private let locationService: LocationService
+    let locationService: LocationService
     private let weatherService = WeatherService()
 
     init(entry: Entry, vaultManager: VaultManager, locationService: LocationService) {

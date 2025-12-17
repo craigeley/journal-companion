@@ -38,10 +38,8 @@ struct PlacesListView: View {
                 await viewModel.reloadPlaces()
             }
             .sheet(item: $selectedPlace) { place in
-                PlaceEditView(viewModel: PlaceEditViewModel(
-                    place: place,
-                    vaultManager: viewModel.vaultManager
-                ))
+                PlaceDetailView(place: place)
+                    .environmentObject(viewModel.vaultManager)
             }
         }
     }

@@ -79,10 +79,8 @@ struct MapView: View {
                 MapFilterView(viewModel: viewModel)
             }
             .sheet(item: $selectedPlace) { place in
-                PlaceEditView(viewModel: PlaceEditViewModel(
-                    place: place,
-                    vaultManager: viewModel.vaultManager
-                ))
+                PlaceDetailView(place: place)
+                    .environmentObject(viewModel.vaultManager)
             }
         }
     }

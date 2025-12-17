@@ -11,7 +11,7 @@ struct EntryListView: View {
     @StateObject var viewModel: EntryListViewModel
 
     @State private var selectedEntry: Entry?
-    @State private var showEditView = false
+    @State private var showDetailView = false
     @State private var entryToDelete: Entry?
     @State private var showDeleteConfirmation = false
 
@@ -43,18 +43,13 @@ struct EntryListView: View {
             .refreshable {
                 await viewModel.loadEntries()
             }
-            .sheet(isPresented: $showEditView) {
+            .sheet(isPresented: $showDetailView) {
                 if let entry = selectedEntry {
-                    EntryEditView(
-                        viewModel: EntryEditViewModel(
-                            entry: entry,
-                            vaultManager: viewModel.vaultManager,
-                            locationService: viewModel.locationService
-                        )
-                    )
+                    EntryDetailView(entry: entry)
+                        .environmentObject(viewModel.vaultManager)
                 }
             }
-            .onChange(of: showEditView) { _, isShowing in
+            .onChange(of: showDetailView) { _, isShowing in
                 if !isShowing {
                     // Refresh entries when edit view closes
                     Task {
@@ -90,7 +85,7 @@ struct EntryListView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedEntry = entry
-                                showEditView = true
+                                showDetailView = true
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {

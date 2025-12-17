@@ -16,7 +16,8 @@ struct PersonDetailView: View {
     @State private var recentEntries: [Entry] = []
     @State private var isLoadingEntries = false
     @State private var selectedEntry: Entry?
-    @State private var showEditView = false
+    @State private var showEntryDetail = false
+    @State private var showPersonEdit = false
 
     var body: some View {
         NavigationStack {
@@ -158,7 +159,7 @@ struct PersonDetailView: View {
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedEntry = entry
-                                showEditView = true
+                                showEntryDetail = true
                             }
                         }
                     }
@@ -167,33 +168,39 @@ struct PersonDetailView: View {
             .navigationTitle("Person Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
                         dismiss()
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") {
+                        showPersonEdit = true
                     }
                 }
             }
             .task {
                 await loadRecentEntries()
             }
-            .sheet(isPresented: $showEditView) {
+            .sheet(isPresented: $showEntryDetail) {
                 if let entry = selectedEntry {
-                    EntryEditView(
-                        viewModel: EntryEditViewModel(
-                            entry: entry,
-                            vaultManager: vaultManager,
-                            locationService: LocationService()
-                        )
-                    )
+                    EntryDetailView(entry: entry)
+                        .environmentObject(vaultManager)
                 }
             }
-            .onChange(of: showEditView) { _, isShowing in
+            .onChange(of: showEntryDetail) { _, isShowing in
                 if !isShowing {
-                    // Reload entries when edit view closes
+                    // Reload entries when entry detail view closes
                     Task {
                         await loadRecentEntries()
                     }
                 }
+            }
+            .sheet(isPresented: $showPersonEdit) {
+                PersonEditView(viewModel: PersonEditViewModel(
+                    person: person,
+                    vaultManager: vaultManager
+                ))
             }
         }
     }

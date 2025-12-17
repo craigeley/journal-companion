@@ -85,6 +85,18 @@ struct ContentView: View {
             let viewModel = PersonCreationViewModel(vaultManager: vaultManager)
             PersonCreationView(viewModel: viewModel)
         }
+        .onChange(of: showPersonCreation) { _, isShowing in
+            if !isShowing {
+                // Refresh people when creation view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadPeople()
+                    } catch {
+                        print("❌ Failed to reload people: \(error)")
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showLocationSearchForNewPlace) {
             LocationSearchView(
                 selectedLocationName: $pendingLocationName,

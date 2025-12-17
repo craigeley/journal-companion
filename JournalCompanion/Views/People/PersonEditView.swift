@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import Contacts
+import ContactsUI
 
 struct PersonEditView: View {
     @StateObject var viewModel: PersonEditViewModel
     @Environment(\.dismiss) var dismiss
     @State private var showBirthdayPicker = false
     @State private var tempBirthday: Date = Date()
+    @State private var showContactPicker = false
 
     var body: some View {
         NavigationStack {
@@ -40,6 +43,27 @@ struct PersonEditView: View {
 
                 // Contact Information Section
                 Section("Contact Information") {
+                    // Link to Contact button
+                    Button {
+                        showContactPicker = true
+                    } label: {
+                        HStack {
+                            Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle")
+                                .foregroundStyle(viewModel.linkedContact != nil ? .green : .blue)
+                            if let contact = viewModel.linkedContact {
+                                Text("\(contact.givenName) \(contact.familyName)")
+                                    .foregroundStyle(.primary)
+                            } else {
+                                Text("Link to Contact")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.tertiary)
+                                .font(.caption)
+                        }
+                    }
+
                     TextField("Email", text: $viewModel.email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -143,6 +167,11 @@ struct PersonEditView: View {
                     }
                 }
                 .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showContactPicker) {
+                ContactPickerRepresentable { contact in
+                    viewModel.linkContact(contact)
+                }
             }
         }
     }

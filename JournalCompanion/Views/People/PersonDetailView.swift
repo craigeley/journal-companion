@@ -13,11 +13,17 @@ struct PersonDetailView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var vaultManager: VaultManager
 
+    @State private var currentPerson: Person
     @State private var recentEntries: [Entry] = []
     @State private var isLoadingEntries = false
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
     @State private var showPersonEdit = false
+
+    init(person: Person) {
+        self.person = person
+        _currentPerson = State(initialValue: person)
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,18 +35,18 @@ struct PersonDetailView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundStyle(colorForRelationship(person.relationshipType))
+                                .foregroundStyle(colorForRelationship(currentPerson.relationshipType))
 
-                            Text(person.name)
+                            Text(currentPerson.name)
                                 .font(.title2)
                                 .bold()
 
                             HStack(spacing: 4) {
-                                Text(person.relationshipType.rawValue.capitalized)
+                                Text(currentPerson.relationshipType.rawValue.capitalized)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
 
-                                if let pronouns = person.pronouns {
+                                if let pronouns = currentPerson.pronouns {
                                     Text("•")
                                         .foregroundStyle(.secondary)
                                     Text(pronouns)
@@ -56,21 +62,21 @@ struct PersonDetailView: View {
                 .listRowBackground(Color.clear)
 
                 // Contact Info
-                if person.email != nil || person.phone != nil || person.address != nil {
+                if currentPerson.email != nil || currentPerson.phone != nil || currentPerson.address != nil {
                     Section("Contact") {
-                        if let email = person.email {
+                        if let email = currentPerson.email {
                             LabeledContent("Email") {
                                 Link(email, destination: URL(string: "mailto:\(email)")!)
                                     .foregroundStyle(.blue)
                             }
                         }
-                        if let phone = person.phone {
+                        if let phone = currentPerson.phone {
                             LabeledContent("Phone") {
                                 Link(phone, destination: URL(string: "tel:\(phone.filter { $0.isNumber })")!)
                                     .foregroundStyle(.blue)
                             }
                         }
-                        if let address = person.address {
+                        if let address = currentPerson.address {
                             LabeledContent("Address") {
                                 Text(address)
                                     .font(.caption)
@@ -81,31 +87,31 @@ struct PersonDetailView: View {
                 }
 
                 // Important Dates
-                if person.birthday != nil || person.metDate != nil {
+                if currentPerson.birthday != nil || currentPerson.metDate != nil {
                     Section("Important Dates") {
-                        if let birthday = person.birthday {
+                        if let birthday = currentPerson.birthday {
                             LabeledContent("Birthday", value: formatBirthday(birthday))
                         }
-                        if let metDate = person.metDate {
+                        if let metDate = currentPerson.metDate {
                             LabeledContent("Met", value: metDate, format: .dateTime.month().day().year())
                         }
                     }
                 }
 
                 // Social Media
-                if !person.socialMedia.isEmpty {
+                if !currentPerson.socialMedia.isEmpty {
                     Section("Social Media") {
-                        ForEach(Array(person.socialMedia.sorted(by: { $0.key < $1.key })), id: \.key) { platform, handle in
+                        ForEach(Array(currentPerson.socialMedia.sorted(by: { $0.key < $1.key })), id: \.key) { platform, handle in
                             LabeledContent(platform.capitalized, value: "@\(handle)")
                         }
                     }
                 }
 
                 // Tags
-                if !person.tags.isEmpty {
+                if !currentPerson.tags.isEmpty {
                     Section("Tags") {
                         FlowLayout(spacing: 8) {
-                            ForEach(person.tags, id: \.self) { tag in
+                            ForEach(currentPerson.tags, id: \.self) { tag in
                                 Text("#\(tag)")
                                     .font(.caption)
                                     .padding(.horizontal, 8)
@@ -118,9 +124,9 @@ struct PersonDetailView: View {
                 }
 
                 // Notes
-                if !person.content.isEmpty {
+                if !currentPerson.content.isEmpty {
                     Section("Notes") {
-                        Text(person.content)
+                        Text(currentPerson.content)
                             .font(.body)
                     }
                 }
@@ -198,9 +204,17 @@ struct PersonDetailView: View {
             }
             .sheet(isPresented: $showPersonEdit) {
                 PersonEditView(viewModel: PersonEditViewModel(
-                    person: person,
+                    person: currentPerson,
                     vaultManager: vaultManager
                 ))
+            }
+            .onChange(of: showPersonEdit) { _, isShowing in
+                if !isShowing {
+                    // Reload person when edit view closes
+                    Task {
+                        await reloadPerson()
+                    }
+                }
             }
         }
     }
@@ -216,13 +230,26 @@ struct PersonDetailView: View {
             let allEntries = try await reader.loadEntries(limit: 100)
 
             // Filter entries that reference this person
-            let personEntries = allEntries.filter { $0.people.contains(person.name) }
+            let personEntries = allEntries.filter { $0.people.contains(currentPerson.name) }
 
             // Take 5 most recent (already sorted newest first)
             recentEntries = Array(personEntries.prefix(5))
         } catch {
             print("❌ Failed to load entries for person: \(error)")
             recentEntries = []
+        }
+    }
+
+    private func reloadPerson() async {
+        // Reload people from vault to get updated person
+        do {
+            _ = try await vaultManager.loadPeople()
+            // Find the updated person by ID
+            if let updatedPerson = vaultManager.people.first(where: { $0.id == currentPerson.id }) {
+                currentPerson = updatedPerson
+            }
+        } catch {
+            print("❌ Failed to reload person: \(error)")
         }
     }
 

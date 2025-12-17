@@ -93,7 +93,7 @@ class PersonCreationViewModel: ObservableObject {
 
         // Import phone (first available)
         if let phone = contact.phoneNumbers.first {
-            contactPhone = phone.value.stringValue
+            contactPhone = formatPhoneNumber(phone.value.stringValue)
         }
 
         // Import address (first available)
@@ -108,6 +108,41 @@ class PersonCreationViewModel: ObservableObject {
             // CNContact.birthday is already DateComponents with month/day (and possibly year)
             contactBirthday = birthday
         }
+    }
+
+    /// Format phone number to match existing format: +1 (XXX) XXX-XXXX
+    private func formatPhoneNumber(_ rawNumber: String) -> String {
+        // Remove all non-digit characters except leading +
+        let hasPlus = rawNumber.hasPrefix("+")
+        let digitsOnly = rawNumber.filter { $0.isNumber }
+
+        // Check if it's a US number with country code (11 digits starting with 1)
+        if digitsOnly.hasPrefix("1") && digitsOnly.count == 11 {
+            let index1 = digitsOnly.index(digitsOnly.startIndex, offsetBy: 1)
+            let index4 = digitsOnly.index(digitsOnly.startIndex, offsetBy: 4)
+            let index7 = digitsOnly.index(digitsOnly.startIndex, offsetBy: 7)
+
+            let areaCode = digitsOnly[index1..<index4]
+            let firstPart = digitsOnly[index4..<index7]
+            let secondPart = digitsOnly[index7...]
+
+            return "+1 (\(areaCode)) \(firstPart)-\(secondPart)"
+        }
+
+        // Check if it's a 10-digit US number without country code
+        if digitsOnly.count == 10 {
+            let index3 = digitsOnly.index(digitsOnly.startIndex, offsetBy: 3)
+            let index6 = digitsOnly.index(digitsOnly.startIndex, offsetBy: 6)
+
+            let areaCode = digitsOnly[..<index3]
+            let firstPart = digitsOnly[index3..<index6]
+            let secondPart = digitsOnly[index6...]
+
+            return "+1 (\(areaCode)) \(firstPart)-\(secondPart)"
+        }
+
+        // For non-US numbers, return as-is with + prefix if it had one
+        return hasPlus ? rawNumber : digitsOnly
     }
 
     /// Create and save person

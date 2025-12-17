@@ -12,6 +12,7 @@ struct PlaceDetailView: View {
     let place: Place
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var vaultManager: VaultManager
+    @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var templateManager: TemplateManager
 
     @State private var currentPlace: Place
@@ -198,6 +199,7 @@ struct PlaceDetailView: View {
                 PlaceEditView(viewModel: PlaceEditViewModel(
                     place: currentPlace,
                     vaultManager: vaultManager,
+                    locationService: locationService,
                     templateManager: templateManager
                 ))
                 .environmentObject(templateManager)

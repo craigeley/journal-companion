@@ -89,6 +89,8 @@ struct MapView: View {
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
                     .environmentObject(viewModel.vaultManager)
+                    .environmentObject(viewModel.locationService)
+                    .environmentObject(viewModel.templateManager)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()

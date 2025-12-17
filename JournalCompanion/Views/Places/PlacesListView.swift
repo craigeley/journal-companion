@@ -9,6 +9,8 @@ import SwiftUI
 
 struct PlacesListView: View {
     @StateObject var viewModel: PlacesListViewModel
+    @EnvironmentObject var locationService: LocationService
+    @EnvironmentObject var templateManager: TemplateManager
     @State private var selectedPlace: Place?
     @State private var showSettings = false
 
@@ -50,6 +52,8 @@ struct PlacesListView: View {
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
                     .environmentObject(viewModel.vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()

@@ -83,8 +83,13 @@ struct ContentView: View {
             QuickEntryView(viewModel: viewModel)
         }
         .sheet(isPresented: $showPersonCreation) {
-            let viewModel = PersonCreationViewModel(vaultManager: vaultManager, templateManager: templateManager)
-            PersonCreationView(viewModel: viewModel)
+            let viewModel = PersonEditViewModel(
+                person: nil,  // nil = creation mode
+                vaultManager: vaultManager,
+                templateManager: templateManager
+            )
+            PersonEditView(viewModel: viewModel)
+                .environmentObject(templateManager)
         }
         .onChange(of: showPersonCreation) { _, isShowing in
             if !isShowing {
@@ -121,7 +126,8 @@ struct ContentView: View {
             pendingAddress = nil
             pendingCoordinates = nil
         }) {
-            let viewModel = PlaceCreationViewModel(
+            let viewModel = PlaceEditViewModel(
+                place: nil,  // nil = creation mode
                 vaultManager: vaultManager,
                 locationService: locationService,
                 templateManager: templateManager,
@@ -129,7 +135,8 @@ struct ContentView: View {
                 initialAddress: pendingAddress,
                 initialCoordinates: pendingCoordinates
             )
-            PlaceCreationView(viewModel: viewModel)
+            PlaceEditView(viewModel: viewModel)
+                .environmentObject(templateManager)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()

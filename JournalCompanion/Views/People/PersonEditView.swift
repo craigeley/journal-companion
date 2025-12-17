@@ -2,7 +2,7 @@
 //  PersonEditView.swift
 //  JournalCompanion
 //
-//  Edit screen for existing people
+//  Unified view for creating and editing people
 //
 
 import SwiftUI
@@ -13,6 +13,7 @@ struct PersonEditView: View {
     @StateObject var viewModel: PersonEditViewModel
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var templateManager: TemplateManager
+    @FocusState private var isNameFieldFocused: Bool
     @State private var showBirthdayPicker = false
     @State private var tempBirthday: Date = Date()
     @State private var showContactPicker = false
@@ -24,10 +25,27 @@ struct PersonEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Read-only name section
-                Section("Name") {
-                    Text(viewModel.name)
-                        .foregroundStyle(.primary)
+                // CREATION MODE: Name Section (Required)
+                if viewModel.isCreating {
+                    Section {
+                        TextField("Person Name", text: $viewModel.personName)
+                            .focused($isNameFieldFocused)
+                    } header: {
+                        Text("Name")
+                    } footer: {
+                        if let error = viewModel.nameError {
+                            Text(error)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                // EDIT MODE: Read-only name section
+                if !viewModel.isCreating {
+                    Section("Name") {
+                        Text(viewModel.name)
+                            .foregroundStyle(.primary)
+                    }
                 }
 
                 // Relationship Type Section
@@ -172,7 +190,7 @@ struct PersonEditView: View {
                         .font(.body)
                 }
             }
-            .navigationTitle("Edit Person")
+            .navigationTitle(viewModel.isCreating ? "New Person" : "Edit Person")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -182,17 +200,32 @@ struct PersonEditView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button {
                         Task {
-                            if await viewModel.saveChanges() {
+                            if await viewModel.save() {
                                 dismiss()
                             }
                         }
+                    } label: {
+                        if viewModel.isSaving {
+                            ProgressView()
+                        } else {
+                            Text(viewModel.isCreating ? "Create" : "Save")
+                        }
                     }
-                    .disabled(viewModel.isSaving)
+                    .disabled(!viewModel.isValid || viewModel.isSaving)
                 }
             }
-            .alert("Save Error", isPresented: .constant(viewModel.saveError != nil)) {
+            .onAppear {
+                // Only auto-focus name field if creating and name is empty
+                if viewModel.isCreating && viewModel.personName.isEmpty {
+                    isNameFieldFocused = true
+                }
+            }
+            .onChange(of: viewModel.personName) { _, _ in
+                viewModel.validateName()
+            }
+            .alert("Error", isPresented: .constant(viewModel.saveError != nil)) {
                 Button("OK") {
                     viewModel.saveError = nil
                 }
@@ -328,6 +361,23 @@ struct PersonEditView: View {
         aliases: [],
         content: "Met in college. Great friend and always up for coffee."
     )
-    let viewModel = PersonEditViewModel(person: samplePerson, vaultManager: vaultManager, templateManager: templateManager)
+    let viewModel = PersonEditViewModel(
+        person: samplePerson,
+        vaultManager: vaultManager,
+        templateManager: templateManager
+    )
     PersonEditView(viewModel: viewModel)
+        .environmentObject(templateManager)
+}
+
+#Preview("Create Mode") {
+    let vaultManager = VaultManager()
+    let templateManager = TemplateManager()
+    let viewModel = PersonEditViewModel(
+        person: nil,  // nil = creation mode
+        vaultManager: vaultManager,
+        templateManager: templateManager
+    )
+    PersonEditView(viewModel: viewModel)
+        .environmentObject(templateManager)
 }

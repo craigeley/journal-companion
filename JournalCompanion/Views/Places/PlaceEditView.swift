@@ -2,7 +2,7 @@
 //  PlaceEditView.swift
 //  JournalCompanion
 //
-//  Edit screen for places
+//  Unified view for creating and editing places
 //
 
 import SwiftUI
@@ -12,6 +12,8 @@ struct PlaceEditView: View {
     @StateObject var viewModel: PlaceEditViewModel
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var templateManager: TemplateManager
+    @FocusState private var isNameFieldFocused: Bool
+    @State private var showLocationSearch = false
     @State private var showAddAlias = false
     @State private var newAlias = ""
     @State private var showAddTag = false
@@ -20,32 +22,106 @@ struct PlaceEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Body content at top (primary edit area)
+                // CREATION MODE: Name Section (Required)
+                if viewModel.isCreating {
+                    Section {
+                        TextField("Place Name", text: $viewModel.placeName)
+                            .focused($isNameFieldFocused)
+                    } header: {
+                        Text("Name")
+                    } footer: {
+                        if let error = viewModel.nameError {
+                            Text(error)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+
+                // CREATION MODE: Location Search
+                if viewModel.isCreating {
+                    Section("Location") {
+                        Button {
+                            showLocationSearch = true
+                        } label: {
+                            HStack {
+                                Image(systemName: viewModel.selectedLocationName != nil ? "checkmark.circle.fill" : "magnifyingglass")
+                                    .foregroundStyle(viewModel.selectedLocationName != nil ? .green : .blue)
+                                if let locationName = viewModel.selectedLocationName {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(locationName)
+                                            .foregroundStyle(.primary)
+                                        if let address = viewModel.selectedAddress {
+                                            Text(address)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                } else {
+                                    Text("Search for location")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(viewModel.selectedLocationName != nil ? "Change" : "")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
+
+                        // Show coordinates if available
+                        if let coords = viewModel.selectedCoordinates {
+                            LabeledContent("Coordinates") {
+                                Text("\(String(format: "%.6f", coords.latitude)), \(String(format: "%.6f", coords.longitude))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                // BOTH MODES: Callout Type (NOW EDITABLE!)
+                Section("Type") {
+                    Picker("Place Type", selection: $viewModel.callout) {
+                        ForEach(PlaceEditViewModel.calloutTypes, id: \.self) { callout in
+                            HStack {
+                                Image(systemName: PlaceIcon.systemName(for: callout))
+                                    .foregroundStyle(PlaceIcon.color(for: callout))
+                                Text(callout.capitalized)
+                            }
+                            .tag(callout)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                }
+
+                // BOTH MODES: Notes
                 Section("Notes") {
                     TextEditor(text: $viewModel.bodyText)
-                        .frame(minHeight: 200)
+                        .frame(minHeight: 120)
                         .font(.body)
                 }
 
-                // Read-only metadata (excluding pin and color)
-                Section("Details") {
-                    LabeledContent("Name", value: viewModel.name)
+                // EDIT MODE: Read-only metadata
+                if !viewModel.isCreating {
+                    Section("Details") {
+                        LabeledContent("Name", value: viewModel.name)
 
-                    if templateManager.placeTemplate.isEnabled("addr"),
-                       let address = viewModel.address {
-                        LabeledContent("Address", value: address)
-                    }
+                        if templateManager.placeTemplate.isEnabled("addr"),
+                           let address = viewModel.address {
+                            LabeledContent("Address", value: address)
+                        }
 
-                    LabeledContent("Type", value: viewModel.callout.capitalized)
-
-                    if templateManager.placeTemplate.isEnabled("location"),
-                       let location = viewModel.location {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Location")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(String(format: "%.6f", location.latitude)), \(String(format: "%.6f", location.longitude))")
-                                .font(.body)
+                        if templateManager.placeTemplate.isEnabled("location"),
+                           let location = viewModel.location {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Location")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("\(String(format: "%.6f", location.latitude)), \(String(format: "%.6f", location.longitude))")
+                                    .font(.body)
+                            }
                         }
                     }
                 }
@@ -94,24 +170,16 @@ struct PlaceEditView: View {
                     }
                 }
 
-                // URL Section
-                if templateManager.placeTemplate.isEnabled("url"),
-                   let urlString = viewModel.url,
-                   let url = URL(string: urlString) {
-                    Section("Link") {
-                        Link(destination: url) {
-                            HStack {
-                                Text(urlString)
-                                    .foregroundStyle(.blue)
-                                Spacer()
-                                Image(systemName: "arrow.up.right.square")
-                                    .foregroundStyle(.blue)
-                            }
-                        }
+                // URL Section (BOTH MODES: Now editable!)
+                if templateManager.placeTemplate.isEnabled("url") {
+                    Section("Website URL") {
+                        TextField("https://example.com", text: $viewModel.url)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
                     }
                 }
             }
-            .navigationTitle("Edit Place")
+            .navigationTitle(viewModel.isCreating ? "New Place" : "Edit Place")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -121,17 +189,32 @@ struct PlaceEditView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button {
                         Task {
-                            if await viewModel.saveChanges() {
+                            if await viewModel.save() {
                                 dismiss()
                             }
                         }
+                    } label: {
+                        if viewModel.isSaving {
+                            ProgressView()
+                        } else {
+                            Text(viewModel.isCreating ? "Create" : "Save")
+                        }
                     }
-                    .disabled(viewModel.isSaving)
+                    .disabled(!viewModel.isValid || viewModel.isSaving)
                 }
             }
-            .alert("Save Error", isPresented: .constant(viewModel.saveError != nil)) {
+            .onAppear {
+                // Only auto-focus name field if creating and name is empty
+                if viewModel.isCreating && viewModel.placeName.isEmpty {
+                    isNameFieldFocused = true
+                }
+            }
+            .onChange(of: viewModel.placeName) { _, _ in
+                viewModel.validateName()
+            }
+            .alert("Error", isPresented: .constant(viewModel.saveError != nil)) {
                 Button("OK") {
                     viewModel.saveError = nil
                 }
@@ -139,6 +222,13 @@ struct PlaceEditView: View {
                 if let error = viewModel.saveError {
                     Text(error)
                 }
+            }
+            .sheet(isPresented: $showLocationSearch) {
+                LocationSearchView(
+                    selectedLocationName: $viewModel.selectedLocationName,
+                    selectedAddress: $viewModel.selectedAddress,
+                    selectedCoordinates: $viewModel.selectedCoordinates
+                )
             }
             .alert("Add Alias", isPresented: $showAddAlias) {
                 TextField("Alias", text: $newAlias)
@@ -175,8 +265,9 @@ struct PlaceEditView: View {
 }
 
 // MARK: - Preview
-#Preview {
+#Preview("Edit Mode") {
     let vaultManager = VaultManager()
+    let locationService = LocationService()
     let templateManager = TemplateManager()
     let samplePlace = Place(
         id: "sample-cafe",
@@ -191,6 +282,26 @@ struct PlaceEditView: View {
         aliases: ["The Sample", "Sample Coffee Shop"],
         content: "This is a great cafe with excellent coffee and WiFi."
     )
-    let viewModel = PlaceEditViewModel(place: samplePlace, vaultManager: vaultManager, templateManager: templateManager)
+    let viewModel = PlaceEditViewModel(
+        place: samplePlace,
+        vaultManager: vaultManager,
+        locationService: locationService,
+        templateManager: templateManager
+    )
     PlaceEditView(viewModel: viewModel)
+        .environmentObject(templateManager)
+}
+
+#Preview("Create Mode") {
+    let vaultManager = VaultManager()
+    let locationService = LocationService()
+    let templateManager = TemplateManager()
+    let viewModel = PlaceEditViewModel(
+        place: nil,  // nil = creation mode
+        vaultManager: vaultManager,
+        locationService: locationService,
+        templateManager: templateManager
+    )
+    PlaceEditView(viewModel: viewModel)
+        .environmentObject(templateManager)
 }

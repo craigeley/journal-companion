@@ -135,6 +135,8 @@ struct EntryDetailView: View {
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
                     .environmentObject(vaultManager)
+                    .environmentObject(LocationService())
+                    .environmentObject(TemplateManager())
             }
             .sheet(item: $selectedPerson) { person in
                 PersonDetailView(person: person)

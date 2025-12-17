@@ -218,6 +218,8 @@ struct EntryEditView: View {
                 if let place = viewModel.selectedPlace {
                     PlaceDetailView(place: place)
                         .environmentObject(viewModel.vaultManager)
+                        .environmentObject(viewModel.locationService)
+                        .environmentObject(TemplateManager())
                 }
             }
             .task {

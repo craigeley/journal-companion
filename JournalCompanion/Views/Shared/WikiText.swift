@@ -15,6 +15,8 @@ struct WikiText: View {
     let font: Font
 
     @EnvironmentObject var vaultManager: VaultManager
+    @EnvironmentObject var locationService: LocationService
+    @EnvironmentObject var templateManager: TemplateManager
     @State private var selectedPlace: Place?
     @State private var selectedPerson: Person?
 
@@ -43,6 +45,8 @@ struct WikiText: View {
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
                     .environmentObject(vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
             }
             .sheet(item: $selectedPerson) { person in
                 PersonDetailView(person: person)

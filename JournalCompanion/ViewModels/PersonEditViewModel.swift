@@ -173,8 +173,10 @@ class PersonEditViewModel: ObservableObject {
         let notesChanged = notes != originalPerson.content
         let birthdayChanged = birthday != originalPerson.birthday
         let tagsChanged = tags != originalPerson.tags
+        let aliasesChanged = aliases != originalPerson.aliases
 
         return pronounsChanged || emailChanged || phoneChanged || addressChanged ||
-               relationshipChanged || notesChanged || birthdayChanged || tagsChanged
+               relationshipChanged || notesChanged || birthdayChanged || tagsChanged ||
+               aliasesChanged
     }
 }

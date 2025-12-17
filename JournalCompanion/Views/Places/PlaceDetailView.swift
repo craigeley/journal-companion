@@ -14,11 +14,17 @@ struct PlaceDetailView: View {
     @EnvironmentObject var vaultManager: VaultManager
     @EnvironmentObject var templateManager: TemplateManager
 
+    @State private var currentPlace: Place
     @State private var recentEntries: [Entry] = []
     @State private var isLoadingEntries = false
     @State private var selectedEntry: Entry?
     @State private var showEntryDetail = false
     @State private var showPlaceEdit = false
+
+    init(place: Place) {
+        self.place = place
+        _currentPlace = State(initialValue: place)
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,15 +34,15 @@ struct PlaceDetailView: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 12) {
-                            Image(systemName: PlaceIcon.systemName(for: place.callout))
+                            Image(systemName: PlaceIcon.systemName(for: currentPlace.callout))
                                 .font(.system(size: 60))
-                                .foregroundStyle(PlaceIcon.color(for: place.callout))
+                                .foregroundStyle(PlaceIcon.color(for: currentPlace.callout))
 
-                            Text(place.name)
+                            Text(currentPlace.name)
                                 .font(.title2)
                                 .bold()
 
-                            Text(place.callout.capitalized)
+                            Text(currentPlace.callout.capitalized)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -48,14 +54,14 @@ struct PlaceDetailView: View {
 
                 // Location Info
                 if templateManager.placeTemplate.isEnabled("addr"),
-                   let address = place.address {
+                   let address = currentPlace.address {
                     Section("Address") {
                         Text(address)
                     }
                 }
 
                 if templateManager.placeTemplate.isEnabled("location"),
-                   let location = place.location {
+                   let location = currentPlace.location {
                     Section("Coordinates") {
                         LabeledContent("Latitude", value: String(format: "%.6f", location.latitude))
                         LabeledContent("Longitude", value: String(format: "%.6f", location.longitude))
@@ -63,10 +69,10 @@ struct PlaceDetailView: View {
                 }
 
                 // Tags
-                if templateManager.placeTemplate.isEnabled("tags") && !place.tags.isEmpty {
+                if templateManager.placeTemplate.isEnabled("tags") && !currentPlace.tags.isEmpty {
                     Section("Tags") {
                         FlowLayout(spacing: 8) {
-                            ForEach(place.tags.filter { $0 != "place" }, id: \.self) { tag in
+                            ForEach(currentPlace.tags.filter { $0 != "place" }, id: \.self) { tag in
                                 Text("#\(tag)")
                                     .font(.caption)
                                     .padding(.horizontal, 8)
@@ -79,9 +85,9 @@ struct PlaceDetailView: View {
                 }
 
                 // Aliases
-                if templateManager.placeTemplate.isEnabled("aliases") && !place.aliases.isEmpty {
+                if templateManager.placeTemplate.isEnabled("aliases") && !currentPlace.aliases.isEmpty {
                     Section("Aliases") {
-                        ForEach(place.aliases, id: \.self) { alias in
+                        ForEach(currentPlace.aliases, id: \.self) { alias in
                             Text(alias)
                         }
                     }
@@ -89,7 +95,7 @@ struct PlaceDetailView: View {
 
                 // URL
                 if templateManager.placeTemplate.isEnabled("url"),
-                   let urlString = place.url,
+                   let urlString = currentPlace.url,
                    let url = URL(string: urlString) {
                     Section("Link") {
                         Link(destination: url) {
@@ -177,11 +183,19 @@ struct PlaceDetailView: View {
             }
             .sheet(isPresented: $showPlaceEdit) {
                 PlaceEditView(viewModel: PlaceEditViewModel(
-                    place: place,
+                    place: currentPlace,
                     vaultManager: vaultManager,
                     templateManager: templateManager
                 ))
                 .environmentObject(templateManager)
+            }
+            .onChange(of: showPlaceEdit) { _, isShowing in
+                if !isShowing {
+                    // Reload place when edit view closes
+                    Task {
+                        await reloadPlace()
+                    }
+                }
             }
         }
     }
@@ -197,13 +211,26 @@ struct PlaceDetailView: View {
             let allEntries = try await reader.loadEntries(limit: 100)
 
             // Filter entries that reference this place
-            let placeEntries = allEntries.filter { $0.place == place.name }
+            let placeEntries = allEntries.filter { $0.place == currentPlace.name }
 
             // Take 5 most recent (already sorted newest first)
             recentEntries = Array(placeEntries.prefix(5))
         } catch {
             print("❌ Failed to load entries for place: \(error)")
             recentEntries = []
+        }
+    }
+
+    private func reloadPlace() async {
+        // Reload places from vault to get updated place
+        do {
+            _ = try await vaultManager.loadPlaces()
+            // Find the updated place by ID
+            if let updatedPlace = vaultManager.places.first(where: { $0.id == currentPlace.id }) {
+                currentPlace = updatedPlace
+            }
+        } catch {
+            print("❌ Failed to reload place: \(error)")
         }
     }
 }

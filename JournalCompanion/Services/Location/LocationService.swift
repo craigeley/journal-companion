@@ -80,14 +80,15 @@ extension LocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         Task { @MainActor in
             guard let location = locations.last else { return }
-            self.currentLocation = location
-            print("Location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
 
-            // Resume continuation if waiting
+            // Only process if we have a continuation waiting (first update only)
             if let continuation = self.continuation {
+                self.currentLocation = location
+                print("Location updated: \(location.coordinate.latitude), \(location.coordinate.longitude)")
                 continuation.resume(returning: location)
                 self.continuation = nil
             }
+            // Ignore subsequent updates - we already returned from getCurrentLocation()
         }
     }
 

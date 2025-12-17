@@ -47,13 +47,15 @@ struct PlaceDetailView: View {
                 .listRowBackground(Color.clear)
 
                 // Location Info
-                if let address = place.address {
+                if templateManager.placeTemplate.isEnabled("addr"),
+                   let address = place.address {
                     Section("Address") {
                         Text(address)
                     }
                 }
 
-                if let location = place.location {
+                if templateManager.placeTemplate.isEnabled("location"),
+                   let location = place.location {
                     Section("Coordinates") {
                         LabeledContent("Latitude", value: String(format: "%.6f", location.latitude))
                         LabeledContent("Longitude", value: String(format: "%.6f", location.longitude))
@@ -61,7 +63,7 @@ struct PlaceDetailView: View {
                 }
 
                 // Tags
-                if !place.tags.isEmpty {
+                if templateManager.placeTemplate.isEnabled("tags") && !place.tags.isEmpty {
                     Section("Tags") {
                         FlowLayout(spacing: 8) {
                             ForEach(place.tags.filter { $0 != "place" }, id: \.self) { tag in
@@ -77,7 +79,7 @@ struct PlaceDetailView: View {
                 }
 
                 // Aliases
-                if !place.aliases.isEmpty {
+                if templateManager.placeTemplate.isEnabled("aliases") && !place.aliases.isEmpty {
                     Section("Aliases") {
                         ForEach(place.aliases, id: \.self) { alias in
                             Text(alias)
@@ -86,7 +88,9 @@ struct PlaceDetailView: View {
                 }
 
                 // URL
-                if let urlString = place.url, let url = URL(string: urlString) {
+                if templateManager.placeTemplate.isEnabled("url"),
+                   let urlString = place.url,
+                   let url = URL(string: urlString) {
                     Section("Link") {
                         Link(destination: url) {
                             HStack {

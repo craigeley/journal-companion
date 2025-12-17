@@ -47,7 +47,8 @@ struct PersonDetailView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
 
-                                if let pronouns = currentPerson.pronouns {
+                                if templateManager.personTemplate.isEnabled("pronouns"),
+                                   let pronouns = currentPerson.pronouns {
                                     Text("•")
                                         .foregroundStyle(.secondary)
                                     Text(pronouns)
@@ -63,21 +64,26 @@ struct PersonDetailView: View {
                 .listRowBackground(Color.clear)
 
                 // Contact Info
-                if currentPerson.email != nil || currentPerson.phone != nil || currentPerson.address != nil {
+                if (templateManager.personTemplate.isEnabled("email") && currentPerson.email != nil) ||
+                   (templateManager.personTemplate.isEnabled("phone") && currentPerson.phone != nil) ||
+                   (templateManager.personTemplate.isEnabled("address") && currentPerson.address != nil) {
                     Section("Contact") {
-                        if let email = currentPerson.email {
+                        if templateManager.personTemplate.isEnabled("email"),
+                           let email = currentPerson.email {
                             LabeledContent("Email") {
                                 Link(email, destination: URL(string: "mailto:\(email)")!)
                                     .foregroundStyle(.blue)
                             }
                         }
-                        if let phone = currentPerson.phone {
+                        if templateManager.personTemplate.isEnabled("phone"),
+                           let phone = currentPerson.phone {
                             LabeledContent("Phone") {
                                 Link(phone, destination: URL(string: "tel:\(phone.filter { $0.isNumber })")!)
                                     .foregroundStyle(.blue)
                             }
                         }
-                        if let address = currentPerson.address {
+                        if templateManager.personTemplate.isEnabled("address"),
+                           let address = currentPerson.address {
                             LabeledContent("Address") {
                                 Text(address)
                                     .font(.caption)
@@ -88,12 +94,15 @@ struct PersonDetailView: View {
                 }
 
                 // Important Dates
-                if currentPerson.birthday != nil || currentPerson.metDate != nil {
+                if (templateManager.personTemplate.isEnabled("birthday") && currentPerson.birthday != nil) ||
+                   (templateManager.personTemplate.isEnabled("met_date") && currentPerson.metDate != nil) {
                     Section("Important Dates") {
-                        if let birthday = currentPerson.birthday {
+                        if templateManager.personTemplate.isEnabled("birthday"),
+                           let birthday = currentPerson.birthday {
                             LabeledContent("Birthday", value: formatBirthday(birthday))
                         }
-                        if let metDate = currentPerson.metDate {
+                        if templateManager.personTemplate.isEnabled("met_date"),
+                           let metDate = currentPerson.metDate {
                             LabeledContent("Met", value: metDate, format: .dateTime.month().day().year())
                         }
                     }
@@ -109,7 +118,7 @@ struct PersonDetailView: View {
                 }
 
                 // Tags
-                if !currentPerson.tags.isEmpty {
+                if templateManager.personTemplate.isEnabled("tags") && !currentPerson.tags.isEmpty {
                     Section("Tags") {
                         FlowLayout(spacing: 8) {
                             ForEach(currentPerson.tags, id: \.self) { tag in
@@ -120,6 +129,15 @@ struct PersonDetailView: View {
                                     .background(Color.purple.opacity(0.1))
                                     .clipShape(Capsule())
                             }
+                        }
+                    }
+                }
+
+                // Aliases
+                if templateManager.personTemplate.isEnabled("aliases") && !currentPerson.aliases.isEmpty {
+                    Section("Aliases") {
+                        ForEach(currentPerson.aliases, id: \.self) { alias in
+                            Text(alias)
                         }
                     }
                 }

@@ -113,6 +113,8 @@ struct PlaceRow: View {
                         .foregroundStyle(.tertiary)
                 }
             }
+
+            Spacer()
         }
         .padding(.vertical, 4)
     }

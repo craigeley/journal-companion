@@ -188,10 +188,6 @@ class QuickEntryViewModel: ObservableObject {
             // Success!
             showSuccess = true
             clearForm()
-
-            // Auto-dismiss success message
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            showSuccess = false
         } catch {
             errorMessage = error.localizedDescription
         }

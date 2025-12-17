@@ -88,6 +88,18 @@ struct ContentView: View {
             let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
             QuickEntryView(viewModel: viewModel)
         }
+        .onChange(of: showQuickEntry) { _, isShowing in
+            if !isShowing {
+                // Refresh entries when quick entry view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadEntries()
+                    } catch {
+                        print("❌ Failed to reload entries: \(error)")
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showPersonCreation) {
             let viewModel = PersonEditViewModel(
                 person: nil,  // nil = creation mode

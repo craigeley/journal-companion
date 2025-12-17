@@ -11,7 +11,6 @@ import CoreLocation
 
 @MainActor
 class EntryListViewModel: ObservableObject {
-    @Published var entries: [Entry] = []
     @Published var filteredEntries: [Entry] = []
     @Published var searchText: String = ""
     @Published var isLoading: Bool = false
@@ -21,6 +20,10 @@ class EntryListViewModel: ObservableObject {
     let locationService: LocationService
     let searchCoordinator: SearchCoordinator?
     private var cancellables = Set<AnyCancellable>()
+
+    var entries: [Entry] {
+        vaultManager.entries
+    }
 
     var places: [Place] {
         vaultManager.places
@@ -54,24 +57,23 @@ class EntryListViewModel: ObservableObject {
                 self?.filterEntries(searchText: searchText)
             }
             .store(in: &cancellables)
+
+        // Observe changes to vaultManager.entries
+        vaultManager.$entries
+            .sink { [weak self] entries in
+                self?.filterEntries(entries: entries, searchText: self?.searchText ?? "")
+            }
+            .store(in: &cancellables)
     }
 
     /// Load entries from vault
     func loadEntries() async {
-        guard let vaultURL = vaultManager.vaultURL else {
-            errorMessage = "No vault configured"
-            return
-        }
-
         isLoading = true
         errorMessage = nil
 
         do {
-            let reader = EntryReader(vaultURL: vaultURL)
-            let loadedEntries = try await reader.loadEntries(limit: 100) // Load recent 100 entries
-
-            entries = loadedEntries
-            filteredEntries = loadedEntries
+            _ = try await vaultManager.loadEntries(limit: 100)
+            filterEntries(searchText: searchText)
             print("✓ Loaded \(entries.count) entries")
         } catch {
             errorMessage = error.localizedDescription
@@ -82,11 +84,12 @@ class EntryListViewModel: ObservableObject {
     }
 
     /// Filter entries based on search text
-    private func filterEntries(searchText: String) {
+    private func filterEntries(entries: [Entry]? = nil, searchText: String) {
+        let entriesToFilter = entries ?? self.entries
         if searchText.isEmpty {
-            filteredEntries = entries
+            filteredEntries = entriesToFilter
         } else {
-            filteredEntries = entries.filter { entry in
+            filteredEntries = entriesToFilter.filter { entry in
                 // Search in content
                 if entry.content.localizedCaseInsensitiveContains(searchText) {
                     return true
@@ -133,10 +136,9 @@ class EntryListViewModel: ObservableObject {
         let writer = EntryWriter(vaultURL: vaultURL)
         try await writer.delete(entry: entry)
 
-        // Remove from local arrays
-        entries.removeAll { $0.id == entry.id }
-        filteredEntries.removeAll { $0.id == entry.id }
+        // Reload entries from vault to update the list
+        _ = try await vaultManager.loadEntries(limit: 100)
 
-        print("✓ Deleted entry from list")
+        print("✓ Deleted entry and reloaded list")
     }
 }

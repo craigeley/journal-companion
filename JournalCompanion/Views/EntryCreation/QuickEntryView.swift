@@ -272,6 +272,7 @@ struct QuickEntryView: View {
             }
             .onAppear {
                 isTextFieldFocused = true
+                viewModel.showSuccess = false
                 Task {
                     await viewModel.detectCurrentLocation()
                 }

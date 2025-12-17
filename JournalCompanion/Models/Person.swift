@@ -35,6 +35,15 @@ struct Person: Identifiable, Codable, Sendable {
             .trimmingCharacters(in: .whitespaces)
     }
 
+    /// Sanitize address for YAML by replacing newlines with commas
+    private func sanitizeAddressForYAML(_ address: String) -> String {
+        // Replace newlines with comma-space
+        let singleLine = address.replacingOccurrences(of: "\n", with: ", ")
+        // Collapse multiple spaces
+        let collapsed = singleLine.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        return collapsed.trimmingCharacters(in: .whitespaces)
+    }
+
     /// Convert person to markdown format with YAML frontmatter
     /// Uses template configuration to determine which fields to write
     func toMarkdown(template: PersonTemplate) -> String {
@@ -91,7 +100,8 @@ struct Person: Identifiable, Codable, Sendable {
 
             case "address":
                 if let address = address {
-                    yaml += "address: \(address)\n"
+                    let sanitized = sanitizeAddressForYAML(address)
+                    yaml += "address: \(sanitized)\n"
                 } else {
                     yaml += "address:\n"
                 }

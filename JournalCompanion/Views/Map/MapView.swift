@@ -10,6 +10,8 @@ import MapKit
 
 struct MapView: View {
     @StateObject var viewModel: MapViewModel
+    @EnvironmentObject var locationService: LocationService
+    @EnvironmentObject var templateManager: TemplateManager
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var selectedPlace: Place?
     @State private var showFilterSheet = false
@@ -89,8 +91,8 @@ struct MapView: View {
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
                     .environmentObject(viewModel.vaultManager)
-                    .environmentObject(viewModel.locationService)
-                    .environmentObject(viewModel.templateManager)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()

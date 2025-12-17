@@ -122,7 +122,7 @@ class MapViewModel: ObservableObject {
     private func updateAvailableTags() {
         let allTags = placesWithCoordinates.flatMap { $0.tags }
         let uniqueTags = Set(allTags)
-            .filter { !$0.isEmpty && $0 != "place" }
+            .filter { !$0.isEmpty }
             .sorted()
 
         availableTags = uniqueTags
@@ -143,6 +143,10 @@ class MapViewModel: ObservableObject {
             let matchesTags: Bool = {
                 // If no tags are selected or available, show all places
                 if selectedTags.isEmpty || availableTags.isEmpty {
+                    return true
+                }
+                // Places with no tags always pass the filter (treated as "untagged")
+                if place.tags.isEmpty {
                     return true
                 }
                 // Place must have at least one tag that's selected

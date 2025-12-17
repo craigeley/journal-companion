@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 class SearchCoordinator: ObservableObject {
@@ -104,7 +105,7 @@ class SearchCoordinator: ObservableObject {
     /// Get available tags from places
     func updateAvailableTags(from places: [Place]) {
         let uniqueTags = Set(places.flatMap { $0.tags })
-            .filter { !$0.isEmpty && $0 != "place" }
+            .filter { !$0.isEmpty }
             .sorted()
         availableTags = uniqueTags
     }

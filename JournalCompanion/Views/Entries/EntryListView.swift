@@ -14,6 +14,7 @@ struct EntryListView: View {
     @State private var showDetailView = false
     @State private var entryToDelete: Entry?
     @State private var showDeleteConfirmation = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,15 @@ struct EntryListView: View {
             }
             .navigationTitle("Entries")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
             .searchable(text: $viewModel.searchText, prompt: "Search entries")
             .task {
                 if viewModel.entries.isEmpty {
@@ -56,6 +66,10 @@ struct EntryListView: View {
                         await viewModel.loadEntries()
                     }
                 }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environmentObject(viewModel.vaultManager)
             }
             .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }

@@ -193,57 +193,21 @@ struct ContentView: View {
             locationService: locationService
         )
         return EntryListView(viewModel: viewModel)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
     }
 
     private var peopleTab: some View {
         let viewModel = PeopleListViewModel(vaultManager: vaultManager)
         return PeopleListView(viewModel: viewModel)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
     }
 
     private var placesTab: some View {
         let viewModel = PlacesListViewModel(vaultManager: vaultManager)
         return PlacesListView(viewModel: viewModel)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
     }
 
     private var mapTab: some View {
         let viewModel = MapViewModel(vaultManager: vaultManager)
         return MapView(viewModel: viewModel)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
     }
 
     private var vaultSetup: some View {

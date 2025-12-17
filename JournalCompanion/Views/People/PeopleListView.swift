@@ -11,6 +11,7 @@ struct PeopleListView: View {
     @StateObject var viewModel: PeopleListViewModel
     @EnvironmentObject var vaultManager: VaultManager
     @State private var selectedPerson: Person?
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,15 @@ struct PeopleListView: View {
             }
             .navigationTitle("People")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
             .searchable(text: $viewModel.searchText, prompt: "Search people")
             .task {
                 await viewModel.loadPeopleIfNeeded()
@@ -40,6 +50,10 @@ struct PeopleListView: View {
             }
             .sheet(item: $selectedPerson) { person in
                 PersonDetailView(person: person)
+                    .environmentObject(vaultManager)
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
                     .environmentObject(vaultManager)
             }
         }

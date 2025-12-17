@@ -10,6 +10,7 @@ import SwiftUI
 struct PlacesListView: View {
     @StateObject var viewModel: PlacesListViewModel
     @State private var selectedPlace: Place?
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -30,6 +31,15 @@ struct PlacesListView: View {
             }
             .navigationTitle("Places")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
             .searchable(text: $viewModel.searchText, prompt: "Search places")
             .task {
                 await viewModel.loadPlacesIfNeeded()
@@ -39,6 +49,10 @@ struct PlacesListView: View {
             }
             .sheet(item: $selectedPlace) { place in
                 PlaceDetailView(place: place)
+                    .environmentObject(viewModel.vaultManager)
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
                     .environmentObject(viewModel.vaultManager)
             }
         }

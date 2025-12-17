@@ -19,6 +19,11 @@ xcodebuild -scheme JournalCompanion -destination 'platform=iOS Simulator,name=iP
 xcodebuild -scheme JournalCompanion -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
+**Known Build Warning:**
+- Simulator builds will always show: `error: Unable to find module dependency: 'JournalingSuggestions'`
+- **IGNORE THIS ERROR** - JournalingSuggestions only works on physical devices, not simulators
+- The app builds and runs correctly despite this error
+
 ## Architecture
 
 ### Data Flow Pattern: Vault → Manager → ViewModel → View

@@ -110,6 +110,19 @@ struct PlaceDetailView: View {
                     }
                 }
 
+                // Notes
+                if !currentPlace.content.isEmpty {
+                    Section("Notes") {
+                        WikiText(
+                            text: currentPlace.content,
+                            places: vaultManager.places,
+                            people: vaultManager.people,
+                            lineLimit: nil,
+                            font: .body
+                        )
+                    }
+                }
+
                 // Recent Entries
                 Section("Recent Entries") {
                     if isLoadingEntries {

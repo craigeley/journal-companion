@@ -60,13 +60,13 @@ class PlaceEditViewModel: ObservableObject {
 
         do {
             // Create updated place with same ID (filename)
-            // In v1, content and aliases are editable; other fields stay the same
+            // In v1, content, tags, and aliases are editable; other fields stay the same
             let updatedPlace = Place(
                 id: originalPlace.id,
                 name: originalPlace.name,  // Not editable yet
                 location: originalPlace.location,
                 address: originalPlace.address,
-                tags: originalPlace.tags,
+                tags: tags,  // Use edited tags
                 callout: originalPlace.callout,
                 pin: originalPlace.pin,
                 color: originalPlace.color,
@@ -95,6 +95,7 @@ class PlaceEditViewModel: ObservableObject {
     var hasChanges: Bool {
         let contentChanged = bodyText != originalPlace.content
         let aliasesChanged = aliases != originalPlace.aliases
-        return contentChanged || aliasesChanged
+        let tagsChanged = tags != originalPlace.tags
+        return contentChanged || aliasesChanged || tagsChanged
     }
 }

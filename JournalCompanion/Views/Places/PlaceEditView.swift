@@ -14,6 +14,8 @@ struct PlaceEditView: View {
     @EnvironmentObject var templateManager: TemplateManager
     @State private var showAddAlias = false
     @State private var newAlias = ""
+    @State private var showAddTag = false
+    @State private var newTag = ""
 
     var body: some View {
         NavigationStack {
@@ -49,17 +51,23 @@ struct PlaceEditView: View {
                 }
 
                 // Tags Section
-                if templateManager.placeTemplate.isEnabled("tags") && !viewModel.tags.isEmpty {
+                if templateManager.placeTemplate.isEnabled("tags") {
                     Section("Tags") {
-                        FlowLayout(spacing: 8) {
-                            ForEach(viewModel.tags.filter { $0 != "place" }, id: \.self) { tag in
-                                Text("#\(tag)")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .clipShape(Capsule())
+                        ForEach(viewModel.tags.indices, id: \.self) { index in
+                            HStack {
+                                Text(viewModel.tags[index])
+                                Spacer()
+                                Button(action: {
+                                    viewModel.tags.remove(at: index)
+                                }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
                             }
+                        }
+
+                        Button("Add Tag") {
+                            showAddTag = true
                         }
                     }
                 }
@@ -146,6 +154,21 @@ struct PlaceEditView: View {
                 }
             } message: {
                 Text("Enter an alternative name for this place")
+            }
+            .alert("Add Tag", isPresented: $showAddTag) {
+                TextField("Tag", text: $newTag)
+                Button("Add") {
+                    let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty && !viewModel.tags.contains(trimmed) {
+                        viewModel.tags.append(trimmed)
+                    }
+                    newTag = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newTag = ""
+                }
+            } message: {
+                Text("Enter a tag for this place")
             }
         }
     }

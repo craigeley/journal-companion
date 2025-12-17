@@ -24,6 +24,7 @@ class PersonEditViewModel: ObservableObject {
     @Published var address: String
     @Published var birthday: DateComponents?
     @Published var aliases: [String]
+    @Published var tags: [String]
     @Published var notes: String
 
     // Contact linking
@@ -51,6 +52,7 @@ class PersonEditViewModel: ObservableObject {
         self.address = person.address ?? ""
         self.birthday = person.birthday
         self.aliases = person.aliases
+        self.tags = person.tags
         self.notes = person.content
     }
 
@@ -133,7 +135,7 @@ class PersonEditViewModel: ObservableObject {
                 name: originalPerson.name,  // Name not editable in v1
                 pronouns: pronouns.isEmpty ? nil : pronouns,
                 relationshipType: selectedRelationship,
-                tags: originalPerson.tags,  // Tags not editable yet
+                tags: tags,  // Use edited tags
                 email: email.isEmpty ? nil : email,
                 phone: phone.isEmpty ? nil : phone,
                 address: address.isEmpty ? nil : address,
@@ -171,8 +173,9 @@ class PersonEditViewModel: ObservableObject {
         let relationshipChanged = selectedRelationship != originalPerson.relationshipType
         let notesChanged = notes != originalPerson.content
         let birthdayChanged = birthday != originalPerson.birthday
+        let tagsChanged = tags != originalPerson.tags
 
         return pronounsChanged || emailChanged || phoneChanged || addressChanged ||
-               relationshipChanged || notesChanged || birthdayChanged
+               relationshipChanged || notesChanged || birthdayChanged || tagsChanged
     }
 }

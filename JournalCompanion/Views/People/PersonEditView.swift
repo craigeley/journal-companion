@@ -18,6 +18,8 @@ struct PersonEditView: View {
     @State private var showContactPicker = false
     @State private var showAddAlias = false
     @State private var newAlias = ""
+    @State private var showAddTag = false
+    @State private var newTag = ""
 
     var body: some View {
         NavigationStack {
@@ -141,6 +143,28 @@ struct PersonEditView: View {
                     }
                 }
 
+                // Tags Section
+                if templateManager.personTemplate.isEnabled("tags") {
+                    Section("Tags") {
+                        ForEach(viewModel.tags.indices, id: \.self) { index in
+                            HStack {
+                                Text(viewModel.tags[index])
+                                Spacer()
+                                Button(action: {
+                                    viewModel.tags.remove(at: index)
+                                }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+
+                        Button("Add Tag") {
+                            showAddTag = true
+                        }
+                    }
+                }
+
                 // Notes Section
                 Section("Notes") {
                     TextEditor(text: $viewModel.notes)
@@ -226,6 +250,21 @@ struct PersonEditView: View {
                 }
             } message: {
                 Text("Enter an alternative name for this person")
+            }
+            .alert("Add Tag", isPresented: $showAddTag) {
+                TextField("Tag", text: $newTag)
+                Button("Add") {
+                    let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty && !viewModel.tags.contains(trimmed) {
+                        viewModel.tags.append(trimmed)
+                    }
+                    newTag = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newTag = ""
+                }
+            } message: {
+                Text("Enter a tag for this person")
             }
         }
     }

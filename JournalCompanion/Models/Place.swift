@@ -61,13 +61,19 @@ struct Place: Identifiable, Codable, Sendable {
 
             case "tags":
                 if !tags.isEmpty {
-                    yaml += "tags: \(tags)\n"
+                    yaml += "tags:\n"
+                    for tag in tags {
+                        yaml += "  - \(tag)\n"
+                    }
                 } else {
                     // Apply default tags from template
                     if case .tags(let defaultTags) = field.defaultValue, !defaultTags.isEmpty {
-                        yaml += "tags: \(defaultTags)\n"
+                        yaml += "tags:\n"
+                        for tag in defaultTags {
+                            yaml += "  - \(tag)\n"
+                        }
                     } else {
-                        yaml += "tags: []\n"
+                        yaml += "tags:\n"  // Empty array
                     }
                 }
 
@@ -97,7 +103,10 @@ struct Place: Identifiable, Codable, Sendable {
 
             case "aliases":
                 if !aliases.isEmpty {
-                    yaml += "aliases: \(aliases)\n"
+                    yaml += "aliases:\n"
+                    for alias in aliases {
+                        yaml += "  - \(alias)\n"
+                    }
                 } else {
                     yaml += "aliases: []\n"
                 }

@@ -12,6 +12,7 @@ struct PersonDetailView: View {
     let person: Person
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var vaultManager: VaultManager
+    @EnvironmentObject var templateManager: TemplateManager
 
     @State private var currentPerson: Person
     @State private var recentEntries: [Entry] = []
@@ -210,8 +211,10 @@ struct PersonDetailView: View {
             .sheet(isPresented: $showPersonEdit) {
                 PersonEditView(viewModel: PersonEditViewModel(
                     person: currentPerson,
-                    vaultManager: vaultManager
+                    vaultManager: vaultManager,
+                    templateManager: templateManager
                 ))
+                .environmentObject(templateManager)
             }
             .onChange(of: showPersonEdit) { _, isShowing in
                 if !isShowing {
@@ -326,6 +329,7 @@ struct PersonDetailView: View {
         socialMedia: ["instagram": "alicesmith"],
         color: "rgb(72,133,237)",
         photoFilename: nil,
+        aliases: [],
         content: "Met in college. Great friend and always up for coffee."
     )
     PersonDetailView(person: samplePerson)

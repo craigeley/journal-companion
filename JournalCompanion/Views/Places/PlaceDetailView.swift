@@ -12,6 +12,7 @@ struct PlaceDetailView: View {
     let place: Place
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var vaultManager: VaultManager
+    @EnvironmentObject var templateManager: TemplateManager
 
     @State private var recentEntries: [Entry] = []
     @State private var isLoadingEntries = false
@@ -173,8 +174,10 @@ struct PlaceDetailView: View {
             .sheet(isPresented: $showPlaceEdit) {
                 PlaceEditView(viewModel: PlaceEditViewModel(
                     place: place,
-                    vaultManager: vaultManager
+                    vaultManager: vaultManager,
+                    templateManager: templateManager
                 ))
+                .environmentObject(templateManager)
             }
         }
     }

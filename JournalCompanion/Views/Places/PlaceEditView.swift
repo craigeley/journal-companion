@@ -11,6 +11,9 @@ import CoreLocation
 struct PlaceEditView: View {
     @StateObject var viewModel: PlaceEditViewModel
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var templateManager: TemplateManager
+    @State private var showAddAlias = false
+    @State private var newAlias = ""
 
     var body: some View {
         NavigationStack {
@@ -26,13 +29,15 @@ struct PlaceEditView: View {
                 Section("Details") {
                     LabeledContent("Name", value: viewModel.name)
 
-                    if let address = viewModel.address {
+                    if templateManager.placeTemplate.isEnabled("addr"),
+                       let address = viewModel.address {
                         LabeledContent("Address", value: address)
                     }
 
                     LabeledContent("Type", value: viewModel.callout.capitalized)
 
-                    if let location = viewModel.location {
+                    if templateManager.placeTemplate.isEnabled("location"),
+                       let location = viewModel.location {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Location")
                                 .font(.caption)
@@ -44,7 +49,7 @@ struct PlaceEditView: View {
                 }
 
                 // Tags Section
-                if !viewModel.tags.isEmpty {
+                if templateManager.placeTemplate.isEnabled("tags") && !viewModel.tags.isEmpty {
                     Section("Tags") {
                         FlowLayout(spacing: 8) {
                             ForEach(viewModel.tags.filter { $0 != "place" }, id: \.self) { tag in
@@ -60,16 +65,31 @@ struct PlaceEditView: View {
                 }
 
                 // Aliases Section
-                if !viewModel.aliases.isEmpty {
+                if templateManager.placeTemplate.isEnabled("aliases") {
                     Section("Aliases") {
-                        ForEach(viewModel.aliases, id: \.self) { alias in
-                            Text(alias)
+                        ForEach(viewModel.aliases.indices, id: \.self) { index in
+                            HStack {
+                                Text(viewModel.aliases[index])
+                                Spacer()
+                                Button(action: {
+                                    viewModel.aliases.remove(at: index)
+                                }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+
+                        Button("Add Alias") {
+                            showAddAlias = true
                         }
                     }
                 }
 
                 // URL Section
-                if let urlString = viewModel.url, let url = URL(string: urlString) {
+                if templateManager.placeTemplate.isEnabled("url"),
+                   let urlString = viewModel.url,
+                   let url = URL(string: urlString) {
                     Section("Link") {
                         Link(destination: url) {
                             HStack {
@@ -112,6 +132,21 @@ struct PlaceEditView: View {
                     Text(error)
                 }
             }
+            .alert("Add Alias", isPresented: $showAddAlias) {
+                TextField("Alias", text: $newAlias)
+                Button("Add") {
+                    let trimmed = newAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty && !viewModel.aliases.contains(trimmed) {
+                        viewModel.aliases.append(trimmed)
+                    }
+                    newAlias = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newAlias = ""
+                }
+            } message: {
+                Text("Enter an alternative name for this place")
+            }
         }
     }
 }
@@ -119,6 +154,7 @@ struct PlaceEditView: View {
 // MARK: - Preview
 #Preview {
     let vaultManager = VaultManager()
+    let templateManager = TemplateManager()
     let samplePlace = Place(
         id: "sample-cafe",
         name: "Sample Cafe",
@@ -132,6 +168,6 @@ struct PlaceEditView: View {
         aliases: ["The Sample", "Sample Coffee Shop"],
         content: "This is a great cafe with excellent coffee and WiFi."
     )
-    let viewModel = PlaceEditViewModel(place: samplePlace, vaultManager: vaultManager)
-    return PlaceEditView(viewModel: viewModel)
+    let viewModel = PlaceEditViewModel(place: samplePlace, vaultManager: vaultManager, templateManager: templateManager)
+    PlaceEditView(viewModel: viewModel)
 }

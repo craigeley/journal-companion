@@ -21,6 +21,7 @@ struct Person: Identifiable, Codable, Sendable {
     var socialMedia: [String: String]  // ["instagram": "handle", "twitter": "handle"]
     var color: String?  // RGB format: rgb(72,133,237)
     var photoFilename: String?  // Filename in People/Photos/
+    var aliases: [String]  // Alternative names for this person
     var content: String  // Body text after YAML frontmatter
 
     var filename: String {
@@ -36,63 +37,128 @@ struct Person: Identifiable, Codable, Sendable {
     }
 
     /// Convert person to markdown format with YAML frontmatter
-    func toMarkdown() -> String {
+    /// Uses template configuration to determine which fields to write
+    func toMarkdown(template: PersonTemplate) -> String {
         var yaml = "---\n"
 
-        if let pronouns = pronouns {
-            yaml += "pronouns: \(pronouns)\n"
-        }
+        // Get enabled fields sorted by order
+        let enabledFields = template.fields
+            .filter { $0.isEnabled }
+            .sorted { $0.order < $1.order }
 
-        yaml += "relationship: \(relationshipType.rawValue)\n"
+        for field in enabledFields {
+            switch field.key {
+            case "pronouns":
+                if let pronouns = pronouns {
+                    yaml += "pronouns: \(pronouns)\n"
+                } else {
+                    yaml += "pronouns:\n"  // Write empty field
+                }
 
-        if !tags.isEmpty {
-            yaml += "tags:\n"
-            for tag in tags {
-                yaml += "  - \(tag)\n"
+            case "relationship":
+                yaml += "relationship: \(relationshipType.rawValue)\n"
+
+            case "tags":
+                if !tags.isEmpty {
+                    yaml += "tags:\n"
+                    for tag in tags {
+                        yaml += "  - \(tag)\n"
+                    }
+                } else {
+                    // Apply default tags from template if current tags empty
+                    if case .tags(let defaultTags) = field.defaultValue, !defaultTags.isEmpty {
+                        yaml += "tags:\n"
+                        for tag in defaultTags {
+                            yaml += "  - \(tag)\n"
+                        }
+                    } else {
+                        yaml += "tags:\n"  // Empty array
+                    }
+                }
+
+            case "email":
+                if let email = email {
+                    yaml += "email: \(email)\n"
+                } else {
+                    yaml += "email:\n"
+                }
+
+            case "phone":
+                if let phone = phone {
+                    yaml += "phone: \(phone)\n"
+                } else {
+                    yaml += "phone:\n"
+                }
+
+            case "address":
+                if let address = address {
+                    yaml += "address: \(address)\n"
+                } else {
+                    yaml += "address:\n"
+                }
+
+            case "birthday":
+                if let birthday = birthday, let month = birthday.month, let day = birthday.day {
+                    if let year = birthday.year {
+                        yaml += String(format: "birthday: %04d-%02d-%02d\n", year, month, day)
+                    } else {
+                        yaml += String(format: "birthday: %02d-%02d\n", month, day)
+                    }
+                } else {
+                    yaml += "birthday:\n"
+                }
+
+            case "met_date":
+                if let metDate = metDate {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    yaml += "met_date: \(formatter.string(from: metDate))\n"
+                } else {
+                    yaml += "met_date:\n"
+                }
+
+            case "color":
+                if let color = color {
+                    yaml += "color: \(color)\n"
+                } else {
+                    yaml += "color:\n"
+                }
+
+            case "photo":
+                if let photoFilename = photoFilename {
+                    yaml += "photo: \(photoFilename)\n"
+                } else {
+                    yaml += "photo:\n"
+                }
+
+            case "aliases":
+                if !aliases.isEmpty {
+                    yaml += "aliases:\n"
+                    for alias in aliases {
+                        yaml += "  - \(alias)\n"
+                    }
+                } else {
+                    yaml += "aliases: []\n"
+                }
+
+            default:
+                break
             }
         }
 
-        if let email = email {
-            yaml += "email: \(email)\n"
-        }
-        if let phone = phone {
-            yaml += "phone: \(phone)\n"
-        }
-        if let address = address {
-            yaml += "address: \(address)\n"
-        }
-
-        if let birthday = birthday, let month = birthday.month, let day = birthday.day {
-            if let year = birthday.year {
-                // Write YYYY-MM-DD format when year is available
-                yaml += String(format: "birthday: %04d-%02d-%02d\n", year, month, day)
-            } else {
-                // Write MM-DD format for legacy data without year
-                yaml += String(format: "birthday: %02d-%02d\n", month, day)
-            }
-        }
-
-        if let metDate = metDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            yaml += "met_date: \(formatter.string(from: metDate))\n"
-        }
-
-        // Social media as key-value pairs
+        // Social media fields (always write if present, regardless of template)
         for (platform, handle) in socialMedia.sorted(by: { $0.key < $1.key }) {
             yaml += "\(platform.lowercased()): \(handle)\n"
-        }
-
-        if let color = color {
-            yaml += "color: \(color)\n"
-        }
-        if let photoFilename = photoFilename {
-            yaml += "photo: \(photoFilename)\n"
         }
 
         yaml += "---\n\n"
 
         return yaml + content
+    }
+
+    /// Legacy method for backwards compatibility
+    func toMarkdown() -> String {
+        toMarkdown(template: .defaultTemplate)
     }
 
     /// Parse Person from markdown file content
@@ -155,8 +221,21 @@ struct Person: Identifiable, Codable, Sendable {
             return []
         }()
 
+        // Extract aliases
+        let aliases: [String] = {
+            if let aliasArray = frontmatter["aliases"] as? [String] {
+                return aliasArray
+            } else if let aliasString = frontmatter["aliases"] as? String {
+                // Handle inline format: [alias1, alias2]
+                let cleaned = aliasString.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+                if cleaned.isEmpty { return [] }
+                return cleaned.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            }
+            return []
+        }()
+
         // Extract social media (all keys not in reserved set)
-        let reservedKeys = Set(["pronouns", "relationship", "tags", "email", "phone", "address", "birthday", "met_date", "color", "photo"])
+        let reservedKeys = Set(["pronouns", "relationship", "tags", "aliases", "email", "phone", "address", "birthday", "met_date", "color", "photo"])
         var socialMedia: [String: String] = [:]
         for (key, value) in frontmatter {
             if !reservedKeys.contains(key), let stringValue = value as? String {
@@ -207,6 +286,7 @@ struct Person: Identifiable, Codable, Sendable {
             socialMedia: socialMedia,
             color: frontmatter["color"] as? String,
             photoFilename: frontmatter["photo"] as? String,
+            aliases: aliases,
             content: bodyContent
         )
     }
@@ -318,7 +398,7 @@ struct Person: Identifiable, Codable, Sendable {
     }
 }
 
-enum RelationshipType: String, Codable, CaseIterable {
+enum RelationshipType: String, Codable, CaseIterable, Sendable {
     case family
     case friend
     case colleague

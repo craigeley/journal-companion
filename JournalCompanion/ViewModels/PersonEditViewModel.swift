@@ -23,6 +23,7 @@ class PersonEditViewModel: ObservableObject {
     @Published var phone: String
     @Published var address: String
     @Published var birthday: DateComponents?
+    @Published var aliases: [String]
     @Published var notes: String
 
     // Contact linking
@@ -34,10 +35,12 @@ class PersonEditViewModel: ObservableObject {
 
     private let originalPerson: Person
     let vaultManager: VaultManager
+    let templateManager: TemplateManager
 
-    init(person: Person, vaultManager: VaultManager) {
+    init(person: Person, vaultManager: VaultManager, templateManager: TemplateManager) {
         self.originalPerson = person
         self.vaultManager = vaultManager
+        self.templateManager = templateManager
 
         // Pre-populate with existing data
         self.name = person.name
@@ -47,6 +50,7 @@ class PersonEditViewModel: ObservableObject {
         self.phone = person.phone ?? ""
         self.address = person.address ?? ""
         self.birthday = person.birthday
+        self.aliases = person.aliases
         self.notes = person.content
     }
 
@@ -138,11 +142,12 @@ class PersonEditViewModel: ObservableObject {
                 socialMedia: originalPerson.socialMedia,  // Not editable yet
                 color: originalPerson.color,
                 photoFilename: originalPerson.photoFilename,
+                aliases: aliases,  // Use edited aliases
                 content: notes
             )
 
             // Update the person file
-            let writer = PersonWriter(vaultURL: vaultURL)
+            let writer = PersonWriter(vaultURL: vaultURL, templateManager: templateManager)
             try await writer.update(person: updatedPerson)
 
             // Reload people in VaultManager to reflect changes

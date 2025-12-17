@@ -10,16 +10,19 @@ import Foundation
 actor PersonWriter {
     private let vaultURL: URL
     private let fileManager = FileManager.default
+    private let templateManager: TemplateManager
 
-    init(vaultURL: URL) {
+    init(vaultURL: URL, templateManager: TemplateManager) {
         self.vaultURL = vaultURL
+        self.templateManager = templateManager
     }
 
     /// Update an existing person
     func update(person: Person) async throws {
         // Access MainActor properties once at the start
         let filename = await MainActor.run { person.filename }
-        let markdown = await MainActor.run { person.toMarkdown() }
+        let template = await MainActor.run { templateManager.personTemplate }
+        let markdown = await MainActor.run { person.toMarkdown(template: template) }
 
         let peopleDirectory = vaultURL.appendingPathComponent("People")
         let fileURL = peopleDirectory.appendingPathComponent(filename)
@@ -39,7 +42,8 @@ actor PersonWriter {
     func write(person: Person) async throws {
         // Access MainActor properties once at the start
         let filename = await MainActor.run { person.filename }
-        let markdown = await MainActor.run { person.toMarkdown() }
+        let template = await MainActor.run { templateManager.personTemplate }
+        let markdown = await MainActor.run { person.toMarkdown(template: template) }
 
         let peopleDirectory = vaultURL.appendingPathComponent("People")
         let fileURL = peopleDirectory.appendingPathComponent(filename)

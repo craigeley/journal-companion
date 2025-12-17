@@ -34,33 +34,87 @@ struct Place: Identifiable, Codable, Sendable {
     }
 
     /// Convert place to markdown format with YAML frontmatter
-    func toMarkdown() -> String {
+    /// Uses template configuration to determine which fields to write
+    func toMarkdown(template: PlaceTemplate) -> String {
         var yaml = "---\n"
 
-        if let loc = location {
-            yaml += "location: \(loc.latitude),\(loc.longitude)\n"
-        }
-        if let addr = address {
-            yaml += "addr: \(addr)\n"
+        // Get enabled fields sorted by order
+        let enabledFields = template.fields
+            .filter { $0.isEnabled }
+            .sorted { $0.order < $1.order }
+
+        for field in enabledFields {
+            switch field.key {
+            case "location":
+                if let loc = location {
+                    yaml += "location: \(loc.latitude),\(loc.longitude)\n"
+                } else {
+                    yaml += "location:\n"
+                }
+
+            case "addr":
+                if let addr = address {
+                    yaml += "addr: \(addr)\n"
+                } else {
+                    yaml += "addr:\n"
+                }
+
+            case "tags":
+                if !tags.isEmpty {
+                    yaml += "tags: \(tags)\n"
+                } else {
+                    // Apply default tags from template
+                    if case .tags(let defaultTags) = field.defaultValue, !defaultTags.isEmpty {
+                        yaml += "tags: \(defaultTags)\n"
+                    } else {
+                        yaml += "tags: []\n"
+                    }
+                }
+
+            case "callout":
+                yaml += "callout: \(callout)\n"
+
+            case "pin":
+                if let pin = pin {
+                    yaml += "pin: \(pin)\n"
+                } else {
+                    yaml += "pin:\n"
+                }
+
+            case "color":
+                if let color = color {
+                    yaml += "color: \(color)\n"
+                } else {
+                    yaml += "color:\n"
+                }
+
+            case "url":
+                if let url = url {
+                    yaml += "url: \(url)\n"
+                } else {
+                    yaml += "url:\n"
+                }
+
+            case "aliases":
+                if !aliases.isEmpty {
+                    yaml += "aliases: \(aliases)\n"
+                } else {
+                    yaml += "aliases: []\n"
+                }
+
+            default:
+                break
+            }
         }
 
-        yaml += "tags: \(tags)\n"
-        yaml += "callout: \(callout)\n"
-
-        if let pin = pin {
-            yaml += "pin: \(pin)\n"
-        }
-        if let color = color {
-            yaml += "color: \(color)\n"
-        }
-        if let url = url {
-            yaml += "url: \(url)\n"
-        }
-
-        yaml += "aliases: \(aliases)\n"
         yaml += "---\n\n"
 
         return yaml + content
+    }
+
+    /// Legacy method for backwards compatibility
+    func toMarkdown() -> String {
+        toMarkdown(template: .defaultTemplate)
     }
 
     /// Parse Place from markdown file content

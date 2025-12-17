@@ -30,10 +30,12 @@ class PlaceEditViewModel: ObservableObject {
 
     private let originalPlace: Place
     let vaultManager: VaultManager
+    let templateManager: TemplateManager
 
-    init(place: Place, vaultManager: VaultManager) {
+    init(place: Place, vaultManager: VaultManager, templateManager: TemplateManager) {
         self.originalPlace = place
         self.vaultManager = vaultManager
+        self.templateManager = templateManager
 
         // Pre-populate with existing data
         self.bodyText = place.content
@@ -58,7 +60,7 @@ class PlaceEditViewModel: ObservableObject {
 
         do {
             // Create updated place with same ID (filename)
-            // In v1, only content is editable; other fields stay the same
+            // In v1, content and aliases are editable; other fields stay the same
             let updatedPlace = Place(
                 id: originalPlace.id,
                 name: originalPlace.name,  // Not editable yet
@@ -69,12 +71,12 @@ class PlaceEditViewModel: ObservableObject {
                 pin: originalPlace.pin,
                 color: originalPlace.color,
                 url: originalPlace.url,
-                aliases: originalPlace.aliases,
+                aliases: aliases,  // Use edited aliases
                 content: bodyText  // Only this changes
             )
 
             // Update the place file
-            let writer = PlaceWriter(vaultURL: vaultURL)
+            let writer = PlaceWriter(vaultURL: vaultURL, templateManager: templateManager)
             try await writer.update(place: updatedPlace)
 
             // Reload places in VaultManager to reflect changes
@@ -91,6 +93,8 @@ class PlaceEditViewModel: ObservableObject {
 
     /// Check if place has unsaved changes
     var hasChanges: Bool {
-        bodyText != originalPlace.content
+        let contentChanged = bodyText != originalPlace.content
+        let aliasesChanged = aliases != originalPlace.aliases
+        return contentChanged || aliasesChanged
     }
 }

@@ -153,6 +153,7 @@ struct PlaceCreationView: View {
 #Preview {
     let vaultManager = VaultManager()
     let locationService = LocationService()
-    let viewModel = PlaceCreationViewModel(vaultManager: vaultManager, locationService: locationService)
-    return PlaceCreationView(viewModel: viewModel)
+    let templateManager = TemplateManager()
+    let viewModel = PlaceCreationViewModel(vaultManager: vaultManager, locationService: locationService, templateManager: templateManager)
+    PlaceCreationView(viewModel: viewModel)
 }

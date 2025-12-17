@@ -12,9 +12,12 @@ import ContactsUI
 struct PersonEditView: View {
     @StateObject var viewModel: PersonEditViewModel
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var templateManager: TemplateManager
     @State private var showBirthdayPicker = false
     @State private var tempBirthday: Date = Date()
     @State private var showContactPicker = false
+    @State private var showAddAlias = false
+    @State private var newAlias = ""
 
     var body: some View {
         NavigationStack {
@@ -37,67 +40,103 @@ struct PersonEditView: View {
                 }
 
                 // Pronouns Section
-                Section("Pronouns") {
-                    TextField("e.g., they/them", text: $viewModel.pronouns)
+                if templateManager.personTemplate.isEnabled("pronouns") {
+                    Section("Pronouns") {
+                        TextField("e.g., they/them", text: $viewModel.pronouns)
+                    }
                 }
 
                 // Contact Information Section
                 Section("Contact Information") {
-                    // Link to Contact button
-                    Button {
-                        showContactPicker = true
-                    } label: {
-                        HStack {
-                            Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle")
-                                .foregroundStyle(viewModel.linkedContact != nil ? .green : .blue)
-                            if let contact = viewModel.linkedContact {
-                                Text("\(contact.givenName) \(contact.familyName)")
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text("Link to Contact")
-                                    .foregroundStyle(.secondary)
+                    // Link to Contact button - show if ANY contact field is enabled
+                    if templateManager.personTemplate.isEnabled("email")
+                        || templateManager.personTemplate.isEnabled("phone")
+                        || templateManager.personTemplate.isEnabled("address") {
+                        Button {
+                            showContactPicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle")
+                                    .foregroundStyle(viewModel.linkedContact != nil ? .green : .blue)
+                                if let contact = viewModel.linkedContact {
+                                    Text("\(contact.givenName) \(contact.familyName)")
+                                        .foregroundStyle(.primary)
+                                } else {
+                                    Text("Link to Contact")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(.tertiary)
-                                .font(.caption)
                         }
                     }
 
-                    TextField("Email", text: $viewModel.email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
+                    if templateManager.personTemplate.isEnabled("email") {
+                        TextField("Email", text: $viewModel.email)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                    }
 
-                    TextField("Phone", text: $viewModel.phone)
-                        .keyboardType(.phonePad)
+                    if templateManager.personTemplate.isEnabled("phone") {
+                        TextField("Phone", text: $viewModel.phone)
+                            .keyboardType(.phonePad)
+                    }
 
-                    TextField("Address", text: $viewModel.address, axis: .vertical)
-                        .lineLimit(3...5)
+                    if templateManager.personTemplate.isEnabled("address") {
+                        TextField("Address", text: $viewModel.address, axis: .vertical)
+                            .lineLimit(3...5)
+                    }
                 }
 
                 // Birthday Section
-                Section("Birthday") {
-                    if let birthday = viewModel.birthday {
-                        HStack {
-                            Text(formatBirthday(birthday))
-                            Spacer()
-                            Button("Change") {
-                                // Initialize temp date from existing birthday
-                                if let existingDate = Calendar.current.date(from: birthday) {
-                                    tempBirthday = existingDate
+                if templateManager.personTemplate.isEnabled("birthday") {
+                    Section("Birthday") {
+                        if let birthday = viewModel.birthday {
+                            HStack {
+                                Text(formatBirthday(birthday))
+                                Spacer()
+                                Button("Change") {
+                                    // Initialize temp date from existing birthday
+                                    if let existingDate = Calendar.current.date(from: birthday) {
+                                        tempBirthday = existingDate
+                                    }
+                                    showBirthdayPicker = true
                                 }
+                                .foregroundStyle(.blue)
+                            }
+                            Button("Remove Birthday") {
+                                viewModel.birthday = nil
+                            }
+                            .foregroundStyle(.red)
+                        } else {
+                            Button("Add Birthday") {
+                                tempBirthday = Date()
                                 showBirthdayPicker = true
                             }
-                            .foregroundStyle(.blue)
                         }
-                        Button("Remove Birthday") {
-                            viewModel.birthday = nil
+                    }
+                }
+
+                // Aliases Section
+                if templateManager.personTemplate.isEnabled("aliases") {
+                    Section("Aliases") {
+                        ForEach(viewModel.aliases.indices, id: \.self) { index in
+                            HStack {
+                                Text(viewModel.aliases[index])
+                                Spacer()
+                                Button(action: {
+                                    viewModel.aliases.remove(at: index)
+                                }) {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
                         }
-                        .foregroundStyle(.red)
-                    } else {
-                        Button("Add Birthday") {
-                            tempBirthday = Date()
-                            showBirthdayPicker = true
+
+                        Button("Add Alias") {
+                            showAddAlias = true
                         }
                     }
                 }
@@ -173,6 +212,21 @@ struct PersonEditView: View {
                     viewModel.linkContact(contact)
                 }
             }
+            .alert("Add Alias", isPresented: $showAddAlias) {
+                TextField("Alias", text: $newAlias)
+                Button("Add") {
+                    let trimmed = newAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty && !viewModel.aliases.contains(trimmed) {
+                        viewModel.aliases.append(trimmed)
+                    }
+                    newAlias = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newAlias = ""
+                }
+            } message: {
+                Text("Enter an alternative name for this person")
+            }
         }
     }
 
@@ -218,6 +272,7 @@ struct PersonEditView: View {
 // MARK: - Preview
 #Preview {
     let vaultManager = VaultManager()
+    let templateManager = TemplateManager()
     let samplePerson = Person(
         id: "alice-smith",
         name: "Alice Smith",
@@ -232,8 +287,9 @@ struct PersonEditView: View {
         socialMedia: ["instagram": "alicesmith"],
         color: "rgb(72,133,237)",
         photoFilename: nil,
+        aliases: [],
         content: "Met in college. Great friend and always up for coffee."
     )
-    let viewModel = PersonEditViewModel(person: samplePerson, vaultManager: vaultManager)
-    return PersonEditView(viewModel: viewModel)
+    let viewModel = PersonEditViewModel(person: samplePerson, vaultManager: vaultManager, templateManager: templateManager)
+    PersonEditView(viewModel: viewModel)
 }

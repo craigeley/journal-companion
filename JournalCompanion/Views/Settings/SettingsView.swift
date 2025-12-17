@@ -11,6 +11,7 @@ struct SettingsView: View {
     @EnvironmentObject var vaultManager: VaultManager
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var visitTracker: SignificantLocationTracker
+    @EnvironmentObject var templateManager: TemplateManager
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
@@ -84,6 +85,23 @@ struct SettingsView: View {
                     }
                 }
 
+                // Templates Section
+                Section("Templates") {
+                    NavigationLink {
+                        PersonTemplateSettingsView()
+                            .environmentObject(templateManager)
+                    } label: {
+                        Label("Person Template", systemImage: "person.text.rectangle")
+                    }
+
+                    NavigationLink {
+                        PlaceTemplateSettingsView()
+                            .environmentObject(templateManager)
+                    } label: {
+                        Label("Place Template", systemImage: "map.circle")
+                    }
+                }
+
                 // Vault Settings Section
                 Section("Vault") {
                     if let vaultURL = vaultManager.vaultURL {
@@ -121,4 +139,5 @@ struct SettingsView: View {
         .environmentObject(VaultManager())
         .environmentObject(LocationService())
         .environmentObject(SignificantLocationTracker())
+        .environmentObject(TemplateManager())
 }

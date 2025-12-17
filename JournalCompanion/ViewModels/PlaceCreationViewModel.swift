@@ -28,6 +28,7 @@ class PlaceCreationViewModel: ObservableObject {
 
     let vaultManager: VaultManager
     private let locationService: LocationService
+    let templateManager: TemplateManager
 
     // Available callout types (matches PlaceIcon supported types)
     static let calloutTypes = [
@@ -56,12 +57,14 @@ class PlaceCreationViewModel: ObservableObject {
     init(
         vaultManager: VaultManager,
         locationService: LocationService,
+        templateManager: TemplateManager,
         initialLocationName: String? = nil,
         initialAddress: String? = nil,
         initialCoordinates: CLLocationCoordinate2D? = nil
     ) {
         self.vaultManager = vaultManager
         self.locationService = locationService
+        self.templateManager = templateManager
 
         // Pre-populate location data if provided
         self.selectedLocationName = initialLocationName
@@ -71,6 +74,20 @@ class PlaceCreationViewModel: ObservableObject {
         // Auto-populate place name from location name
         if let locationName = initialLocationName {
             self.placeName = locationName
+        }
+
+        // Apply template defaults
+        applyTemplateDefaults()
+    }
+
+    /// Apply default values from template to form fields
+    private func applyTemplateDefaults() {
+        let template = templateManager.placeTemplate
+
+        // Apply default callout type
+        if let defaultCallout = template.defaultValue(for: "callout"),
+           case .callout(let calloutType) = defaultCallout {
+            selectedCallout = calloutType
         }
     }
 
@@ -124,13 +141,22 @@ class PlaceCreationViewModel: ObservableObject {
             let trimmedName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
             let sanitizedId = Place.sanitizeFilename(trimmedName)
 
+            // Get default tags from template
+            let defaultTags: [String] = {
+                if let tagsField = templateManager.placeTemplate.field(for: "tags"),
+                   case .tags(let tags) = tagsField.defaultValue {
+                    return tags
+                }
+                return ["place"]  // Fallback default
+            }()
+
             // Create new place
             let newPlace = Place(
                 id: sanitizedId,
                 name: trimmedName,
                 location: selectedCoordinates,
                 address: selectedAddress,
-                tags: ["place"],  // Default tag
+                tags: defaultTags,  // Use template default
                 callout: selectedCallout,
                 pin: nil,         // Let PlaceIcon defaults handle this
                 color: nil,       // Let PlaceIcon defaults handle this
@@ -140,7 +166,7 @@ class PlaceCreationViewModel: ObservableObject {
             )
 
             // Write place file
-            let writer = PlaceWriter(vaultURL: vaultURL)
+            let writer = PlaceWriter(vaultURL: vaultURL, templateManager: templateManager)
             try await writer.write(place: newPlace)
 
             // Reload places in VaultManager

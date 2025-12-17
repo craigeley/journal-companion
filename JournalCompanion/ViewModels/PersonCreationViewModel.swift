@@ -32,13 +32,29 @@ class PersonCreationViewModel: ObservableObject {
     @Published var creationSucceeded: Bool = false
 
     let vaultManager: VaultManager
+    let templateManager: TemplateManager
 
-    init(vaultManager: VaultManager, initialName: String? = nil) {
+    init(vaultManager: VaultManager, templateManager: TemplateManager, initialName: String? = nil) {
         self.vaultManager = vaultManager
+        self.templateManager = templateManager
 
         // Pre-populate name if provided
         if let name = initialName {
             self.personName = name
+        }
+
+        // Apply template defaults
+        applyTemplateDefaults()
+    }
+
+    /// Apply default values from template to form fields
+    private func applyTemplateDefaults() {
+        let template = templateManager.personTemplate
+
+        // Apply default relationship type
+        if let defaultRel = template.defaultValue(for: "relationship"),
+           case .relationship(let relType) = defaultRel {
+            selectedRelationship = relType
         }
     }
 
@@ -160,13 +176,22 @@ class PersonCreationViewModel: ObservableObject {
             let trimmedName = personName.trimmingCharacters(in: .whitespacesAndNewlines)
             let sanitizedId = Person.sanitizeFilename(trimmedName)
 
+            // Get default tags from template
+            let defaultTags: [String] = {
+                if let tagsField = templateManager.personTemplate.field(for: "tags"),
+                   case .tags(let tags) = tagsField.defaultValue {
+                    return tags
+                }
+                return ["person"]  // Fallback default
+            }()
+
             // Create new person
             let newPerson = Person(
                 id: sanitizedId,
                 name: trimmedName,
                 pronouns: pronouns.isEmpty ? nil : pronouns,
                 relationshipType: selectedRelationship,
-                tags: [],  // Start with no tags
+                tags: defaultTags,  // Use template default
                 email: contactEmail.isEmpty ? nil : contactEmail,
                 phone: contactPhone.isEmpty ? nil : contactPhone,
                 address: contactAddress.isEmpty ? nil : contactAddress,
@@ -175,11 +200,12 @@ class PersonCreationViewModel: ObservableObject {
                 socialMedia: [:],  // Start with no social media
                 color: nil,
                 photoFilename: nil,  // MVP: can be added later
+                aliases: [],  // Start with no aliases
                 content: notes
             )
 
             // Write person file
-            let writer = PersonWriter(vaultURL: vaultURL)
+            let writer = PersonWriter(vaultURL: vaultURL, templateManager: templateManager)
             try await writer.write(person: newPerson)
 
             // Reload people in VaultManager

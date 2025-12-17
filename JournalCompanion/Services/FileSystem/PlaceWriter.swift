@@ -10,16 +10,19 @@ import Foundation
 actor PlaceWriter {
     private let vaultURL: URL
     private let fileManager = FileManager.default
+    private let templateManager: TemplateManager
 
-    init(vaultURL: URL) {
+    init(vaultURL: URL, templateManager: TemplateManager) {
         self.vaultURL = vaultURL
+        self.templateManager = templateManager
     }
 
     /// Update an existing place
     func update(place: Place) async throws {
         // Access MainActor properties once at the start
         let filename = await MainActor.run { place.filename }
-        let markdown = await MainActor.run { place.toMarkdown() }
+        let template = await MainActor.run { templateManager.placeTemplate }
+        let markdown = await MainActor.run { place.toMarkdown(template: template) }
 
         let placesDirectory = vaultURL.appendingPathComponent("Places")
         let fileURL = placesDirectory.appendingPathComponent(filename)
@@ -39,7 +42,8 @@ actor PlaceWriter {
     func write(place: Place) async throws {
         // Access MainActor properties once at the start
         let filename = await MainActor.run { place.filename }
-        let markdown = await MainActor.run { place.toMarkdown() }
+        let template = await MainActor.run { templateManager.placeTemplate }
+        let markdown = await MainActor.run { place.toMarkdown(template: template) }
 
         let placesDirectory = vaultURL.appendingPathComponent("Places")
         let fileURL = placesDirectory.appendingPathComponent(filename)

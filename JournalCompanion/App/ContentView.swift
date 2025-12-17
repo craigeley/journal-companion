@@ -11,6 +11,7 @@ import CoreLocation
 struct ContentView: View {
     @EnvironmentObject var vaultManager: VaultManager
     @EnvironmentObject var locationService: LocationService
+    @EnvironmentObject var templateManager: TemplateManager
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @State private var showQuickEntry = false
     @State private var showPersonCreation = false
@@ -82,7 +83,7 @@ struct ContentView: View {
             QuickEntryView(viewModel: viewModel)
         }
         .sheet(isPresented: $showPersonCreation) {
-            let viewModel = PersonCreationViewModel(vaultManager: vaultManager)
+            let viewModel = PersonCreationViewModel(vaultManager: vaultManager, templateManager: templateManager)
             PersonCreationView(viewModel: viewModel)
         }
         .onChange(of: showPersonCreation) { _, isShowing in
@@ -123,6 +124,7 @@ struct ContentView: View {
             let viewModel = PlaceCreationViewModel(
                 vaultManager: vaultManager,
                 locationService: locationService,
+                templateManager: templateManager,
                 initialLocationName: pendingLocationName,
                 initialAddress: pendingAddress,
                 initialCoordinates: pendingCoordinates
@@ -134,6 +136,7 @@ struct ContentView: View {
                 .environmentObject(vaultManager)
                 .environmentObject(locationService)
                 .environmentObject(visitTracker)
+                .environmentObject(templateManager)
         }
         .sheet(isPresented: $showHealthKitAuth) {
             HealthKitAuthView()

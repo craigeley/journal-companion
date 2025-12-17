@@ -18,6 +18,8 @@ struct LocationSearchView: View {
     @Binding var selectedLocationName: String?
     @Binding var selectedAddress: String?
     @Binding var selectedCoordinates: CLLocationCoordinate2D?
+    @Binding var selectedURL: String?
+    @Binding var selectedPOICategory: MKPointOfInterestCategory?
 
     var body: some View {
         NavigationStack {
@@ -87,6 +89,10 @@ struct LocationSearchView: View {
                 // Use completion subtitle for address (already formatted by MapKit)
                 selectedAddress = !completion.subtitle.isEmpty ? completion.subtitle : nil
                 selectedCoordinates = mapItem.location.coordinate
+                // Extract URL if available (common for POIs like restaurants, businesses)
+                selectedURL = mapItem.url?.absoluteString
+                // Extract POI category for automatic callout type detection
+                selectedPOICategory = mapItem.pointOfInterestCategory
 
                 dismiss()
             }
@@ -138,6 +144,8 @@ extension MKLocalSearchCompletion: @retroactive Identifiable {
     LocationSearchView(
         selectedLocationName: .constant(nil),
         selectedAddress: .constant(nil),
-        selectedCoordinates: .constant(nil)
+        selectedCoordinates: .constant(nil),
+        selectedURL: .constant(nil),
+        selectedPOICategory: .constant(nil)
     )
 }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import MapKit
 
 struct ContentView: View {
     @EnvironmentObject var vaultManager: VaultManager
@@ -20,6 +21,8 @@ struct ContentView: View {
     @State private var pendingLocationName: String?
     @State private var pendingAddress: String?
     @State private var pendingCoordinates: CLLocationCoordinate2D?
+    @State private var pendingURL: String?
+    @State private var pendingPOICategory: MKPointOfInterestCategory?
     @State private var showSettings = false
     @State private var selectedTab = 0
     @State private var vaultError: String?
@@ -107,7 +110,9 @@ struct ContentView: View {
             LocationSearchView(
                 selectedLocationName: $pendingLocationName,
                 selectedAddress: $pendingAddress,
-                selectedCoordinates: $pendingCoordinates
+                selectedCoordinates: $pendingCoordinates,
+                selectedURL: $pendingURL,
+                selectedPOICategory: $pendingPOICategory
             )
         }
         .onChange(of: showLocationSearchForNewPlace) { oldValue, newValue in
@@ -125,6 +130,8 @@ struct ContentView: View {
             pendingLocationName = nil
             pendingAddress = nil
             pendingCoordinates = nil
+            pendingURL = nil
+            pendingPOICategory = nil
         }) {
             let viewModel = PlaceEditViewModel(
                 place: nil,  // nil = creation mode
@@ -133,7 +140,9 @@ struct ContentView: View {
                 templateManager: templateManager,
                 initialLocationName: pendingLocationName,
                 initialAddress: pendingAddress,
-                initialCoordinates: pendingCoordinates
+                initialCoordinates: pendingCoordinates,
+                initialURL: pendingURL,
+                initialPOICategory: pendingPOICategory
             )
             PlaceEditView(viewModel: viewModel)
                 .environmentObject(templateManager)

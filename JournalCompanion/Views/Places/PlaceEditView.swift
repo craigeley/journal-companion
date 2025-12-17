@@ -214,6 +214,12 @@ struct PlaceEditView: View {
             .onChange(of: viewModel.placeName) { _, _ in
                 viewModel.validateName()
             }
+            .onChange(of: viewModel.selectedURL) { _, newURL in
+                // Auto-populate URL field when location with URL is selected
+                if let urlString = newURL, !urlString.isEmpty {
+                    viewModel.url = urlString
+                }
+            }
             .alert("Error", isPresented: .constant(viewModel.saveError != nil)) {
                 Button("OK") {
                     viewModel.saveError = nil
@@ -227,7 +233,9 @@ struct PlaceEditView: View {
                 LocationSearchView(
                     selectedLocationName: $viewModel.selectedLocationName,
                     selectedAddress: $viewModel.selectedAddress,
-                    selectedCoordinates: $viewModel.selectedCoordinates
+                    selectedCoordinates: $viewModel.selectedCoordinates,
+                    selectedURL: $viewModel.selectedURL,
+                    selectedPOICategory: $viewModel.selectedPOICategory
                 )
             }
             .alert("Add Alias", isPresented: $showAddAlias) {

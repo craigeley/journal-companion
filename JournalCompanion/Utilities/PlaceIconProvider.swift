@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 enum PlaceIcon {
     static func systemName(for callout: String) -> String {
@@ -55,6 +56,42 @@ enum PlaceIcon {
         case "movie": return .indigo
         case "service": return .gray
         default: return .blue
+        }
+    }
+
+    /// Maps MapKit point of interest category to app callout type
+    /// Returns nil for unmapped categories (triggers fallback to template default)
+    static func calloutType(from category: MKPointOfInterestCategory?) -> String? {
+        guard let category = category else { return nil }
+
+        switch category {
+        // Direct mappings to app's 20 callout types
+        case .airport: return "airport"
+        case .cafe: return "cafe"
+        case .restaurant: return "restaurant"
+        case .park, .nationalPark: return "park"
+        case .school, .university: return "school"
+        case .hospital, .pharmacy: return "medical"
+        case .hotel: return "hotel"
+        case .library: return "library"
+        case .zoo, .aquarium: return "zoo"
+        case .museum, .planetarium: return "museum"
+        case .fitnessCenter: return "workout"
+        case .theater, .movieTheater: return "movie"
+        case .nightlife, .brewery, .winery: return "bar"
+        case .store, .bakery: return "shop"
+        case .foodMarket: return "grocery"
+        case .musicVenue, .stadium: return "concert"
+        case .amusementPark, .fairground, .goKart, .miniGolf: return "entertainment"
+
+        // Service-related POIs → "service"
+        case .atm, .bank, .carRental, .evCharger, .gasStation,
+             .laundry, .parking, .postOffice, .publicTransport,
+             .automotiveRepair, .fireStation, .police:
+            return "service"
+
+        // Unmapped categories return nil → falls back to template default
+        default: return nil
         }
     }
 }

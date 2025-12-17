@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import CoreLocation
 import Combine
+import MapKit
 
 @MainActor
 class PlaceEditViewModel: ObservableObject {
@@ -17,6 +18,8 @@ class PlaceEditViewModel: ObservableObject {
     @Published var selectedLocationName: String?
     @Published var selectedAddress: String?
     @Published var selectedCoordinates: CLLocationCoordinate2D?
+    @Published var selectedURL: String?
+    @Published var selectedPOICategory: MKPointOfInterestCategory?
 
     // Editable fields (both modes)
     @Published var bodyText: String = ""
@@ -73,7 +76,9 @@ class PlaceEditViewModel: ObservableObject {
         templateManager: TemplateManager,
         initialLocationName: String? = nil,
         initialAddress: String? = nil,
-        initialCoordinates: CLLocationCoordinate2D? = nil
+        initialCoordinates: CLLocationCoordinate2D? = nil,
+        initialURL: String? = nil,
+        initialPOICategory: MKPointOfInterestCategory? = nil
     ) {
         self.originalPlace = place
         self.vaultManager = vaultManager
@@ -95,10 +100,17 @@ class PlaceEditViewModel: ObservableObject {
             self.selectedLocationName = initialLocationName
             self.selectedAddress = initialAddress
             self.selectedCoordinates = initialCoordinates
+            self.selectedURL = initialURL
+            self.selectedPOICategory = initialPOICategory
 
             // Auto-populate place name from location name
             if let locationName = initialLocationName {
                 self.placeName = locationName
+            }
+
+            // Auto-populate URL from MapKit if available
+            if let urlString = initialURL {
+                self.url = urlString
             }
 
             // Apply template defaults
@@ -110,13 +122,21 @@ class PlaceEditViewModel: ObservableObject {
     private func applyTemplateDefaults() {
         let template = templateManager.placeTemplate
 
-        // Apply default callout type
-        if let defaultCallout = template.defaultValue(for: "callout"),
-           case .callout(let calloutType) = defaultCallout {
+        // Callout precedence: MapKit category > template default > "place" fallback
+        if let poiCategory = selectedPOICategory,
+           let mappedCallout = PlaceIcon.calloutType(from: poiCategory) {
+            // Use MapKit-derived callout (highest priority)
+            callout = mappedCallout
+        } else if let defaultCallout = template.defaultValue(for: "callout"),
+                  case .callout(let calloutType) = defaultCallout {
+            // Use template default (medium priority)
             callout = calloutType
+        } else {
+            // Hardcoded fallback (lowest priority)
+            callout = "place"
         }
 
-        // Apply default tags
+        // Apply default tags (unchanged)
         if let defaultTags = template.defaultValue(for: "tags"),
            case .tags(let tagList) = defaultTags {
             tags = tagList

@@ -13,6 +13,8 @@ struct EntryEditView: View {
 
     @State private var showPlacePicker = false
     @State private var showPlaceDetails = false
+    @State private var showAddTag = false
+    @State private var newTag = ""
 
     var body: some View {
         NavigationStack {
@@ -61,11 +63,26 @@ struct EntryEditView: View {
                 // Details Section
                 Section("Details") {
                     DatePicker("Timestamp", selection: $viewModel.timestamp)
+                }
 
-                    // Tags (simple comma-separated for now)
-                    Text("Tags: \(viewModel.tags.joined(separator: ", "))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                // Tags Section
+                Section("Tags") {
+                    ForEach(viewModel.tags.indices, id: \.self) { index in
+                        HStack {
+                            Text(viewModel.tags[index])
+                            Spacer()
+                            Button(action: {
+                                viewModel.tags.remove(at: index)
+                            }) {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                    }
+
+                    Button("Add Tag") {
+                        showAddTag = true
+                    }
                 }
 
                 // Weather Section (if exists)
@@ -226,6 +243,21 @@ struct EntryEditView: View {
                 }
             } message: {
                 Text("Changing the date will move this entry to a different day file. Continue?")
+            }
+            .alert("Add Tag", isPresented: $showAddTag) {
+                TextField("Tag", text: $newTag)
+                Button("Add") {
+                    let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty && !viewModel.tags.contains(trimmed) {
+                        viewModel.tags.append(trimmed)
+                    }
+                    newTag = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newTag = ""
+                }
+            } message: {
+                Text("Enter a tag for this entry")
             }
         }
     }

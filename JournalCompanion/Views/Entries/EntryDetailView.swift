@@ -10,71 +10,39 @@ import SwiftUI
 struct EntryDetailView: View {
     let entry: Entry
     @EnvironmentObject var vaultManager: VaultManager
+    @EnvironmentObject var locationService: LocationService
+    @EnvironmentObject var templateManager: TemplateManager
     @Environment(\.dismiss) var dismiss
     @State private var showEditView = false
-    @State private var selectedPlace: Place?
-    @State private var selectedPerson: Person?
 
     var body: some View {
         NavigationStack {
             List {
-                // Entry Content Section (read-only)
+                // Entry Content Section (read-only with rendered wiki-links)
                 Section("Entry") {
-                    Text(entry.content)
-                        .font(.body)
+                    WikiText(
+                        text: entry.content,
+                        places: vaultManager.places,
+                        people: vaultManager.people,
+                        lineLimit: nil,
+                        font: .body
+                    )
                 }
 
-                // Location Section
+                // Location Section (place wiki-links in content are also tappable)
                 if let placeName = entry.place {
                     Section("Location") {
                         if let place = vaultManager.places.first(where: { $0.name == placeName }) {
-                            HStack {
-                                Image(systemName: PlaceIcon.systemName(for: place.callout))
-                                    .foregroundStyle(PlaceIcon.color(for: place.callout))
-                                Text(place.name)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedPlace = place
-                            }
+                            Text(place.name)
+                                .foregroundStyle(.secondary)
                         } else {
                             Text(placeName)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
 
-                // People Section
-                if !entry.people.isEmpty {
-                    Section("People") {
-                        ForEach(entry.people, id: \.self) { personName in
-                            if let person = vaultManager.people.first(where: { $0.name == personName }) {
-                                HStack {
-                                    Image(systemName: "person.circle.fill")
-                                        .foregroundStyle(.purple)
-                                    Text(person.name)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedPerson = person
-                                }
-                            } else {
-                                HStack {
-                                    Image(systemName: "person.circle.fill")
-                                        .foregroundStyle(.purple)
-                                    Text(personName)
-                                }
-                            }
-                        }
-                    }
-                }
+                // People Section removed - people now rendered inline as wiki-links in entry content
 
                 // Details Section
                 Section("Details") {
@@ -129,18 +97,8 @@ struct EntryDetailView: View {
                 EntryEditView(viewModel: EntryEditViewModel(
                     entry: entry,
                     vaultManager: vaultManager,
-                    locationService: LocationService()
+                    locationService: locationService
                 ))
-            }
-            .sheet(item: $selectedPlace) { place in
-                PlaceDetailView(place: place)
-                    .environmentObject(vaultManager)
-                    .environmentObject(LocationService())
-                    .environmentObject(TemplateManager())
-            }
-            .sheet(item: $selectedPerson) { person in
-                PersonDetailView(person: person)
-                    .environmentObject(vaultManager)
             }
         }
     }

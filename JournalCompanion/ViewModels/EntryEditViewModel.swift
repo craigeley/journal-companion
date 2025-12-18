@@ -33,6 +33,15 @@ class EntryEditViewModel: ObservableObject {
     private var initialLocation: CLLocation?
     private var weatherFetchedAt: Date?
 
+    // Mood data (preserved but not editable in current UI)
+    private var moodValence: Double?
+    private var moodLabels: [String]?
+    private var moodAssociations: [String]?
+
+    // Unknown YAML field preservation
+    private var unknownFields: [String: YAMLValue]
+    private var unknownFieldsOrder: [String]
+
     private var pendingEntry: Entry?
     private let originalEntry: Entry
     let vaultManager: VaultManager
@@ -52,6 +61,15 @@ class EntryEditViewModel: ObservableObject {
         self.condition = entry.condition
         self.aqi = entry.aqi
         self.humidity = entry.humidity
+
+        // Preserve mood data
+        self.moodValence = entry.moodValence
+        self.moodLabels = entry.moodLabels
+        self.moodAssociations = entry.moodAssociations
+
+        // Preserve unknown YAML fields
+        self.unknownFields = entry.unknownFields
+        self.unknownFieldsOrder = entry.unknownFieldsOrder
 
         // Look up the place if it exists
         if let placeName = entry.place {
@@ -79,6 +97,28 @@ class EntryEditViewModel: ObservableObject {
             return false
         }
 
+        // Clean up unknown fields that conflict with known fields
+        var cleanedUnknownFields = unknownFields
+        var cleanedOrder = unknownFieldsOrder
+
+        // Remove unknown fields that now have values in known fields
+        if temperature != nil {
+            cleanedUnknownFields.removeValue(forKey: "temp")
+            cleanedOrder.removeAll { $0 == "temp" }
+        }
+        if condition != nil {
+            cleanedUnknownFields.removeValue(forKey: "cond")
+            cleanedOrder.removeAll { $0 == "cond" }
+        }
+        if humidity != nil {
+            cleanedUnknownFields.removeValue(forKey: "humidity")
+            cleanedOrder.removeAll { $0 == "humidity" }
+        }
+        if aqi != nil {
+            cleanedUnknownFields.removeValue(forKey: "aqi")
+            cleanedOrder.removeAll { $0 == "aqi" }
+        }
+
         // Create updated entry with same ID
         let updatedEntry = Entry(
             id: originalEntry.id,
@@ -91,7 +131,12 @@ class EntryEditViewModel: ObservableObject {
             temperature: temperature,
             condition: condition,
             aqi: aqi,
-            humidity: humidity
+            humidity: humidity,
+            moodValence: moodValence,
+            moodLabels: moodLabels,
+            moodAssociations: moodAssociations,
+            unknownFields: cleanedUnknownFields,
+            unknownFieldsOrder: cleanedOrder
         )
 
         // Check if the day has changed

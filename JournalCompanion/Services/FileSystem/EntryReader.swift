@@ -82,11 +82,17 @@ actor EntryReader {
         var moodLabels: [String] = []
         var moodAssociations: [String] = []
 
+        // Track unknown YAML fields for preservation
+        var unknownFields: [String: YAMLValue] = [:]
+        var unknownFieldsOrder: [String] = []
+
         let lines = frontmatter.components(separatedBy: .newlines)
         var inTags = false
         var inPeople = false
         var inMoodLabels = false
         var inMoodAssociations = false
+        var inUnknownArray = false
+        var currentUnknownArrayKey: String?
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -187,11 +193,48 @@ actor EntryReader {
             } else if inMoodAssociations && trimmed.hasPrefix("- ") {
                 let association = trimmed.replacingOccurrences(of: "- ", with: "")
                 moodAssociations.append(association)
-            } else if !trimmed.isEmpty && !trimmed.hasPrefix("-") {
+            } else if inUnknownArray && trimmed.hasPrefix("- "),
+                      let arrayKey = currentUnknownArrayKey {
+                // Continue parsing unknown array
+                let item = trimmed.replacingOccurrences(of: "- ", with: "").trimmingCharacters(in: .whitespaces)
+                if case .array(var arr) = unknownFields[arrayKey] {
+                    arr.append(item)
+                    unknownFields[arrayKey] = .array(arr)
+                }
+            } else if !trimmed.isEmpty && !trimmed.hasPrefix("-"),
+                      let colonIndex = trimmed.firstIndex(of: ":") {
+                // Reset all array flags
                 inTags = false
                 inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
+                inUnknownArray = false
+
+                // Check if this is an unknown field
+                let key = String(trimmed[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+
+                if !isKnownField(key) {
+                    unknownFieldsOrder.append(key)
+
+                    let valueString = String(trimmed[trimmed.index(after: colonIndex)...])
+                        .trimmingCharacters(in: .whitespaces)
+
+                    if valueString.isEmpty {
+                        // Likely an array - next lines will have "- " items
+                        unknownFields[key] = .array([])
+                        inUnknownArray = true
+                        currentUnknownArrayKey = key
+                    } else {
+                        unknownFields[key] = parseYAMLValue(valueString)
+                    }
+                }
+            } else if !trimmed.isEmpty {
+                // Reset flags for non-field lines
+                inTags = false
+                inPeople = false
+                inMoodLabels = false
+                inMoodAssociations = false
+                inUnknownArray = false
             }
         }
 
@@ -217,7 +260,49 @@ actor EntryReader {
             humidity: humidity,
             moodValence: moodValence,
             moodLabels: moodLabels.isEmpty ? nil : moodLabels,
-            moodAssociations: moodAssociations.isEmpty ? nil : moodAssociations
+            moodAssociations: moodAssociations.isEmpty ? nil : moodAssociations,
+            unknownFields: unknownFields,
+            unknownFieldsOrder: unknownFieldsOrder
         )
+    }
+
+    /// Check if a YAML key is a known field
+    private func isKnownField(_ key: String) -> Bool {
+        ["date_created", "tags", "place", "people", "temp", "cond",
+         "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations"].contains(key)
+    }
+
+    /// Parse a YAML value string into a YAMLValue type
+    private func parseYAMLValue(_ value: String) -> YAMLValue {
+        var cleaned = value
+
+        // Remove quotes
+        if (cleaned.hasPrefix("\"") && cleaned.hasSuffix("\"")) ||
+           (cleaned.hasPrefix("'") && cleaned.hasSuffix("'")) {
+            cleaned = String(cleaned.dropFirst().dropLast())
+        }
+
+        // Try Int
+        if let intValue = Int(cleaned) {
+            return .int(intValue)
+        }
+
+        // Try Double
+        if let doubleValue = Double(cleaned) {
+            return .double(doubleValue)
+        }
+
+        // Try Bool
+        if cleaned.lowercased() == "true" { return .bool(true) }
+        if cleaned.lowercased() == "false" { return .bool(false) }
+
+        // Try ISO8601 Date
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: cleaned) {
+            return .date(date)
+        }
+
+        // Default to String
+        return .string(cleaned)
     }
 }

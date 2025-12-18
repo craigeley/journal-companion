@@ -138,7 +138,16 @@ class QuickEntryViewModel: ObservableObject {
                 place: selectedPlace?.name,
                 people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout,
-                content: entryText
+                content: entryText,
+                temperature: nil,
+                condition: nil,
+                aqi: nil,
+                humidity: nil,
+                moodValence: nil,
+                moodLabels: nil,
+                moodAssociations: nil,
+                unknownFields: [:], // New entries have no unknown fields
+                unknownFieldsOrder: []
             )
 
             // Add weather data if available

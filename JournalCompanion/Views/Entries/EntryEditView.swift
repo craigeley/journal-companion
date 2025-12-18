@@ -138,7 +138,7 @@ struct EntryEditView: View {
                     }
                 } else {
                     // No weather data - offer to add it
-                    Section("Weather") {
+                    Section {
                         Button {
                             Task {
                                 await viewModel.detectCurrentLocation()
@@ -156,6 +156,8 @@ struct EntryEditView: View {
                                     .font(.caption)
                             }
                         }
+                    } header: {
+                        Text("Weather")
                     } footer: {
                         Text("Fetch weather data for this entry's date and location")
                             .font(.caption)

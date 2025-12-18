@@ -21,9 +21,13 @@ struct EntryEditView: View {
             Form {
                 // Entry Content Section
                 Section("Entry") {
-                    TextEditor(text: $viewModel.entryText)
-                        .frame(minHeight: 200)
-                        .font(.body)
+                    SmartTextEditor(
+                        text: $viewModel.entryText,
+                        places: viewModel.vaultManager.places,
+                        people: viewModel.vaultManager.people,
+                        minHeight: 200
+                    )
+                    .font(.body)
                 }
 
                 // Location Section

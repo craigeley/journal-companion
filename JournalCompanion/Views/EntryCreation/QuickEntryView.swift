@@ -19,6 +19,17 @@ struct QuickEntryView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Entry Section
+                Section("Entry") {
+                    SmartTextEditor(
+                        text: $viewModel.entryText,
+                        places: viewModel.vaultManager.places,
+                        people: viewModel.vaultManager.people,
+                        minHeight: 120
+                    )
+                    .focused($isTextFieldFocused)
+                }
+
                 // Location Section
                 Section("Location") {
                     Button {
@@ -103,13 +114,6 @@ struct QuickEntryView: View {
                     Text("See AI-powered suggestions from your day: photos, workouts, places, and more")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-
-                // Entry Section
-                Section("Entry") {
-                    TextEditor(text: $viewModel.entryText)
-                        .frame(minHeight: 120)
-                        .focused($isTextFieldFocused)
                 }
 
                 // Weather Section

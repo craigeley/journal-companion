@@ -102,6 +102,15 @@ struct SettingsView: View {
                     }
                 }
 
+                // Development Section
+                Section("Development") {
+                    NavigationLink {
+                        AppIconGeneratorView()
+                    } label: {
+                        Label("App Icon Generator", systemImage: "app.badge")
+                    }
+                }
+
                 // Vault Settings Section
                 Section("Vault") {
                     if let vaultURL = vaultManager.vaultURL {

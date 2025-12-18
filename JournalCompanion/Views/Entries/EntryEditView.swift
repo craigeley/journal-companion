@@ -136,6 +136,31 @@ struct EntryEditView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                } else {
+                    // No weather data - offer to add it
+                    Section("Weather") {
+                        Button {
+                            Task {
+                                await viewModel.detectCurrentLocation()
+                                await viewModel.refreshWeather()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "cloud.sun")
+                                    .foregroundStyle(.blue)
+                                Text("Add Weather")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
+                    } footer: {
+                        Text("Fetch weather data for this entry's date and location")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Edit Entry")

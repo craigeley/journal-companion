@@ -173,10 +173,12 @@ actor EntryWriter {
             }
 
             // Find ### Entries section or append
-            if let range = content.range(of: "### Entries\n") {
-                // Insert after the ### Entries line
-                let insertionPoint = range.upperBound
-                content.insert(contentsOf: "\n" + calloutBlock, at: insertionPoint)
+            if content.contains("### Entries\n") {
+                // Append at the end of the file (chronological order)
+                if !content.hasSuffix("\n") {
+                    content.append("\n")
+                }
+                content.append(calloutBlock)
             } else {
                 // Add Entries section at the end
                 content = content.trimmingCharacters(in: .whitespacesAndNewlines)

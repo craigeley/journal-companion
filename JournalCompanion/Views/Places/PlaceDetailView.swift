@@ -114,7 +114,7 @@ struct PlaceDetailView: View {
                 // Notes
                 if !currentPlace.content.isEmpty {
                     Section("Notes") {
-                        WikiText(
+                        MarkdownWikiText(
                             text: currentPlace.content,
                             places: vaultManager.places,
                             people: vaultManager.people,
@@ -147,7 +147,7 @@ struct PlaceDetailView: View {
                                         .foregroundStyle(.secondary)
                                 }
 
-                                WikiText(
+                                MarkdownWikiText(
                                     text: entry.content,
                                     places: vaultManager.places,
                                     people: vaultManager.people,

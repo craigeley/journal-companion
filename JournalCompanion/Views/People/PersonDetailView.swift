@@ -136,7 +136,7 @@ struct PersonDetailView: View {
                 // Notes
                 if !currentPerson.content.isEmpty {
                     Section("Notes") {
-                        WikiText(
+                        MarkdownWikiText(
                             text: currentPerson.content,
                             places: vaultManager.places,
                             people: vaultManager.people,
@@ -169,7 +169,7 @@ struct PersonDetailView: View {
                                         .foregroundStyle(.secondary)
                                 }
 
-                                WikiText(
+                                MarkdownWikiText(
                                     text: entry.content,
                                     places: vaultManager.places,
                                     people: vaultManager.people,

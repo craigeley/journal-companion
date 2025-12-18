@@ -157,8 +157,8 @@ struct EntryRowView: View {
                 }
             }
 
-            // Content preview
-            WikiText(
+            // Content preview (with markdown + wiki-links)
+            MarkdownWikiText(
                 text: entry.content,
                 places: places,
                 people: people,

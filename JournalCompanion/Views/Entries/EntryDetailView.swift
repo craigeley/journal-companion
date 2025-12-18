@@ -18,9 +18,9 @@ struct EntryDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Entry Content Section (read-only with rendered wiki-links)
+                // Entry Content Section (read-only with rendered markdown + wiki-links)
                 Section("Entry") {
-                    WikiText(
+                    MarkdownWikiText(
                         text: entry.content,
                         places: vaultManager.places,
                         people: vaultManager.people,

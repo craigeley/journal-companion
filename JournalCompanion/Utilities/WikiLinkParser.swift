@@ -119,4 +119,16 @@ struct WikiLinkParser {
         let lowercasedName = name.lowercased()
         return people.first { $0.name.lowercased() == lowercasedName }
     }
+
+    /// Extract people names from wiki-links in text
+    /// Returns array of person names found in valid [[...]] links
+    static func extractPeopleNames(from text: String, people: [Person]) -> [String] {
+        let links = parse(text, places: [], people: people)
+        return links.compactMap { link in
+            guard link.linkType == .person, link.isValid, let person = link.person else {
+                return nil
+            }
+            return person.name
+        }
+    }
 }

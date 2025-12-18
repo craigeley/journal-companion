@@ -15,7 +15,6 @@ import HealthKit
 class QuickEntryViewModel: ObservableObject {
     @Published var entryText: String = ""
     @Published var selectedPlace: Place?
-    @Published var selectedPeople: [String] = []
     @Published var timestamp: Date = Date()
     @Published var tags: [String] = ["entry", "iPhone"]
     @Published var isCreating: Bool = false
@@ -137,7 +136,7 @@ class QuickEntryViewModel: ObservableObject {
                 dateCreated: timestamp,
                 tags: tags,
                 place: selectedPlace?.name,
-                people: selectedPeople,
+                people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout,
                 content: entryText
             )

@@ -13,8 +13,6 @@ struct QuickEntryView: View {
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
     @State private var showPlacePicker = false
-    @State private var showPersonPicker = false
-    @State private var selectedPersonForDetail: Person?
 
     var body: some View {
         NavigationStack {
@@ -49,47 +47,6 @@ struct QuickEntryView: View {
                             Image(systemName: "chevron.right")
                                 .foregroundStyle(.tertiary)
                                 .font(.caption)
-                        }
-                    }
-                }
-
-                // People Section
-                Section("People") {
-                    Button {
-                        showPersonPicker = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "person.2.fill")
-                                .foregroundStyle(.purple)
-                            if viewModel.selectedPeople.isEmpty {
-                                Text("Select People")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("\(viewModel.selectedPeople.count) selected")
-                                    .foregroundStyle(.primary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(.tertiary)
-                                .font(.caption)
-                        }
-                    }
-
-                    // People chips (if any selected)
-                    if !viewModel.selectedPeople.isEmpty {
-                        FlowLayout(spacing: 8) {
-                            ForEach(viewModel.selectedPeople, id: \.self) { personName in
-                                PersonChip(
-                                    name: personName,
-                                    onTap: {
-                                        // Find person and show detail
-                                        selectedPersonForDetail = viewModel.vaultManager.people.first { $0.name == personName }
-                                    },
-                                    onDelete: {
-                                        viewModel.selectedPeople.removeAll { $0 == personName }
-                                    }
-                                )
-                            }
                         }
                     }
                 }
@@ -296,16 +253,6 @@ struct QuickEntryView: View {
                     currentLocation: viewModel.currentLocation,
                     selectedPlace: $viewModel.selectedPlace
                 )
-            }
-            .sheet(isPresented: $showPersonPicker) {
-                PersonPickerView(
-                    people: viewModel.vaultManager.people,
-                    selectedPeople: $viewModel.selectedPeople
-                )
-            }
-            .sheet(item: $selectedPersonForDetail) { person in
-                PersonDetailView(person: person)
-                    .environmentObject(viewModel.vaultManager)
             }
             .sheet(isPresented: $viewModel.showStateOfMindPicker) {
                 StateOfMindPickerView(

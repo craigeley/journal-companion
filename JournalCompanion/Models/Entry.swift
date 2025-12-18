@@ -78,13 +78,8 @@ struct Entry: Identifiable, Codable, Sendable {
             yaml += "place: \"[[\(place)]]\"\n"
         }
 
-        // People as YAML array of wikilinks
-        if !people.isEmpty {
-            yaml += "people:\n"
-            for person in people {
-                yaml += "  - \"[[\(person)]]\"\n"
-            }
-        }
+        // People field deprecated - now parsed from wiki-links in content
+        // Kept in model for backward compatibility reading old entries
 
         // Weather data (optional)
         if let temp = temperature {
@@ -139,5 +134,14 @@ struct Entry: Identifiable, Codable, Sendable {
 extension Entry {
     var isValid: Bool {
         !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+// MARK: - People Extraction
+extension Entry {
+    /// Extract people names from wiki-links in entry content
+    /// Returns array of person names found in valid [[...]] links
+    func extractPeople(from peopleList: [Person]) -> [String] {
+        WikiLinkParser.extractPeopleNames(from: content, people: peopleList)
     }
 }

@@ -246,8 +246,10 @@ struct PersonDetailView: View {
             let reader = EntryReader(vaultURL: vaultURL)
             let allEntries = try await reader.loadEntries(limit: 100)
 
-            // Filter entries that reference this person
-            let personEntries = allEntries.filter { $0.people.contains(currentPerson.name) }
+            // Filter entries that reference this person (via wiki-links in content)
+            let personEntries = allEntries.filter { entry in
+                entry.extractPeople(from: vaultManager.people).contains(currentPerson.name)
+            }
 
             // Take 5 most recent (already sorted newest first)
             recentEntries = Array(personEntries.prefix(5))

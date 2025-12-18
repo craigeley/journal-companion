@@ -14,6 +14,12 @@ struct EntryDetailView: View {
     @EnvironmentObject var templateManager: TemplateManager
     @Environment(\.dismiss) var dismiss
     @State private var showEditView = false
+    @State private var currentEntry: Entry
+
+    init(entry: Entry) {
+        self.entry = entry
+        _currentEntry = State(initialValue: entry)
+    }
 
     var body: some View {
         NavigationStack {
@@ -21,7 +27,7 @@ struct EntryDetailView: View {
                 // Entry Content Section (read-only with rendered markdown + wiki-links)
                 Section("Entry") {
                     MarkdownWikiText(
-                        text: entry.content,
+                        text: currentEntry.content,
                         places: vaultManager.places,
                         people: vaultManager.people,
                         lineLimit: nil,
@@ -30,7 +36,7 @@ struct EntryDetailView: View {
                 }
 
                 // Location Section (place wiki-links in content are also tappable)
-                if let placeName = entry.place {
+                if let placeName = currentEntry.place {
                     Section("Location") {
                         if let place = vaultManager.places.first(where: { $0.name == placeName }) {
                             Text(place.name)
@@ -47,33 +53,33 @@ struct EntryDetailView: View {
                 // Details Section
                 Section("Details") {
                     LabeledContent("Date") {
-                        Text(entry.dateCreated, style: .date)
+                        Text(currentEntry.dateCreated, style: .date)
                     }
                     LabeledContent("Time") {
-                        Text(entry.dateCreated, style: .time)
+                        Text(currentEntry.dateCreated, style: .time)
                     }
 
-                    if !entry.tags.isEmpty {
+                    if !currentEntry.tags.isEmpty {
                         LabeledContent("Tags") {
-                            Text(entry.tags.joined(separator: ", "))
+                            Text(currentEntry.tags.joined(separator: ", "))
                                 .font(.caption)
                         }
                     }
                 }
 
                 // Weather Section (if exists)
-                if entry.temperature != nil || entry.condition != nil {
+                if currentEntry.temperature != nil || currentEntry.condition != nil {
                     Section("Weather") {
-                        if let temp = entry.temperature {
+                        if let temp = currentEntry.temperature {
                             LabeledContent("Temperature", value: "\(temp)°F")
                         }
-                        if let condition = entry.condition {
+                        if let condition = currentEntry.condition {
                             LabeledContent("Condition", value: condition)
                         }
-                        if let humidity = entry.humidity {
+                        if let humidity = currentEntry.humidity {
                             LabeledContent("Humidity", value: "\(humidity)%")
                         }
-                        if let aqi = entry.aqi {
+                        if let aqi = currentEntry.aqi {
                             LabeledContent("AQI", value: "\(aqi)")
                         }
                     }
@@ -95,11 +101,35 @@ struct EntryDetailView: View {
             }
             .sheet(isPresented: $showEditView) {
                 EntryEditView(viewModel: EntryEditViewModel(
-                    entry: entry,
+                    entry: currentEntry,
                     vaultManager: vaultManager,
                     locationService: locationService
                 ))
             }
+            .onChange(of: showEditView) { _, isShowing in
+                if !isShowing {
+                    // Reload entry when edit view closes
+                    Task {
+                        await reloadEntry()
+                    }
+                }
+            }
+        }
+    }
+
+    private func reloadEntry() async {
+        guard let vaultURL = vaultManager.vaultURL else { return }
+
+        do {
+            let reader = EntryReader(vaultURL: vaultURL)
+            let allEntries = try await reader.loadEntries(limit: 100)
+
+            // Find the updated entry by ID
+            if let updatedEntry = allEntries.first(where: { $0.id == currentEntry.id }) {
+                currentEntry = updatedEntry
+            }
+        } catch {
+            print("❌ Failed to reload entry: \(error)")
         }
     }
 }

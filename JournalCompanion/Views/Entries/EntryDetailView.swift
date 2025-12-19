@@ -172,17 +172,16 @@ struct EntryDetailView: View {
                         .appendingPathComponent("audio")
                         .appendingPathComponent(filename)
 
-                    // Decode time ranges for this segment
-                    let timeRanges = currentEntry.audioTimeRanges?[safe: index]
-                        .flatMap { [TimeRange].decodeFromYAML($0) } ?? []
-
                     // Get transcription from content (extract the segment after the audio embed)
                     let transcription = extractTranscription(for: index)
 
-                    AudioPlaybackView(
+                    // Load time ranges from SRT sidecar file
+                    AudioPlaybackContainerView(
                         audioURL: audioURL,
+                        filename: filename,
                         transcription: transcription,
-                        timeRanges: timeRanges
+                        entry: currentEntry,
+                        vaultURL: vaultURL
                     )
                 }
             }
@@ -257,6 +256,54 @@ struct EntryDetailView: View {
         }
 
         return ""
+    }
+}
+
+// MARK: - Audio Playback Container
+
+/// Container view that loads time ranges from SRT sidecar file before presenting playback
+struct AudioPlaybackContainerView: View {
+    let audioURL: URL
+    let filename: String
+    let transcription: String
+    let entry: Entry
+    let vaultURL: URL
+
+    @State private var timeRanges: [TimeRange] = []
+    @State private var isLoading = true
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView("Loading audio...")
+            } else {
+                AudioPlaybackView(
+                    audioURL: audioURL,
+                    transcription: transcription,
+                    timeRanges: timeRanges
+                )
+            }
+        }
+        .task {
+            await loadTimeRanges()
+        }
+    }
+
+    private func loadTimeRanges() async {
+        let audioFileManager = AudioFileManager(vaultURL: vaultURL)
+
+        do {
+            timeRanges = try await audioFileManager.loadTimeRanges(
+                for: filename,
+                entry: entry
+            )
+            print("📖 Loaded \(timeRanges.count) time ranges from SRT file")
+        } catch {
+            print("⚠️ Failed to load time ranges: \(error)")
+            timeRanges = []
+        }
+
+        isLoading = false
     }
 }
 

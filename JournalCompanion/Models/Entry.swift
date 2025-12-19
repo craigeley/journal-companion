@@ -53,8 +53,7 @@ struct Entry: Identifiable, Codable, Sendable {
     var moodAssociations: [String]?
 
     // Audio attachments
-    var audioAttachments: [String]?  // Array of filenames
-    var audioTimeRanges: [String]?  // Encoded time ranges for playback
+    var audioAttachments: [String]?  // Array of filenames (time ranges stored in .srt sidecar files)
     var recordingDevice: String?  // Name of recording device (e.g., "iPhone Microphone")
     var sampleRate: Int?  // Sample rate in Hz (e.g., 48000)
     var bitDepth: Int?  // Bit depth for lossless formats (e.g., 24, 32)
@@ -110,7 +109,7 @@ struct Entry: Identifiable, Codable, Sendable {
         // Write remaining known fields not in original order
         let knownFieldKeys = ["date_created", "tags", "place", "temp", "cond",
                               "humidity", "aqi", "mood_valence", "mood_labels",
-                              "mood_associations", "audio_attachments", "audio_time_ranges",
+                              "mood_associations", "audio_attachments",
                               "recording_device", "sample_rate", "bit_depth"]
         for fieldKey in knownFieldKeys where !writtenKnownFields.contains(fieldKey) {
             writeKnownField(fieldKey, to: &yaml)
@@ -123,7 +122,7 @@ struct Entry: Identifiable, Codable, Sendable {
     private nonisolated func isKnownField(_ key: String) -> Bool {
         ["date_created", "tags", "place", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
-         "audio_attachments", "audio_time_ranges", "recording_device", "sample_rate",
+         "audio_attachments", "recording_device", "sample_rate",
          "bit_depth"].contains(key)
     }
 
@@ -197,14 +196,6 @@ struct Entry: Identifiable, Codable, Sendable {
                 }
             }
 
-        case "audio_time_ranges":
-            if let ranges = audioTimeRanges, !ranges.isEmpty {
-                yaml += "audio_time_ranges:\n"
-                for range in ranges {
-                    yaml += "  - \"\(range)\"\n"
-                }
-            }
-
         case "recording_device":
             if let device = recordingDevice, !device.isEmpty {
                 yaml += "recording_device: \"\(device)\"\n"
@@ -266,7 +257,6 @@ struct Entry: Identifiable, Codable, Sendable {
             moodLabels: nil,
             moodAssociations: nil,
             audioAttachments: nil,
-            audioTimeRanges: nil,
             recordingDevice: nil,
             sampleRate: nil,
             bitDepth: nil,

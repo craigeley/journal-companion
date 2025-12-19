@@ -51,20 +51,23 @@ actor AudioFileManager {
 
     // MARK: - Audio File Operations
 
-    /// Write audio file from temp location to vault
+    /// Write audio file and SRT subtitle file from temp location to vault
     /// Returns the filename for YAML storage
     func writeAudioFile(
         from tempURL: URL,
         for entry: Entry,
         index: Int,
-        format: AudioFormat
+        format: AudioFormat,
+        timeRanges: [TimeRange]
     ) async throws -> String {
         // Ensure directory exists
         let audioDir = try await createAudioDirectory(for: entry)
 
-        // Generate filename: YYYYMMDDHHmm-{index}.m4a
+        // Generate filenames: YYYYMMDDHHmm-{index}.ext
         let filename = "\(entry.filename)-\(index).\(format.fileExtension)"
+        let srtFilename = "\(entry.filename)-\(index).srt"
         let destinationURL = audioDir.appendingPathComponent(filename)
+        let srtURL = audioDir.appendingPathComponent(srtFilename)
 
         // Check if file already exists
         if fileManager.fileExists(atPath: destinationURL.path) {
@@ -74,7 +77,12 @@ actor AudioFileManager {
         // Copy temp file to vault
         try fileManager.copyItem(at: tempURL, to: destinationURL)
 
+        // Write SRT file with time ranges
+        let srtContent = generateSRT(from: timeRanges)
+        try srtContent.write(to: srtURL, atomically: true, encoding: .utf8)
+
         print("✓ Wrote audio file: \(filename)")
+        print("✓ Wrote SRT file: \(srtFilename) (\(timeRanges.count) segments)")
         return filename
     }
 
@@ -125,7 +133,92 @@ actor AudioFileManager {
         return fileManager.fileExists(atPath: fileURL.path)
     }
 
+    // MARK: - SRT Subtitle Operations
+
+    /// Load time ranges from SRT sidecar file
+    func loadTimeRanges(for audioFilename: String, entry: Entry) async throws -> [TimeRange] {
+        let audioDir = audioDirectory(for: entry)
+
+        // Replace audio extension with .srt
+        let srtFilename = (audioFilename as NSString).deletingPathExtension + ".srt"
+        let srtURL = audioDir.appendingPathComponent(srtFilename)
+
+        guard fileManager.fileExists(atPath: srtURL.path) else {
+            print("⚠️ No SRT file found for \(audioFilename)")
+            return []
+        }
+
+        let content = try String(contentsOf: srtURL, encoding: .utf8)
+        return parseSRT(content)
+    }
+
     // MARK: - Private Helpers
+
+    /// Generate SRT (SubRip) subtitle format from time ranges
+    private func generateSRT(from timeRanges: [TimeRange]) -> String {
+        var srt = ""
+        for (index, range) in timeRanges.enumerated() {
+            let sequenceNumber = index + 1
+            let startTime = formatSRTTime(range.start)
+            let endTime = formatSRTTime(range.end)
+
+            srt += "\(sequenceNumber)\n"
+            srt += "\(startTime) --> \(endTime)\n"
+            srt += "\(range.text)\n"
+            srt += "\n"
+        }
+        return srt
+    }
+
+    /// Format time as SRT timestamp (HH:MM:SS,mmm)
+    private func formatSRTTime(_ seconds: TimeInterval) -> String {
+        let hours = Int(seconds) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        let secs = Int(seconds) % 60
+        let millis = Int((seconds.truncatingRemainder(dividingBy: 1)) * 1000)
+        return String(format: "%02d:%02d:%02d,%03d", hours, minutes, secs, millis)
+    }
+
+    /// Parse SRT format into TimeRange objects
+    private func parseSRT(_ content: String) -> [TimeRange] {
+        var ranges: [TimeRange] = []
+        let blocks = content.components(separatedBy: "\n\n")
+
+        for block in blocks {
+            let lines = block.components(separatedBy: "\n")
+            guard lines.count >= 3 else { continue }
+
+            // Parse timestamp line: "00:00:00,000 --> 00:00:02,160"
+            let timeLine = lines[1]
+            let timestamps = timeLine.components(separatedBy: " --> ")
+            guard timestamps.count == 2 else { continue }
+
+            let start = parseSRTTime(timestamps[0])
+            let end = parseSRTTime(timestamps[1])
+
+            // Text is everything from line 3 onwards
+            let text = lines[2...].joined(separator: "\n")
+
+            ranges.append(TimeRange(text: text, start: start, end: end))
+        }
+
+        return ranges
+    }
+
+    /// Parse SRT timestamp to seconds
+    private func parseSRTTime(_ timestamp: String) -> TimeInterval {
+        // Format: HH:MM:SS,mmm
+        let parts = timestamp.components(separatedBy: ":")
+        guard parts.count == 3 else { return 0 }
+
+        let hours = Double(parts[0]) ?? 0
+        let minutes = Double(parts[1]) ?? 0
+        let secondsParts = parts[2].components(separatedBy: ",")
+        let seconds = Double(secondsParts[0]) ?? 0
+        let millis = secondsParts.count > 1 ? (Double(secondsParts[1]) ?? 0) / 1000 : 0
+
+        return (hours * 3600) + (minutes * 60) + seconds + millis
+    }
 
     /// Get audio directory path for entry
     /// Format: _attachments/audio/

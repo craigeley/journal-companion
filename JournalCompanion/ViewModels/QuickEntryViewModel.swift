@@ -221,14 +221,13 @@ class QuickEntryViewModel: ObservableObject {
                 entry.moodAssociations = mood.associations
             }
 
-            // Save audio segments if available
+            // Save audio segments if available (time ranges stored in .srt sidecar files)
             if audioSegmentManager.hasSegments, let audioFileManager = getAudioFileManager() {
-                let (filenames, _, timeRanges) = try await audioSegmentManager.saveSegments(
+                let (filenames, _) = try await audioSegmentManager.saveSegments(
                     for: entry,
                     audioFileManager: audioFileManager
                 )
                 entry.audioAttachments = filenames
-                entry.audioTimeRanges = timeRanges
                 entry.recordingDevice = recordingDeviceName
                 entry.sampleRate = recordingSampleRate
                 entry.bitDepth = recordingBitDepth

@@ -82,7 +82,6 @@ actor EntryReader {
         var moodLabels: [String] = []
         var moodAssociations: [String] = []
         var audioAttachments: [String] = []
-        var audioTimeRanges: [String] = []
         var recordingDevice: String?
         var sampleRate: Int?
         var bitDepth: Int?
@@ -97,7 +96,6 @@ actor EntryReader {
         var inMoodLabels = false
         var inMoodAssociations = false
         var inAudioAttachments = false
-        var inAudioTimeRanges = false
         var inUnknownArray = false
         var currentUnknownArrayKey: String?
 
@@ -206,35 +204,20 @@ actor EntryReader {
                 inMoodLabels = false
                 inMoodAssociations = false
                 inAudioAttachments = true
-                inAudioTimeRanges = false
             } else if inAudioAttachments && trimmed.hasPrefix("- ") {
                 let filename = trimmed.replacingOccurrences(of: "- ", with: "").trimmingCharacters(in: .whitespaces)
                 audioAttachments.append(filename)
-            } else if trimmed.hasPrefix("audio_time_ranges:") {
-                inTags = false
-                inPeople = false
-                inMoodLabels = false
-                inMoodAssociations = false
-                inAudioAttachments = false
-                inAudioTimeRanges = true
-            } else if inAudioTimeRanges && trimmed.hasPrefix("- ") {
-                let ranges = trimmed.replacingOccurrences(of: "- ", with: "").trimmingCharacters(in: .whitespaces)
-                    .replacingOccurrences(of: "\"", with: "")
-                audioTimeRanges.append(ranges)
             } else if trimmed.hasPrefix("recording_device:") {
                 inAudioAttachments = false
-                inAudioTimeRanges = false
                 let deviceString = trimmed.replacingOccurrences(of: "recording_device:", with: "").trimmingCharacters(in: .whitespaces)
                     .replacingOccurrences(of: "\"", with: "")
                 recordingDevice = deviceString
             } else if trimmed.hasPrefix("sample_rate:") {
                 inAudioAttachments = false
-                inAudioTimeRanges = false
                 let rateString = trimmed.replacingOccurrences(of: "sample_rate:", with: "").trimmingCharacters(in: .whitespaces)
                 sampleRate = Int(rateString)
             } else if trimmed.hasPrefix("bit_depth:") {
                 inAudioAttachments = false
-                inAudioTimeRanges = false
                 let depthString = trimmed.replacingOccurrences(of: "bit_depth:", with: "").trimmingCharacters(in: .whitespaces)
                 bitDepth = Int(depthString)
             } else if inUnknownArray && trimmed.hasPrefix("- "),
@@ -306,7 +289,6 @@ actor EntryReader {
             moodLabels: moodLabels.isEmpty ? nil : moodLabels,
             moodAssociations: moodAssociations.isEmpty ? nil : moodAssociations,
             audioAttachments: audioAttachments.isEmpty ? nil : audioAttachments,
-            audioTimeRanges: audioTimeRanges.isEmpty ? nil : audioTimeRanges,
             recordingDevice: recordingDevice,
             sampleRate: sampleRate,
             bitDepth: bitDepth,
@@ -319,7 +301,7 @@ actor EntryReader {
     private func isKnownField(_ key: String) -> Bool {
         ["date_created", "tags", "place", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
-         "audio_attachments", "audio_time_ranges", "recording_device", "sample_rate", "bit_depth"].contains(key)
+         "audio_attachments", "recording_device", "sample_rate", "bit_depth"].contains(key)
     }
 
     /// Parse a YAML value string into a YAMLValue type

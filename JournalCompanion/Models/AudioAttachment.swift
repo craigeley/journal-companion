@@ -128,20 +128,22 @@ struct TimeRange: Codable, Sendable, Hashable {
         time >= start && time < end
     }
 
-    // Encode as "start-end" for YAML storage
+    // Encode as "start|end|text" for YAML storage (pipe-separated to avoid conflicts with hyphens in text)
     func encode() -> String {
-        "\(start)-\(end)"
+        let escapedText = text.replacingOccurrences(of: "|", with: "\\|")
+        return "\(start)|\(end)|\(escapedText)"
     }
 
-    // Decode from "start-end" string
+    // Decode from "start|end|text" string
     static func decode(_ encoded: String) -> TimeRange? {
-        let parts = encoded.split(separator: "-")
-        guard parts.count == 2,
+        let parts = encoded.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count == 3,
               let start = TimeInterval(parts[0]),
               let end = TimeInterval(parts[1]) else {
             return nil
         }
-        return TimeRange(text: "", start: start, end: end)
+        let text = String(parts[2]).replacingOccurrences(of: "\\|", with: "|")
+        return TimeRange(text: text, start: start, end: end)
     }
 }
 

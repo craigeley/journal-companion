@@ -123,33 +123,29 @@ class AudioSegmentManager: ObservableObject {
     // MARK: - Persistence
 
     /// Save segments to vault and return entry data
-    func saveSegments(for entry: Entry, audioFileManager: AudioFileManager) async throws -> (filenames: [String], transcriptions: [String], timeRanges: [String]) {
+    /// Time ranges are now stored in SRT sidecar files, not in YAML
+    func saveSegments(for entry: Entry, audioFileManager: AudioFileManager) async throws -> (filenames: [String], transcriptions: [String]) {
         var filenames: [String] = []
         var transcriptions: [String] = []
-        var timeRanges: [String] = []
 
         for (index, segment) in segments.enumerated() {
-            // Write audio file to vault
+            // Write audio file AND SRT file to vault
             let filename = try await audioFileManager.writeAudioFile(
                 from: segment.tempURL,
                 for: entry,
                 index: index + 1,
-                format: segment.format
+                format: segment.format,
+                timeRanges: segment.timeRanges
             )
             filenames.append(filename)
 
             // Store transcription
             transcriptions.append(segment.transcription)
-
-            // Encode time ranges for YAML storage
-            // Format: "start1-end1,start2-end2,..."
-            let encodedRanges = segment.timeRanges.encodeForYAML()
-            timeRanges.append(encodedRanges)
         }
 
         // Clean up temp files after successful save
         await audioFileManager.cleanupTempFiles(segments.map { $0.tempURL })
 
-        return (filenames, transcriptions, timeRanges)
+        return (filenames, transcriptions)
     }
 }

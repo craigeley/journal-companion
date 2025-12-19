@@ -151,10 +151,12 @@ actor SpeechTranscriptionService {
             try await downloadModel(for: locale)
         }
 
-        // Configure transcriber for file transcription
+        // Configure transcriber for file transcription with time ranges
         let transcriber = SpeechTranscriber(
             locale: locale,
-            preset: .transcription
+            transcriptionOptions: [],
+            reportingOptions: [],
+            attributeOptions: [.audioTimeRange]  // Enable time range capture
         )
 
         // Process file
@@ -165,17 +167,22 @@ actor SpeechTranscriptionService {
                 let resultText = String(result.text.characters)
                 text += resultText
 
-                if result.isFinal, let timeRange = result.text.audioTimeRange {
-                    let start = CMTimeGetSeconds(timeRange.start)
-                    let end = start + CMTimeGetSeconds(timeRange.duration)
+                if result.isFinal {
+                    if let timeRange = result.text.audioTimeRange {
+                        let start = CMTimeGetSeconds(timeRange.start)
+                        let end = start + CMTimeGetSeconds(timeRange.duration)
 
-                    ranges.append(TimeRange(
-                        text: resultText,
-                        start: start,
-                        end: end
-                    ))
+                        ranges.append(TimeRange(
+                            text: resultText,
+                            start: start,
+                            end: end
+                        ))
+                    } else {
+                        print("⚠️ Time range not available for result: \(resultText.prefix(20))...")
+                    }
                 }
             }
+            print("📊 Collected \(ranges.count) time ranges from \(text.count) characters")
             return (text, ranges)
         }()
 

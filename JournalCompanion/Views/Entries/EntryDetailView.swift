@@ -15,6 +15,8 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showEditView = false
     @State private var currentEntry: Entry
+    @State private var isPlaying = false
+    @State private var playbackService = AudioPlaybackService()
 
     init(entry: Entry) {
         self.entry = entry
@@ -24,10 +26,57 @@ struct EntryDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Entry Content Section (read-only with rendered markdown + wiki-links)
+                // Audio Section (if audio entry)
+                if hasAudio {
+                    Section("Audio Recording") {
+                        ForEach(Array((currentEntry.audioAttachments ?? []).enumerated()), id: \.offset) { index, filename in
+                            HStack {
+                                Image(systemName: "waveform")
+                                    .foregroundStyle(.red)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Recording \(index + 1)")
+                                        .font(.subheadline)
+                                    if let device = currentEntry.recordingDevice {
+                                        Text(device)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Button {
+                                    Task {
+                                        await togglePlayback(filename: filename)
+                                    }
+                                } label: {
+                                    Image(systemName: isPlaying ? "stop.fill" : "play.fill")
+                                        .foregroundStyle(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(Color.red)
+                                        .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if let rate = currentEntry.sampleRate, let depth = currentEntry.bitDepth {
+                            Text("\(rate)Hz • \(depth)-bit")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        } else if let rate = currentEntry.sampleRate {
+                            Text("\(rate)Hz")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+
+                // Entry Content Section (read-only with rendered markdown + wiki-links, audio embeds removed)
                 Section("Entry") {
                     MarkdownWikiText(
-                        text: currentEntry.content,
+                        text: contentWithoutAudioEmbeds,
                         places: vaultManager.places,
                         people: vaultManager.people,
                         lineLimit: nil,
@@ -130,6 +179,64 @@ struct EntryDetailView: View {
             }
         } catch {
             print("❌ Failed to reload entry: \(error)")
+        }
+    }
+
+    // MARK: - Audio Playback
+
+    private var hasAudio: Bool {
+        currentEntry.audioAttachments != nil && !(currentEntry.audioAttachments?.isEmpty ?? true)
+    }
+
+    private var contentWithoutAudioEmbeds: String {
+        var cleaned = currentEntry.content
+
+        // Remove Obsidian audio embeds: ![[audio/filename.ext]]
+        let audioEmbedPattern = #"!\[\[audio/[^\]]+\]\]"#
+        if let regex = try? NSRegularExpression(pattern: audioEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Clean up extra whitespace
+        cleaned = cleaned.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func togglePlayback(filename: String) async {
+        guard let vaultURL = vaultManager.vaultURL else { return }
+
+        if isPlaying {
+            // Stop playback
+            await playbackService.stop()
+            isPlaying = false
+        } else {
+            // Build audio file path
+            let audioURL = vaultURL
+                .appendingPathComponent("_attachments")
+                .appendingPathComponent("audio")
+                .appendingPathComponent(filename)
+
+            do {
+                try await playbackService.play(url: audioURL)
+                isPlaying = true
+
+                // Monitor playback completion
+                Task {
+                    while await playbackService.isPlaying() {
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                    }
+                    isPlaying = false
+                }
+            } catch {
+                print("❌ Failed to play audio: \(error)")
+                isPlaying = false
+            }
         }
     }
 }

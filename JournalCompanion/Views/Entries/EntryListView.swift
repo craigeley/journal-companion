@@ -127,11 +127,19 @@ struct EntryRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header with time and place
+            // Header with time, place, and audio indicator
             HStack {
                 Text(entry.dateCreated, style: .time)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                // Audio indicator for audio entries
+                if isAudioEntry {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .imageScale(.small)
+                }
 
                 if let place = entry.place {
                     Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
@@ -157,9 +165,9 @@ struct EntryRowView: View {
                 }
             }
 
-            // Content preview (with markdown + wiki-links)
+            // Content preview (with markdown + wiki-links, audio embeds removed)
             MarkdownWikiText(
-                text: entry.content,
+                text: contentWithoutAudioEmbeds,
                 places: places,
                 people: people,
                 lineLimit: 3,
@@ -182,6 +190,34 @@ struct EntryRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Computed Properties
+
+    /// Check if this is an audio entry
+    private var isAudioEntry: Bool {
+        entry.audioAttachments != nil && !(entry.audioAttachments?.isEmpty ?? true)
+    }
+
+    /// Content with audio embeds removed for cleaner display
+    private var contentWithoutAudioEmbeds: String {
+        var cleaned = entry.content
+
+        // Remove Obsidian audio embeds: ![[audio/filename.ext]]
+        let audioEmbedPattern = #"!\[\[audio/[^\]]+\]\]"#
+        if let regex = try? NSRegularExpression(pattern: audioEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Clean up extra whitespace left behind
+        cleaned = cleaned.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func weatherEmoji(for condition: String) -> String {

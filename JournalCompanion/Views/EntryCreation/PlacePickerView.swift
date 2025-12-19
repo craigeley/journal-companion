@@ -12,6 +12,8 @@ struct PlacePickerView: View {
     let places: [Place]
     let currentLocation: CLLocation?
     @Binding var selectedPlace: Place?
+    @Binding var onCreatePlaceRequested: Bool
+    @Binding var onSearchNearbyRequested: Bool
     @Environment(\.dismiss) var dismiss
     @State private var searchText = ""
     @State private var nearbyPlaces: [PlaceWithDistance] = []
@@ -30,6 +32,29 @@ struct PlacePickerView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Quick Actions Section
+                if currentLocation != nil && searchText.isEmpty {
+                    Section {
+                        Button {
+                            onSearchNearbyRequested = true
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Image(systemName: "location.circle.fill")
+                                    .foregroundStyle(.blue)
+                                Text("Search Nearby Places")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
+                    } header: {
+                        Text("Quick Actions")
+                    }
+                }
+
                 // Nearby Places Section (only show when we have location and it's not searching)
                 if !nearbyPlaces.isEmpty && searchText.isEmpty {
                     Section("Nearby") {
@@ -46,10 +71,28 @@ struct PlacePickerView: View {
 
                 // All Places or Filtered Places
                 if filteredPlaces.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Places Found", systemImage: "mappin.slash")
-                    } description: {
-                        Text("Try adjusting your search or create a new place")
+                    Section {
+                        ContentUnavailableView {
+                            Label("No Places Found", systemImage: "mappin.slash")
+                        } description: {
+                            Text("Try adjusting your search or create a new place")
+                        }
+
+                        Button {
+                            onCreatePlaceRequested = true
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(.blue)
+                                Text("Create New Place")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
                     }
                 } else {
                     Section(searchText.isEmpty ? "All Places" : "Search Results") {
@@ -167,6 +210,8 @@ struct PlaceRowWithDistance: View {
                   url: nil, aliases: [], content: "")
         ],
         currentLocation: nil,
-        selectedPlace: .constant(nil)
+        selectedPlace: .constant(nil),
+        onCreatePlaceRequested: .constant(false),
+        onSearchNearbyRequested: .constant(false)
     )
 }

@@ -7,12 +7,25 @@
 
 import SwiftUI
 import JournalingSuggestions
+import MapKit
+import CoreLocation
 
 struct QuickEntryView: View {
     @StateObject var viewModel: QuickEntryViewModel
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
     @State private var showPlacePicker = false
+
+    // Place creation flow state
+    @State private var showLocationSearchForNewPlace = false
+    @State private var showPlaceCreationFromPicker = false
+    @State private var pendingLocationName: String?
+    @State private var pendingAddress: String?
+    @State private var pendingCoordinates: CLLocationCoordinate2D?
+    @State private var pendingURL: String?
+    @State private var pendingPOICategory: MKPointOfInterestCategory?
+    @State private var createPlaceRequested = false
+    @State private var searchNearbyRequested = false
 
     var body: some View {
         NavigationStack {
@@ -251,8 +264,81 @@ struct QuickEntryView: View {
                 PlacePickerView(
                     places: viewModel.vaultManager.places,
                     currentLocation: viewModel.currentLocation,
-                    selectedPlace: $viewModel.selectedPlace
+                    selectedPlace: $viewModel.selectedPlace,
+                    onCreatePlaceRequested: $createPlaceRequested,
+                    onSearchNearbyRequested: $searchNearbyRequested
                 )
+            }
+            .onChange(of: showPlacePicker) { oldValue, newValue in
+                if !newValue {
+                    // PlacePickerView dismissed
+                    if createPlaceRequested || searchNearbyRequested {
+                        showLocationSearchForNewPlace = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showLocationSearchForNewPlace) {
+                LocationSearchView(
+                    selectedLocationName: $pendingLocationName,
+                    selectedAddress: $pendingAddress,
+                    selectedCoordinates: $pendingCoordinates,
+                    selectedURL: $pendingURL,
+                    selectedPOICategory: $pendingPOICategory
+                )
+            }
+            .onChange(of: showLocationSearchForNewPlace) { oldValue, newValue in
+                if !newValue {
+                    // LocationSearchView dismissed
+                    if pendingLocationName != nil {
+                        // Location was selected, show PlaceEditView
+                        showPlaceCreationFromPicker = true
+                    } else {
+                        // User cancelled, reset flags
+                        createPlaceRequested = false
+                        searchNearbyRequested = false
+                    }
+                }
+            }
+            .sheet(isPresented: $showPlaceCreationFromPicker, onDismiss: {
+                // Reload places and auto-select newly created place
+                Task {
+                    do {
+                        _ = try await viewModel.vaultManager.loadPlaces()
+
+                        // Find newly created place by sanitized name
+                        if let placeName = pendingLocationName {
+                            let sanitizedId = Place.sanitizeFilename(placeName)
+                            if let newPlace = viewModel.vaultManager.places.first(where: { $0.id == sanitizedId }) {
+                                viewModel.selectedPlace = newPlace
+                            }
+                        }
+                    } catch {
+                        print("❌ Failed to reload places: \(error)")
+                    }
+                }
+
+                // Clear pending state
+                pendingLocationName = nil
+                pendingAddress = nil
+                pendingCoordinates = nil
+                pendingURL = nil
+                pendingPOICategory = nil
+                createPlaceRequested = false
+                searchNearbyRequested = false
+            }) {
+                let placeViewModel = PlaceEditViewModel(
+                    place: nil,
+                    vaultManager: viewModel.vaultManager,
+                    locationService: LocationService(),
+                    templateManager: TemplateManager(),
+                    initialLocationName: pendingLocationName,
+                    initialAddress: pendingAddress,
+                    initialCoordinates: pendingCoordinates,
+                    initialURL: pendingURL,
+                    initialPOICategory: pendingPOICategory
+                )
+                PlaceEditView(viewModel: placeViewModel)
+                    .environmentObject(TemplateManager())
             }
             .sheet(isPresented: $viewModel.showStateOfMindPicker) {
                 StateOfMindPickerView(

@@ -13,12 +13,12 @@ struct AudioRecordingSheet: View {
 
     let vaultURL: URL
     let audioFormat: AudioFormat
-    let onComplete: (URL, TimeInterval, String) -> Void
+    let onComplete: (URL, TimeInterval, String, [TimeRange]) -> Void
 
     init(
         vaultURL: URL,
         audioFormat: AudioFormat = .aac,
-        onComplete: @escaping (URL, TimeInterval, String) -> Void
+        onComplete: @escaping (URL, TimeInterval, String, [TimeRange]) -> Void
     ) {
         self.vaultURL = vaultURL
         self.audioFormat = audioFormat
@@ -100,7 +100,7 @@ struct AudioRecordingSheet: View {
                     Button {
                         Task {
                             if let result = await viewModel.stopRecording() {
-                                onComplete(result.url, result.duration, result.transcription)
+                                onComplete(result.url, result.duration, result.transcription, result.timeRanges)
                                 dismiss()
                             }
                         }
@@ -151,8 +151,9 @@ struct AudioRecordingSheet: View {
     AudioRecordingSheet(
         vaultURL: URL(fileURLWithPath: "/tmp"),
         audioFormat: .aac
-    ) { url, duration, transcription in
+    ) { url, duration, transcription, timeRanges in
         print("Recording complete: \(duration)s")
         print("Transcription: \(transcription)")
+        print("Time ranges: \(timeRanges.count)")
     }
 }

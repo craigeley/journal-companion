@@ -12,9 +12,6 @@ struct SmartTextEditor: View {
     let places: [Place]
     let people: [Person]
     let minHeight: CGFloat
-    let showAudioButton: Bool
-    let isRecording: Bool
-    let onRecordTap: () -> Void
 
     @StateObject private var autocompleteManager: AutocompleteManager
     @State private var cursorPosition: Int?
@@ -23,60 +20,43 @@ struct SmartTextEditor: View {
         text: Binding<String>,
         places: [Place],
         people: [Person],
-        minHeight: CGFloat = 120,
-        showAudioButton: Bool = false,
-        isRecording: Bool = false,
-        onRecordTap: @escaping () -> Void = {}
+        minHeight: CGFloat = 120
     ) {
         self._text = text
         self.places = places
         self.people = people
         self.minHeight = minHeight
-        self.showAudioButton = showAudioButton
-        self.isRecording = isRecording
-        self.onRecordTap = onRecordTap
         self._autocompleteManager = StateObject(wrappedValue: AutocompleteManager(places: places, people: people))
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            VStack(spacing: 0) {
-                // Validated text editor
-                ValidatedTextEditor(
-                    text: $text,
-                    cursorPosition: $cursorPosition,
-                    places: places,
-                    people: people,
-                    onTextChange: { newText in
-                        autocompleteManager.updateState(text: newText)
-                    }
-                )
-                .frame(minHeight: minHeight)
-
-                // Autocomplete suggestions
-                if autocompleteManager.state.isActive && !autocompleteManager.suggestions.isEmpty {
-                    AutocompleteSuggestionView(suggestions: autocompleteManager.suggestions) { suggestion in
-                        // Insert suggestion and get cursor position
-                        let (newText, position) = autocompleteManager.insertSuggestion(suggestion, into: text)
-                        text = newText
-                        cursorPosition = position
-                        autocompleteManager.updateState(text: text)
-                    }
-                    .padding(.top, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        VStack(spacing: 0) {
+            // Validated text editor
+            ValidatedTextEditor(
+                text: $text,
+                cursorPosition: $cursorPosition,
+                places: places,
+                people: people,
+                onTextChange: { newText in
+                    autocompleteManager.updateState(text: newText)
                 }
-            }
-            .animation(.easeInOut(duration: 0.2), value: autocompleteManager.state.isActive)
+            )
+            .frame(minHeight: minHeight)
 
-            // Audio record button
-            if showAudioButton {
-                AudioRecordButton(
-                    isRecording: isRecording,
-                    action: onRecordTap
-                )
-                .padding(.bottom, 4)
+            // Autocomplete suggestions
+            if autocompleteManager.state.isActive && !autocompleteManager.suggestions.isEmpty {
+                AutocompleteSuggestionView(suggestions: autocompleteManager.suggestions) { suggestion in
+                    // Insert suggestion and get cursor position
+                    let (newText, position) = autocompleteManager.insertSuggestion(suggestion, into: text)
+                    text = newText
+                    cursorPosition = position
+                    autocompleteManager.updateState(text: text)
+                }
+                .padding(.top, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: autocompleteManager.state.isActive)
     }
 }
 

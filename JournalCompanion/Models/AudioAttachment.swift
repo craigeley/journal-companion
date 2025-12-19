@@ -48,12 +48,15 @@ struct AudioAttachment: Identifiable, Codable, Sendable {
 
 enum AudioFormat: String, Codable, CaseIterable, Sendable {
     case aac = "aac"
-    case alac = "alac"
+    case wav24 = "wav24"
+    case wav32 = "wav32"
 
     nonisolated var fileExtension: String {
         switch self {
-        case .aac, .alac:
+        case .aac:
             return "m4a"
+        case .wav24, .wav32:
+            return "wav"
         }
     }
 
@@ -61,8 +64,10 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
         switch self {
         case .aac:
             return "AAC (Lossy, 256kbps)"
-        case .alac:
-            return "ALAC (Lossless)"
+        case .wav24:
+            return "WAV 24-bit (Lossless)"
+        case .wav32:
+            return "WAV 32-bit Float (Lossless, Native)"
         }
     }
 
@@ -75,9 +80,21 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
                 AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
             ]
-        case .alac:
+        case .wav24:
             return [
-                AVFormatIDKey: kAudioFormatAppleLossless,
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey: 24,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
+            ]
+        case .wav32:
+            return [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVLinearPCMBitDepthKey: 32,
+                AVLinearPCMIsFloatKey: true,
+                AVLinearPCMIsBigEndianKey: false,
                 AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
             ]

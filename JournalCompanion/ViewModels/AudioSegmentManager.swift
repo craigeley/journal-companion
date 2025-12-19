@@ -17,6 +17,7 @@ class AudioSegmentManager: ObservableObject {
         let tempURL: URL
         let duration: TimeInterval
         let transcription: String
+        let timeRanges: [TimeRange]
         let format: AudioFormat
         let dateRecorded: Date
 
@@ -25,6 +26,7 @@ class AudioSegmentManager: ObservableObject {
             tempURL: URL,
             duration: TimeInterval,
             transcription: String,
+            timeRanges: [TimeRange] = [],
             format: AudioFormat,
             dateRecorded: Date = Date()
         ) {
@@ -32,6 +34,7 @@ class AudioSegmentManager: ObservableObject {
             self.tempURL = tempURL
             self.duration = duration
             self.transcription = transcription
+            self.timeRanges = timeRanges
             self.format = format
             self.dateRecorded = dateRecorded
         }
@@ -81,11 +84,12 @@ class AudioSegmentManager: ObservableObject {
 
     // MARK: - Segment Management
 
-    func addSegment(tempURL: URL, duration: TimeInterval, transcription: String, format: AudioFormat) {
+    func addSegment(tempURL: URL, duration: TimeInterval, transcription: String, timeRanges: [TimeRange], format: AudioFormat) {
         let segment = Segment(
             tempURL: tempURL,
             duration: duration,
             transcription: transcription,
+            timeRanges: timeRanges,
             format: format
         )
         segments.append(segment)
@@ -137,9 +141,10 @@ class AudioSegmentManager: ObservableObject {
             // Store transcription
             transcriptions.append(segment.transcription)
 
-            // For now, store empty time ranges (will be populated by real-time transcription)
-            // Format: "start-end" for each word/phrase in the transcription
-            timeRanges.append("")
+            // Encode time ranges for YAML storage
+            // Format: "start1-end1,start2-end2,..."
+            let encodedRanges = segment.timeRanges.encodeForYAML()
+            timeRanges.append(encodedRanges)
         }
 
         // Clean up temp files after successful save

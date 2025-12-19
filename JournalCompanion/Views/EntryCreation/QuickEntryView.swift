@@ -36,12 +36,7 @@ struct QuickEntryView: View {
                         text: $viewModel.entryText,
                         places: viewModel.vaultManager.places,
                         people: viewModel.vaultManager.people,
-                        minHeight: 120,
-                        showAudioButton: true,
-                        isRecording: false,
-                        onRecordTap: {
-                            viewModel.showAudioRecordingSheet = true
-                        }
+                        minHeight: 120
                     )
                     .focused($isTextFieldFocused)
                 }
@@ -202,11 +197,34 @@ struct QuickEntryView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // Audio Segments Section
-                if viewModel.audioSegmentManager.hasSegments {
-                    Section {
+                // Audio Recording Section
+                Section {
+                    if viewModel.audioSegmentManager.hasSegments {
+                        // Show recorded segments
                         AudioSegmentListView(segmentManager: viewModel.audioSegmentManager)
+                    } else {
+                        // Show add button
+                        Button {
+                            viewModel.showAudioRecordingSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "mic.circle")
+                                    .foregroundStyle(.red)
+                                Text("Add Audio Recording")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
                     }
+                } header: {
+                    Text("Audio Recording")
+                } footer: {
+                    Text("Record voice notes with automatic transcription")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Details Section
@@ -369,12 +387,13 @@ struct QuickEntryView: View {
                     AudioRecordingSheet(
                         vaultURL: vaultURL,
                         audioFormat: viewModel.audioFormat
-                    ) { url, duration, transcription in
+                    ) { url, duration, transcription, timeRanges in
                         // Add segment to manager
                         viewModel.audioSegmentManager.addSegment(
                             tempURL: url,
                             duration: duration,
                             transcription: transcription,
+                            timeRanges: timeRanges,
                             format: viewModel.audioFormat
                         )
                     }

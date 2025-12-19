@@ -154,7 +154,7 @@ class AudioRecorderViewModel: ObservableObject {
         }
     }
 
-    func stopRecording() async -> (url: URL, duration: TimeInterval, transcription: String)? {
+    func stopRecording() async -> (url: URL, duration: TimeInterval, transcription: String, timeRanges: [TimeRange])? {
         guard isRecording else { return nil }
 
         do {
@@ -168,12 +168,14 @@ class AudioRecorderViewModel: ObservableObject {
 
             // Transcribe the recorded file if transcription is available
             var finalTranscription = ""
+            var timeRanges: [TimeRange] = []
             if isTranscriptionAvailable {
                 let locale = await getBestSupportedLocale()
                 do {
                     let result = try await transcriptionService.transcribeFile(url: url, locale: locale)
                     finalTranscription = result.text
-                    print("✓ Transcribed \(result.text.count) characters")
+                    timeRanges = result.timeRanges
+                    print("✓ Transcribed \(result.text.count) characters with \(timeRanges.count) time ranges")
                 } catch {
                     print("⚠️ Transcription failed: \(error.localizedDescription)")
                     // Continue without transcription
@@ -183,7 +185,7 @@ class AudioRecorderViewModel: ObservableObject {
             // Reset for next recording
             reset()
 
-            return (url, duration, finalTranscription)
+            return (url, duration, finalTranscription, timeRanges)
 
         } catch {
             errorMessage = "Failed to stop recording: \(error.localizedDescription)"

@@ -28,5 +28,9 @@
 	<string>JournalCompanion saves your emotional state to Apple Health to help you track your well-being over time.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>JournalCompanion records your mood and emotions to provide insights into your mental wellness.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>JournalCompanion uses the microphone to record audio journal entries with automatic transcription.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>JournalCompanion transcribes your audio recordings to make them searchable and accessible.</string>
 </dict>
 </plist>

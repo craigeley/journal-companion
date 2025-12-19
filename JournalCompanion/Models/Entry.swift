@@ -52,6 +52,11 @@ struct Entry: Identifiable, Codable, Sendable {
     var moodLabels: [String]?
     var moodAssociations: [String]?
 
+    // Audio attachments
+    var audioAttachments: [String]?  // Array of filenames
+    var audioTranscriptions: [String]?  // Array of transcriptions
+    var audioTimeRanges: [String]?  // Encoded time ranges for playback
+
     // Unknown YAML field preservation
     var unknownFields: [String: YAMLValue]
     var unknownFieldsOrder: [String]
@@ -103,7 +108,8 @@ struct Entry: Identifiable, Codable, Sendable {
         // Write remaining known fields not in original order
         let knownFieldKeys = ["date_created", "tags", "place", "temp", "cond",
                               "humidity", "aqi", "mood_valence", "mood_labels",
-                              "mood_associations"]
+                              "mood_associations", "audio_attachments", "audio_transcriptions",
+                              "audio_time_ranges"]
         for fieldKey in knownFieldKeys where !writtenKnownFields.contains(fieldKey) {
             writeKnownField(fieldKey, to: &yaml)
         }
@@ -114,7 +120,8 @@ struct Entry: Identifiable, Codable, Sendable {
 
     private nonisolated func isKnownField(_ key: String) -> Bool {
         ["date_created", "tags", "place", "people", "temp", "cond",
-         "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations"].contains(key)
+         "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
+         "audio_attachments", "audio_transcriptions", "audio_time_ranges"].contains(key)
     }
 
     private nonisolated func writeKnownField(_ key: String, to yaml: inout String) {
@@ -179,6 +186,32 @@ struct Entry: Identifiable, Codable, Sendable {
                 }
             }
 
+        case "audio_attachments":
+            if let attachments = audioAttachments, !attachments.isEmpty {
+                yaml += "audio_attachments:\n"
+                for filename in attachments {
+                    yaml += "  - \(filename)\n"
+                }
+            }
+
+        case "audio_transcriptions":
+            if let transcriptions = audioTranscriptions, !transcriptions.isEmpty {
+                yaml += "audio_transcriptions:\n"
+                for transcript in transcriptions {
+                    // Escape quotes in transcription text
+                    let escaped = transcript.replacingOccurrences(of: "\"", with: "\\\"")
+                    yaml += "  - \"\(escaped)\"\n"
+                }
+            }
+
+        case "audio_time_ranges":
+            if let ranges = audioTimeRanges, !ranges.isEmpty {
+                yaml += "audio_time_ranges:\n"
+                for range in ranges {
+                    yaml += "  - \"\(range)\"\n"
+                }
+            }
+
         default:
             break
         }
@@ -224,6 +257,9 @@ struct Entry: Identifiable, Codable, Sendable {
             moodValence: nil,
             moodLabels: nil,
             moodAssociations: nil,
+            audioAttachments: nil,
+            audioTranscriptions: nil,
+            audioTimeRanges: nil,
             unknownFields: [:],
             unknownFieldsOrder: []
         )

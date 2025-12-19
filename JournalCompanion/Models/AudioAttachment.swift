@@ -88,8 +88,8 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
             return [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
                 AVEncoderBitRateKey: 256000,
-                AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                // Channel count set dynamically based on input
             ]
         case .wav24:
             return [
@@ -97,8 +97,8 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
                 AVLinearPCMBitDepthKey: 24,
                 AVLinearPCMIsFloatKey: false,
                 AVLinearPCMIsBigEndianKey: false,
-                AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
+                // Channel count set dynamically based on input
             ]
         case .wav32:
             return [
@@ -106,8 +106,8 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
                 AVLinearPCMBitDepthKey: 32,
                 AVLinearPCMIsFloatKey: true,
                 AVLinearPCMIsBigEndianKey: false,
-                AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
+                // Channel count set dynamically based on input
             ]
         }
     }

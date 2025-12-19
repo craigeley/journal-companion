@@ -57,6 +57,8 @@ actor AudioRecordingService {
         if needsConversion {
             audioConverter = AVAudioConverter(from: recordingFormat, to: fileFormat)
             print("⚙️ Using audio converter: \(recordingFormat.sampleRate)Hz → \(fileFormat.sampleRate)Hz")
+            print("   Input format: \(recordingFormat.commonFormat.rawValue) (channels: \(recordingFormat.channelCount))")
+            print("   Output format: \(fileFormat.commonFormat.rawValue) (channels: \(fileFormat.channelCount))")
         } else {
             audioConverter = nil
             print("✓ No conversion needed, formats match: \(recordingFormat.sampleRate)Hz")
@@ -162,7 +164,15 @@ actor AudioRecordingService {
     private func configureAudioSession() async throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+
+        // Force 48kHz sample rate (native iOS rate)
+        try session.setPreferredSampleRate(48000)
+
         try session.setActive(true)
+
+        // Log actual sample rate achieved
+        let actualSampleRate = session.sampleRate
+        print("🎤 Audio session sample rate: \(actualSampleRate)Hz")
     }
 
     private func writeBuffer(_ buffer: AVAudioPCMBuffer) {
@@ -217,6 +227,9 @@ actor AudioRecordingService {
         if settings[AVSampleRateKey] == nil {
             settings[AVSampleRateKey] = recordingFormat.sampleRate
         }
+
+        // Use recording format's channel count (preserve stereo if available)
+        settings[AVNumberOfChannelsKey] = recordingFormat.channelCount
 
         return settings
     }

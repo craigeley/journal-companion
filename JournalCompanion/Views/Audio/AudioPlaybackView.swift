@@ -24,12 +24,11 @@ struct AudioPlaybackView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
+        VStack(spacing: 20) {
                 // Scrollable transcript with highlighting
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 8) {
                             if timeRanges.isEmpty {
                                 // No time ranges - show plain text
                                 Text(transcription)
@@ -38,17 +37,31 @@ struct AudioPlaybackView: View {
                             } else {
                                 // Show highlighted segments
                                 ForEach(Array(timeRanges.enumerated()), id: \.offset) { index, range in
-                                    Text(range.text)
-                                        .font(.body)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(isHighlighted(range) ? Color.yellow.opacity(0.4) : Color.clear)
-                                        .cornerRadius(4)
-                                        .id(index)
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("\(index + 1).")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 30, alignment: .trailing)
+
+                                        Text(range.text)
+                                            .font(.body)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(isHighlighted(range) ? Color.yellow.opacity(0.4) : Color.clear)
+                                            .cornerRadius(4)
+                                            .id(index)
+                                    }
                                 }
                             }
                         }
                         .padding()
+                        .onAppear {
+                            print("🎵 Loaded \(timeRanges.count) time ranges")
+                            print("🎵 Transcription: '\(transcription.prefix(50))...'")
+                            for (i, range) in timeRanges.prefix(3).enumerated() {
+                                print("🎵 Range \(i): '\(range.text)' (\(range.start)s - \(range.end)s)")
+                            }
+                        }
                     }
                     .onChange(of: currentTime) { _, _ in
                         // Auto-scroll to highlighted segment
@@ -124,26 +137,25 @@ struct AudioPlaybackView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Audio Playback")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        Task {
-                            await playbackService.stop()
-                        }
-                        dismiss()
+        .navigationTitle("Audio Playback")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") {
+                    Task {
+                        await playbackService.stop()
                     }
+                    dismiss()
                 }
             }
-            .task {
-                await loadAudio()
-            }
-            .onDisappear {
-                stopTimer()
-                Task {
-                    await playbackService.stop()
-                }
+        }
+        .task {
+            await loadAudio()
+        }
+        .onDisappear {
+            stopTimer()
+            Task {
+                await playbackService.stop()
             }
         }
     }

@@ -13,6 +13,7 @@ import AVFoundation
 actor AudioRecordingService {
     private let audioEngine = AVAudioEngine()
     private var audioFile: AVAudioFile?
+    private var audioConverter: AVAudioConverter?
     private var recordingStartTime: Date?
     private var isPaused = false
     private var currentFormat: AudioFormat = .aac
@@ -20,7 +21,8 @@ actor AudioRecordingService {
     // MARK: - Public Interface
 
     /// Start recording audio to a temporary file
-    func startRecording(format: AudioFormat) async throws -> URL {
+    /// Returns: (tempURL, recordingDeviceName, sampleRate, bitDepth)
+    func startRecording(format: AudioFormat) async throws -> (url: URL, deviceName: String, sampleRate: Int, bitDepth: Int?) {
         // Configure audio session
         try await configureAudioSession()
 
@@ -36,10 +38,29 @@ actor AudioRecordingService {
         let recordingFormat = inputNode.outputFormat(forBus: 0)
 
         // Create audio file for recording
+        let fileSettings = createAudioSettings(for: format, recordingFormat: recordingFormat)
         audioFile = try AVAudioFile(
             forWriting: tempURL,
-            settings: createAudioSettings(for: format, recordingFormat: recordingFormat)
+            settings: fileSettings
         )
+
+        // Create format for the output file
+        guard let fileFormat = AVAudioFormat(settings: fileSettings) else {
+            throw AudioRecordingError.fileCreationFailed
+        }
+
+        // Create converter only if conversion is actually needed
+        let needsConversion = recordingFormat.sampleRate != fileFormat.sampleRate ||
+                              recordingFormat.channelCount != fileFormat.channelCount ||
+                              recordingFormat.commonFormat != fileFormat.commonFormat
+
+        if needsConversion {
+            audioConverter = AVAudioConverter(from: recordingFormat, to: fileFormat)
+            print("⚙️ Using audio converter: \(recordingFormat.sampleRate)Hz → \(fileFormat.sampleRate)Hz")
+        } else {
+            audioConverter = nil
+            print("✓ No conversion needed, formats match: \(recordingFormat.sampleRate)Hz")
+        }
 
         // Install tap on input node
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
@@ -54,8 +75,17 @@ actor AudioRecordingService {
         recordingStartTime = Date()
         isPaused = false
 
-        print("✓ Started recording to: \(tempURL.lastPathComponent)")
-        return tempURL
+        // Get recording device name
+        let deviceName = getRecordingDeviceName()
+
+        // Get sample rate from recording format
+        let sampleRate = Int(recordingFormat.sampleRate)
+
+        // Get bit depth from format settings (only for WAV)
+        let bitDepth = format.bitDepth
+
+        print("✓ Started recording to: \(tempURL.lastPathComponent) using \(deviceName) at \(sampleRate)Hz")
+        return (tempURL, deviceName, sampleRate, bitDepth)
     }
 
     /// Stop recording and return the file URL and duration
@@ -74,6 +104,7 @@ actor AudioRecordingService {
 
         // Clean up
         audioFile = nil
+        audioConverter = nil
         recordingStartTime = nil
         isPaused = false
 
@@ -138,7 +169,39 @@ actor AudioRecordingService {
         guard let file = audioFile, !isPaused else { return }
 
         do {
-            try file.write(from: buffer)
+            // Convert buffer if needed
+            if let converter = audioConverter {
+                // Calculate output buffer size
+                let ratio = converter.outputFormat.sampleRate / converter.inputFormat.sampleRate
+                let outputFrameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio)
+
+                guard let convertedBuffer = AVAudioPCMBuffer(
+                    pcmFormat: converter.outputFormat,
+                    frameCapacity: outputFrameCapacity
+                ) else {
+                    print("❌ Failed to create conversion buffer")
+                    return
+                }
+
+                // Perform conversion
+                var error: NSError?
+                let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+                    outStatus.pointee = .haveData
+                    return buffer
+                }
+
+                converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+
+                if let error = error {
+                    print("❌ Error converting audio buffer: \(error)")
+                    return
+                }
+
+                try file.write(from: convertedBuffer)
+            } else {
+                // No conversion needed
+                try file.write(from: buffer)
+            }
         } catch {
             print("❌ Error writing audio buffer: \(error)")
         }
@@ -156,6 +219,18 @@ actor AudioRecordingService {
         }
 
         return settings
+    }
+
+    private func getRecordingDeviceName() -> String {
+        let session = AVAudioSession.sharedInstance()
+        let currentRoute = session.currentRoute
+
+        // Get the first input (typically the active microphone)
+        if let input = currentRoute.inputs.first {
+            return input.portName
+        }
+
+        return "Unknown Device"
     }
 }
 

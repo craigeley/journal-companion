@@ -71,6 +71,17 @@ enum AudioFormat: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    nonisolated var bitDepth: Int? {
+        switch self {
+        case .aac:
+            return nil  // AAC is compressed, no bit depth
+        case .wav24:
+            return 24
+        case .wav32:
+            return 32
+        }
+    }
+
     nonisolated var codecSettings: [String: Any] {
         switch self {
         case .aac:

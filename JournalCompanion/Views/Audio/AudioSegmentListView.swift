@@ -83,12 +83,14 @@ struct AudioSegmentListView: View {
             tempURL: URL(fileURLWithPath: "/tmp/test1.m4a"),
             duration: 45.2,
             transcription: "This is a test transcription of the first audio segment.",
+            timeRanges: [],
             format: .aac
         )
         manager.addSegment(
             tempURL: URL(fileURLWithPath: "/tmp/test2.m4a"),
             duration: 30.8,
             transcription: "Second segment with different content.",
+            timeRanges: [],
             format: .aac
         )
     }

@@ -13,12 +13,12 @@ struct AudioRecordingSheet: View {
 
     let vaultURL: URL
     let audioFormat: AudioFormat
-    let onComplete: (URL, TimeInterval, String, [TimeRange]) -> Void
+    let onComplete: (URL, TimeInterval, String, [TimeRange], String, Int, Int?) -> Void
 
     init(
         vaultURL: URL,
         audioFormat: AudioFormat = .aac,
-        onComplete: @escaping (URL, TimeInterval, String, [TimeRange]) -> Void
+        onComplete: @escaping (URL, TimeInterval, String, [TimeRange], String, Int, Int?) -> Void
     ) {
         self.vaultURL = vaultURL
         self.audioFormat = audioFormat
@@ -100,7 +100,7 @@ struct AudioRecordingSheet: View {
                     Button {
                         Task {
                             if let result = await viewModel.stopRecording() {
-                                onComplete(result.url, result.duration, result.transcription, result.timeRanges)
+                                onComplete(result.url, result.duration, result.transcription, result.timeRanges, result.deviceName, result.sampleRate, result.bitDepth)
                                 dismiss()
                             }
                         }
@@ -151,9 +151,14 @@ struct AudioRecordingSheet: View {
     AudioRecordingSheet(
         vaultURL: URL(fileURLWithPath: "/tmp"),
         audioFormat: .aac
-    ) { url, duration, transcription, timeRanges in
+    ) { url, duration, transcription, timeRanges, deviceName, sampleRate, bitDepth in
         print("Recording complete: \(duration)s")
         print("Transcription: \(transcription)")
         print("Time ranges: \(timeRanges.count)")
+        print("Device: \(deviceName)")
+        print("Sample rate: \(sampleRate)Hz")
+        if let depth = bitDepth {
+            print("Bit depth: \(depth)-bit")
+        }
     }
 }

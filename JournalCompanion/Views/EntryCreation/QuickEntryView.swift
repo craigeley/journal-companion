@@ -387,7 +387,7 @@ struct QuickEntryView: View {
                     AudioRecordingSheet(
                         vaultURL: vaultURL,
                         audioFormat: viewModel.audioFormat
-                    ) { url, duration, transcription, timeRanges in
+                    ) { url, duration, transcription, timeRanges, deviceName, sampleRate, bitDepth in
                         // Add segment to manager
                         viewModel.audioSegmentManager.addSegment(
                             tempURL: url,
@@ -396,6 +396,10 @@ struct QuickEntryView: View {
                             timeRanges: timeRanges,
                             format: viewModel.audioFormat
                         )
+                        // Store metadata from first recording
+                        viewModel.recordingDeviceName = deviceName
+                        viewModel.recordingSampleRate = sampleRate
+                        viewModel.recordingBitDepth = bitDepth
                     }
                 } else {
                     Text("Vault not configured")

@@ -32,6 +32,9 @@ class AudioRecorderViewModel: ObservableObject {
 
     // Recording state
     private var recordingURL: URL?
+    private var recordingDeviceName: String?
+    private var recordingSampleRate: Int?
+    private var recordingBitDepth: Int?
     private var durationTimer: Timer?
     private var audioFormat: AudioFormat
 
@@ -117,7 +120,11 @@ class AudioRecorderViewModel: ObservableObject {
             }
 
             // Start recording
-            recordingURL = try await recordingService.startRecording(format: audioFormat)
+            let (url, deviceName, sampleRate, bitDepth) = try await recordingService.startRecording(format: audioFormat)
+            recordingURL = url
+            recordingDeviceName = deviceName
+            recordingSampleRate = sampleRate
+            recordingBitDepth = bitDepth
             isRecording = true
             errorMessage = nil
 
@@ -154,7 +161,7 @@ class AudioRecorderViewModel: ObservableObject {
         }
     }
 
-    func stopRecording() async -> (url: URL, duration: TimeInterval, transcription: String, timeRanges: [TimeRange])? {
+    func stopRecording() async -> (url: URL, duration: TimeInterval, transcription: String, timeRanges: [TimeRange], deviceName: String, sampleRate: Int, bitDepth: Int?)? {
         guard isRecording else { return nil }
 
         do {
@@ -182,10 +189,15 @@ class AudioRecorderViewModel: ObservableObject {
                 }
             }
 
+            // Get device name and audio specs
+            let deviceName = recordingDeviceName ?? "Unknown Device"
+            let sampleRate = recordingSampleRate ?? 48000  // Default to 48kHz
+            let bitDepth = recordingBitDepth
+
             // Reset for next recording
             reset()
 
-            return (url, duration, finalTranscription, timeRanges)
+            return (url, duration, finalTranscription, timeRanges, deviceName, sampleRate, bitDepth)
 
         } catch {
             errorMessage = "Failed to stop recording: \(error.localizedDescription)"
@@ -227,6 +239,9 @@ class AudioRecorderViewModel: ObservableObject {
         volatileTranscription = ""
         finalizedTranscription = ""
         recordingURL = nil
+        recordingDeviceName = nil
+        recordingSampleRate = nil
+        recordingBitDepth = nil
         errorMessage = nil
     }
 }

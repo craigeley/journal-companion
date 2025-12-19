@@ -36,6 +36,9 @@ class QuickEntryViewModel: ObservableObject {
     // Audio recording properties
     @Published var audioSegmentManager = AudioSegmentManager()
     @Published var showAudioRecordingSheet: Bool = false
+    var recordingDeviceName: String?
+    var recordingSampleRate: Int?
+    var recordingBitDepth: Int?
 
     // Audio format preference (stored in UserDefaults)
     var audioFormat: AudioFormat {
@@ -226,6 +229,9 @@ class QuickEntryViewModel: ObservableObject {
                 )
                 entry.audioAttachments = filenames
                 entry.audioTimeRanges = timeRanges
+                entry.recordingDevice = recordingDeviceName
+                entry.sampleRate = recordingSampleRate
+                entry.bitDepth = recordingBitDepth
 
                 // Replace placeholder file links with actual filenames
                 var updatedContent = entry.content
@@ -288,6 +294,9 @@ class QuickEntryViewModel: ObservableObject {
         weatherFetchedAt = nil
         moodData = nil
         audioSegmentManager.clearAllSegments()
+        recordingDeviceName = nil
+        recordingSampleRate = nil
+        recordingBitDepth = nil
     }
 
     /// Add a tag if not already present

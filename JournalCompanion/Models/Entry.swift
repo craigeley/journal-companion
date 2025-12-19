@@ -55,6 +55,9 @@ struct Entry: Identifiable, Codable, Sendable {
     // Audio attachments
     var audioAttachments: [String]?  // Array of filenames
     var audioTimeRanges: [String]?  // Encoded time ranges for playback
+    var recordingDevice: String?  // Name of recording device (e.g., "iPhone Microphone")
+    var sampleRate: Int?  // Sample rate in Hz (e.g., 48000)
+    var bitDepth: Int?  // Bit depth for lossless formats (e.g., 24, 32)
 
     // Unknown YAML field preservation
     var unknownFields: [String: YAMLValue]
@@ -107,7 +110,8 @@ struct Entry: Identifiable, Codable, Sendable {
         // Write remaining known fields not in original order
         let knownFieldKeys = ["date_created", "tags", "place", "temp", "cond",
                               "humidity", "aqi", "mood_valence", "mood_labels",
-                              "mood_associations", "audio_attachments", "audio_time_ranges"]
+                              "mood_associations", "audio_attachments", "audio_time_ranges",
+                              "recording_device", "sample_rate", "bit_depth"]
         for fieldKey in knownFieldKeys where !writtenKnownFields.contains(fieldKey) {
             writeKnownField(fieldKey, to: &yaml)
         }
@@ -119,7 +123,8 @@ struct Entry: Identifiable, Codable, Sendable {
     private nonisolated func isKnownField(_ key: String) -> Bool {
         ["date_created", "tags", "place", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
-         "audio_attachments", "audio_time_ranges"].contains(key)
+         "audio_attachments", "audio_time_ranges", "recording_device", "sample_rate",
+         "bit_depth"].contains(key)
     }
 
     private nonisolated func writeKnownField(_ key: String, to yaml: inout String) {
@@ -200,6 +205,21 @@ struct Entry: Identifiable, Codable, Sendable {
                 }
             }
 
+        case "recording_device":
+            if let device = recordingDevice, !device.isEmpty {
+                yaml += "recording_device: \"\(device)\"\n"
+            }
+
+        case "sample_rate":
+            if let rate = sampleRate {
+                yaml += "sample_rate: \(rate)\n"
+            }
+
+        case "bit_depth":
+            if let depth = bitDepth {
+                yaml += "bit_depth: \(depth)\n"
+            }
+
         default:
             break
         }
@@ -247,6 +267,9 @@ struct Entry: Identifiable, Codable, Sendable {
             moodAssociations: nil,
             audioAttachments: nil,
             audioTimeRanges: nil,
+            recordingDevice: nil,
+            sampleRate: nil,
+            bitDepth: nil,
             unknownFields: [:],
             unknownFieldsOrder: []
         )

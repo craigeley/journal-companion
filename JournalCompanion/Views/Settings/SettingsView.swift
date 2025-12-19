@@ -14,6 +14,8 @@ struct SettingsView: View {
     @EnvironmentObject var templateManager: TemplateManager
     @Environment(\.dismiss) var dismiss
 
+    @AppStorage("audioFormat") private var audioFormat: AudioFormat = .aac
+
     var body: some View {
         NavigationStack {
             Form {
@@ -83,6 +85,20 @@ struct SettingsView: View {
                                 .foregroundStyle(.tertiary)
                         }
                     }
+                }
+
+                // Audio Section
+                Section("Audio") {
+                    Picker("Recording Quality", selection: $audioFormat) {
+                        ForEach(AudioFormat.allCases, id: \.self) { format in
+                            Text(format.displayName).tag(format)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Text("Audio format applies to new recordings. Existing recordings are not affected.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Templates Section

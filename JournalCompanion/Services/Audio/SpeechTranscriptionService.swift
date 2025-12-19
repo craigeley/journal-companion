@@ -202,6 +202,18 @@ actor SpeechTranscriptionService {
         await !SpeechTranscriber.supportedLocales.isEmpty
     }
 
+    // MARK: - Locale Support
+
+    /// Get list of supported locales for transcription
+    static func getSupportedLocales() async -> [Locale] {
+        await SpeechTranscriber.supportedLocales
+    }
+
+    /// Get a supported locale equivalent to the given locale
+    static func getSupportedLocale(equivalentTo locale: Locale) async -> Locale? {
+        await SpeechTranscriber.supportedLocale(equivalentTo: locale)
+    }
+
     // MARK: - Permissions
 
     /// Check speech recognition permission status

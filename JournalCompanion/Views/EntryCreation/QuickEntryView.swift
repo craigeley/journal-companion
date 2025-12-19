@@ -36,7 +36,12 @@ struct QuickEntryView: View {
                         text: $viewModel.entryText,
                         places: viewModel.vaultManager.places,
                         people: viewModel.vaultManager.people,
-                        minHeight: 120
+                        minHeight: 120,
+                        showAudioButton: true,
+                        isRecording: false,
+                        onRecordTap: {
+                            viewModel.showAudioRecordingSheet = true
+                        }
                     )
                     .focused($isTextFieldFocused)
                 }
@@ -197,6 +202,13 @@ struct QuickEntryView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // Audio Segments Section
+                if viewModel.audioSegmentManager.hasSegments {
+                    Section {
+                        AudioSegmentListView(segmentManager: viewModel.audioSegmentManager)
+                    }
+                }
+
                 // Details Section
                 Section("Details") {
                     DatePicker("Time", selection: $viewModel.timestamp)
@@ -350,6 +362,25 @@ struct QuickEntryView: View {
                     if viewModel.showStateOfMindPicker == false {
                         viewModel.saveStateOfMindSelection()
                     }
+                }
+            }
+            .sheet(isPresented: $viewModel.showAudioRecordingSheet) {
+                if let vaultURL = viewModel.vaultManager.vaultURL {
+                    AudioRecordingSheet(
+                        vaultURL: vaultURL,
+                        audioFormat: viewModel.audioFormat
+                    ) { url, duration, transcription in
+                        // Add segment to manager
+                        viewModel.audioSegmentManager.addSegment(
+                            tempURL: url,
+                            duration: duration,
+                            transcription: transcription,
+                            format: viewModel.audioFormat
+                        )
+                    }
+                } else {
+                    Text("Vault not configured")
+                        .foregroundStyle(.secondary)
                 }
             }
             .journalingSuggestionsPicker(

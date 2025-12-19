@@ -33,6 +33,16 @@ class QuickEntryViewModel: ObservableObject {
     @Published var tempMoodLabels: [HKStateOfMind.Label] = []
     @Published var tempMoodAssociations: [HKStateOfMind.Association] = []
 
+    // Audio recording properties
+    @Published var audioSegmentManager = AudioSegmentManager()
+    @Published var showAudioRecordingSheet: Bool = false
+
+    // Audio format preference (stored in UserDefaults)
+    var audioFormat: AudioFormat {
+        UserDefaults.standard.string(forKey: "audioFormat")
+            .flatMap { AudioFormat(rawValue: $0) } ?? .aac
+    }
+
     // Track initial values to detect when weather becomes stale
     private var initialTimestamp: Date?
     private var initialLocation: CLLocation?
@@ -43,6 +53,11 @@ class QuickEntryViewModel: ObservableObject {
     private let weatherService = WeatherService()
     private lazy var healthKitService = HealthKitService()
     private var cancellables = Set<AnyCancellable>()
+
+    private func getAudioFileManager() -> AudioFileManager? {
+        guard let vaultURL = vaultManager.vaultURL else { return nil }
+        return AudioFileManager(vaultURL: vaultURL)
+    }
 
     init(vaultManager: VaultManager, locationService: LocationService) {
         self.vaultManager = vaultManager
@@ -131,6 +146,19 @@ class QuickEntryViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            // Combine entry text with audio transcriptions
+            var combinedContent = entryText
+            if audioSegmentManager.hasSegments {
+                let transcription = audioSegmentManager.combinedTranscription
+                if !transcription.isEmpty {
+                    // Add separator if there's existing text
+                    if !combinedContent.isEmpty {
+                        combinedContent += "\n\n"
+                    }
+                    combinedContent += transcription
+                }
+            }
+
             var entry = Entry(
                 id: UUID().uuidString,
                 dateCreated: timestamp,
@@ -138,7 +166,7 @@ class QuickEntryViewModel: ObservableObject {
                 place: selectedPlace?.name,
                 people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout,
-                content: entryText,
+                content: combinedContent,
                 temperature: nil,
                 condition: nil,
                 aqi: nil,
@@ -163,6 +191,17 @@ class QuickEntryViewModel: ObservableObject {
                 entry.moodValence = mood.valence
                 entry.moodLabels = mood.labels
                 entry.moodAssociations = mood.associations
+            }
+
+            // Save audio segments if available
+            if audioSegmentManager.hasSegments, let audioFileManager = getAudioFileManager() {
+                let (filenames, _, timeRanges) = try await audioSegmentManager.saveSegments(
+                    for: entry,
+                    audioFileManager: audioFileManager
+                )
+                entry.audioAttachments = filenames
+                entry.audioTimeRanges = timeRanges
+                // Note: transcriptions are now part of entry.content, not separate YAML
             }
 
             let writer = EntryWriter(vaultURL: vaultURL)
@@ -214,6 +253,7 @@ class QuickEntryViewModel: ObservableObject {
         initialLocation = nil
         weatherFetchedAt = nil
         moodData = nil
+        audioSegmentManager.clearAllSegments()
     }
 
     /// Add a tag if not already present

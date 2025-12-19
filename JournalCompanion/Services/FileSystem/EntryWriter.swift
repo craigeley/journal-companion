@@ -175,10 +175,17 @@ actor EntryWriter {
             // Find ### Entries section or append
             if content.contains("### Entries\n") {
                 // Append at the end of the file (chronological order)
-                if !content.hasSuffix("\n") {
-                    content.append("\n")
+                // Ensure proper spacing before new callout (need blank line separator)
+                if content.hasSuffix("\n\n") {
+                    // Already has blank line, just append
+                    content.append(calloutBlock)
+                } else if content.hasSuffix("\n") {
+                    // Has one newline, add one more to create blank line
+                    content.append("\n" + calloutBlock)
+                } else {
+                    // No newline, add two newlines then callout
+                    content.append("\n\n" + calloutBlock)
                 }
-                content.append(calloutBlock)
             } else {
                 // Add Entries section at the end
                 content = content.trimmingCharacters(in: .whitespacesAndNewlines)

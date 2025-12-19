@@ -12,7 +12,7 @@ struct AudioPlaybackView: View {
     let transcription: String
     let timeRanges: [TimeRange]
 
-    @StateObject private var playbackService = AudioPlaybackService()
+    @State private var playbackService = AudioPlaybackService()
     @State private var isPlaying = false
     @State private var currentTime: TimeInterval = 0
     @State private var duration: TimeInterval = 0

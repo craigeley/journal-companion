@@ -168,17 +168,20 @@ actor SpeechTranscriptionService {
                 text += resultText
 
                 if result.isFinal {
-                    if let timeRange = result.text.audioTimeRange {
-                        let start = CMTimeGetSeconds(timeRange.start)
-                        let end = start + CMTimeGetSeconds(timeRange.duration)
+                    // Access audioTimeRange from attributed string runs
+                    for run in result.text.runs {
+                        // Access the audioTimeRange attribute from the run
+                        if let timeRange = run.speechAttributes.audioTimeRange {
+                            let runText = String(result.text[run.range].characters)
+                            let start = CMTimeGetSeconds(timeRange.start)
+                            let end = start + CMTimeGetSeconds(timeRange.duration)
 
-                        ranges.append(TimeRange(
-                            text: resultText,
-                            start: start,
-                            end: end
-                        ))
-                    } else {
-                        print("⚠️ Time range not available for result: \(resultText.prefix(20))...")
+                            ranges.append(TimeRange(
+                                text: runText,
+                                start: start,
+                                end: end
+                            ))
+                        }
                     }
                 }
             }

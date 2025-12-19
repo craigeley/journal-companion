@@ -168,10 +168,9 @@ actor SpeechTranscriptionService {
                 text += resultText
 
                 if result.isFinal {
-                    // Access audioTimeRange from attributed string runs
+                    // Extract time ranges from attributed string runs
                     for run in result.text.runs {
-                        // Access the audioTimeRange attribute from the run
-                        if let timeRange = run.speechAttributes.audioTimeRange {
+                        if let timeRange = run[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self] {
                             let runText = String(result.text[run.range].characters)
                             let start = CMTimeGetSeconds(timeRange.start)
                             let end = start + CMTimeGetSeconds(timeRange.duration)

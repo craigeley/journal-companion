@@ -15,8 +15,8 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showEditView = false
     @State private var currentEntry: Entry
-    @State private var isPlaying = false
-    @State private var playbackService = AudioPlaybackService()
+    @State private var showPlaybackView = false
+    @State private var selectedAudioIndex: Int?
 
     init(entry: Entry) {
         self.entry = entry
@@ -47,11 +47,10 @@ struct EntryDetailView: View {
                                 Spacer()
 
                                 Button {
-                                    Task {
-                                        await togglePlayback(filename: filename)
-                                    }
+                                    selectedAudioIndex = index
+                                    showPlaybackView = true
                                 } label: {
-                                    Image(systemName: isPlaying ? "stop.fill" : "play.fill")
+                                    Image(systemName: "play.fill")
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 44)
                                         .background(Color.red)
@@ -163,6 +162,30 @@ struct EntryDetailView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showPlaybackView) {
+                if let index = selectedAudioIndex,
+                   let filename = currentEntry.audioAttachments?[safe: index],
+                   let vaultURL = vaultManager.vaultURL {
+
+                    let audioURL = vaultURL
+                        .appendingPathComponent("_attachments")
+                        .appendingPathComponent("audio")
+                        .appendingPathComponent(filename)
+
+                    // Decode time ranges for this segment
+                    let timeRanges = currentEntry.audioTimeRanges?[safe: index]
+                        .flatMap { [TimeRange].decodeFromYAML($0) } ?? []
+
+                    // Get transcription from content (extract the segment after the audio embed)
+                    let transcription = extractTranscription(for: index)
+
+                    AudioPlaybackView(
+                        audioURL: audioURL,
+                        transcription: transcription,
+                        timeRanges: timeRanges
+                    )
+                }
+            }
         }
     }
 
@@ -208,35 +231,39 @@ struct EntryDetailView: View {
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func togglePlayback(filename: String) async {
-        guard let vaultURL = vaultManager.vaultURL else { return }
+    /// Extract transcription text for a specific audio segment
+    private func extractTranscription(for index: Int) -> String {
+        // The transcription follows the audio embed in the content
+        // Pattern: ![[audio/filename.ext]]\n\nTranscription text\n\n
+        let components = currentEntry.content.components(separatedBy: "![[audio/")
 
-        if isPlaying {
-            // Stop playback
-            await playbackService.stop()
-            isPlaying = false
-        } else {
-            // Build audio file path
-            let audioURL = vaultURL
-                .appendingPathComponent("_attachments")
-                .appendingPathComponent("audio")
-                .appendingPathComponent(filename)
+        guard index + 1 < components.count else { return "" }
 
-            do {
-                try await playbackService.play(url: audioURL)
-                isPlaying = true
+        // Get the section after the target audio embed
+        let section = components[index + 1]
 
-                // Monitor playback completion
-                Task {
-                    while await playbackService.isPlaying() {
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-                    }
-                    isPlaying = false
-                }
-            } catch {
-                print("❌ Failed to play audio: \(error)")
-                isPlaying = false
+        // Extract text between the embed close and next embed or end
+        if let closeIndex = section.firstIndex(of: "]"),
+           let doubleNewline = section[closeIndex...].range(of: "\n\n") {
+            let startIndex = doubleNewline.upperBound
+            let remainingText = section[startIndex...]
+
+            // Find next audio embed or end of text
+            if let nextEmbed = remainingText.range(of: "![[audio/") {
+                return String(remainingText[..<nextEmbed.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                return String(remainingText).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
+
+        return ""
+    }
+}
+
+// MARK: - Array Safe Subscript Extension
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

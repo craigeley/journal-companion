@@ -112,7 +112,10 @@ class QuickEntryViewModel: ObservableObject {
     }
 
     var isValid: Bool {
-        !entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // Entry is valid if it has text OR audio segments
+        let hasText = !entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasAudio = audioSegmentManager.hasSegments
+        return hasText || hasAudio
     }
 
     /// Check if weather data is stale (timestamp or location changed significantly)
@@ -146,23 +149,45 @@ class QuickEntryViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            // Combine entry text with audio transcriptions
+            // Build entry content with audio file links and transcriptions
             var combinedContent = entryText
+
+            // For audio entries, add Obsidian file links and transcriptions
             if audioSegmentManager.hasSegments {
-                let transcription = audioSegmentManager.combinedTranscription
-                if !transcription.isEmpty {
-                    // Add separator if there's existing text
-                    if !combinedContent.isEmpty {
+                let segments = audioSegmentManager.segments
+
+                for (index, segment) in segments.enumerated() {
+                    // Add separator before first audio segment
+                    if index == 0 && !combinedContent.isEmpty {
                         combinedContent += "\n\n"
                     }
-                    combinedContent += transcription
+
+                    // Add Obsidian file link (will be set after saving)
+                    // Placeholder for now, will be replaced after file is saved
+                    combinedContent += "![[AUDIO_\(index)]]"
+
+                    // Add transcription if available
+                    if !segment.transcription.isEmpty {
+                        combinedContent += "\n\n\(segment.transcription)"
+                    }
+
+                    // Add separator between segments
+                    if index < segments.count - 1 {
+                        combinedContent += "\n\n"
+                    }
                 }
+            }
+
+            // Auto-add "audio_entry" tag if audio segments exist
+            var entryTags = tags
+            if audioSegmentManager.hasSegments && !entryTags.contains("audio_entry") {
+                entryTags.append("audio_entry")
             }
 
             var entry = Entry(
                 id: UUID().uuidString,
                 dateCreated: timestamp,
-                tags: tags,
+                tags: entryTags,
                 place: selectedPlace?.name,
                 people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout,
@@ -201,7 +226,16 @@ class QuickEntryViewModel: ObservableObject {
                 )
                 entry.audioAttachments = filenames
                 entry.audioTimeRanges = timeRanges
-                // Note: transcriptions are now part of entry.content, not separate YAML
+
+                // Replace placeholder file links with actual filenames
+                var updatedContent = entry.content
+                for (index, filename) in filenames.enumerated() {
+                    updatedContent = updatedContent.replacingOccurrences(
+                        of: "![[AUDIO_\(index)]]",
+                        with: "![[audio/\(filename)]]"
+                    )
+                }
+                entry.content = updatedContent
             }
 
             let writer = EntryWriter(vaultURL: vaultURL)

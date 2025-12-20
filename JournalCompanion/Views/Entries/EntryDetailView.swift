@@ -72,6 +72,21 @@ struct EntryDetailView: View {
                     }
                 }
 
+                // Running Section (if running entry)
+                if currentEntry.isRunningEntry {
+                    Section("Running Workout") {
+                        if let vaultURL = vaultManager.vaultURL {
+                            RunningDetailView(
+                                entry: currentEntry,
+                                vaultURL: vaultURL
+                            )
+                        } else {
+                            Text("Unable to load running data")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 // Entry Content Section (read-only with rendered markdown + wiki-links, audio embeds removed)
                 Section("Entry") {
                     MarkdownWikiText(

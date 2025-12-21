@@ -149,7 +149,8 @@ struct EntryRowView: View {
                         .imageScale(.small)
                 }
 
-                if let place = entry.place {
+                // Place indicator (only for non-special entries)
+                if let place = entry.place, !isAudioEntry && !entry.isRunningEntry {
                     Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
                         .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
                         .font(.caption)

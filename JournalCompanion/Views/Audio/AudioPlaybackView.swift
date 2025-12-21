@@ -28,48 +28,30 @@ struct AudioPlaybackView: View {
                 // Scrollable transcript with highlighting
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if timeRanges.isEmpty {
-                                // No time ranges - show plain text
-                                Text(transcription)
-                                    .font(.body)
-                                    .padding()
-                            } else {
-                                // Show highlighted segments
-                                ForEach(Array(timeRanges.enumerated()), id: \.offset) { index, range in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Text("\(index + 1).")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 30, alignment: .trailing)
-
-                                        Text(range.text)
-                                            .font(.body)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(isHighlighted(range) ? Color.yellow.opacity(0.4) : Color.clear)
-                                            .cornerRadius(4)
-                                            .id(index)
-                                    }
+                        if timeRanges.isEmpty {
+                            // No time ranges - show plain text
+                            Text(transcription)
+                                .font(.body)
+                                .padding()
+                        } else {
+                            // Show flowing text with word-level highlighting
+                            FlowingTranscriptView(
+                                timeRanges: timeRanges,
+                                currentTime: currentTime
+                            )
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .onAppear {
+                                print("🎵 Loaded \(timeRanges.count) time ranges")
+                                print("🎵 Transcription: '\(transcription.prefix(50))...'")
+                                for (i, range) in timeRanges.prefix(3).enumerated() {
+                                    print("🎵 Range \(i): '\(range.text)' (\(range.start)s - \(range.end)s)")
                                 }
-                            }
-                        }
-                        .padding()
-                        .onAppear {
-                            print("🎵 Loaded \(timeRanges.count) time ranges")
-                            print("🎵 Transcription: '\(transcription.prefix(50))...'")
-                            for (i, range) in timeRanges.prefix(3).enumerated() {
-                                print("🎵 Range \(i): '\(range.text)' (\(range.start)s - \(range.end)s)")
                             }
                         }
                     }
                     .onChange(of: currentTime) { _, _ in
-                        // Auto-scroll to highlighted segment
-                        if let highlightedIndex = timeRanges.firstIndex(where: { isHighlighted($0) }) {
-                            withAnimation {
-                                proxy.scrollTo(highlightedIndex, anchor: .center)
-                            }
-                        }
+                        // Auto-scroll to highlighted segment (removed - not needed for flowing text)
                     }
                 }
 
@@ -219,6 +201,52 @@ struct AudioPlaybackView: View {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - Flowing Transcript View
+
+/// Displays transcription as natural flowing text with word-level highlighting
+struct FlowingTranscriptView: View {
+    let timeRanges: [TimeRange]
+    let currentTime: TimeInterval
+
+    var body: some View {
+        Text(buildAttributedString())
+            .font(.body)
+    }
+
+    private func buildAttributedString() -> AttributedString {
+        var result = AttributedString()
+
+        for range in timeRanges {
+            var segment = AttributedString(range.text)
+
+            // Apply yellow highlight to currently playing segment
+            if currentTime >= range.start && currentTime < range.end {
+                segment.backgroundColor = Color.yellow.opacity(0.4)
+            }
+
+            result += segment
+
+            // Add space after word (unless it's punctuation-only)
+            if !range.text.trimmingCharacters(in: .whitespaces).isEmpty {
+                result += AttributedString(" ")
+            }
+
+            // Add line break after sentence-ending punctuation
+            if endsWithSentence(range.text) {
+                result += AttributedString("\n\n")
+            }
+        }
+
+        return result
+    }
+
+    /// Check if text ends with sentence-ending punctuation
+    private func endsWithSentence(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasSuffix(".") || trimmed.hasSuffix("!") || trimmed.hasSuffix("?")
     }
 }
 

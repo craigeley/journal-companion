@@ -281,3 +281,83 @@ extension Entry {
         WikiLinkParser.extractPeopleNames(from: content, people: peopleList)
     }
 }
+
+// MARK: - Running Entry Support
+extension Entry {
+    /// Check if this entry represents a running workout
+    var isRunningEntry: Bool {
+        tags.contains("running")
+    }
+
+    /// Running distance in miles (from unknownFields)
+    var distance: Double? {
+        guard let value = unknownFields["distance"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .string(let s):
+            return Double(s)
+        case .int(let i):
+            return Double(i)
+        default:
+            return nil
+        }
+    }
+
+    /// Running time in MM:SS format (from unknownFields)
+    var time: String? {
+        guard let value = unknownFields["time"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Running pace in MM:SS format (from unknownFields)
+    var pace: String? {
+        guard let value = unknownFields["pace"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Average cadence in steps per minute (from unknownFields)
+    var avgCadence: Int? {
+        guard let value = unknownFields["avg_cadence"] else { return nil }
+
+        switch value {
+        case .int(let i):
+            return i
+        case .double(let d):
+            return Int(d)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average heart rate in beats per minute (from unknownFields)
+    var avgHeartRate: Int? {
+        guard let value = unknownFields["avg_hr"] else { return nil }
+
+        switch value {
+        case .int(let i):
+            return i
+        case .double(let d):
+            return Int(d)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
+}

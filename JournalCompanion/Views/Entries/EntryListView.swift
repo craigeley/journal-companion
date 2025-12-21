@@ -141,6 +141,14 @@ struct EntryRowView: View {
                         .imageScale(.small)
                 }
 
+                // Running indicator for running entries
+                if entry.isRunningEntry {
+                    Image(systemName: "figure.run")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                        .imageScale(.small)
+                }
+
                 if let place = entry.place {
                     Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
                         .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))

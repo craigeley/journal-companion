@@ -20,6 +20,7 @@ class WorkoutSyncViewModel: ObservableObject {
 
     let vaultManager: VaultManager
     private lazy var healthKitService = HealthKitService()
+    private let weatherService = WeatherService()
     private var existingWorkoutIDs: Set<String> = []
 
     init(vaultManager: VaultManager) {
@@ -95,6 +96,28 @@ class WorkoutSyncViewModel: ObservableObject {
                 print("✓ Extracted \(coordinates?.count ?? 0) coordinates")
             }
 
+            // Fetch weather from WeatherKit if we have location
+            var weatherData: (temperature: Int?, condition: String?, humidity: Int?, aqi: Int?) = (nil, nil, nil, nil)
+            if let firstCoord = coordinates?.first {
+                print("🌤️ Fetching weather from WeatherKit...")
+                do {
+                    let weather = try await weatherService.fetchWeather(
+                        latitude: firstCoord.latitude,
+                        longitude: firstCoord.longitude,
+                        date: workout.startDate
+                    )
+                    weatherData = (weather.temperature, weather.condition, weather.humidity, weather.aqi)
+                    print("✓ WeatherKit: \(weather.temperature)°F, \(weather.condition), \(weather.humidity)% humidity")
+                } catch {
+                    print("⚠️ WeatherKit fetch failed (non-fatal): \(error.localizedDescription)")
+                    // Fall back to HealthKit weather if available
+                    weatherData = (workout.temperature, workout.condition, workout.humidity, nil)
+                }
+            } else {
+                // No coordinates, use HealthKit weather if available
+                weatherData = (workout.temperature, workout.condition, workout.humidity, nil)
+            }
+
             // Create entry ID from workout start date
             let entryID = formatEntryID(workout.startDate)
 
@@ -104,7 +127,7 @@ class WorkoutSyncViewModel: ObservableObject {
             // Create entry content
             let content = generateWorkoutContent(workout)
 
-            // Create entry with weather data from HealthKit
+            // Create entry with weather data from WeatherKit (preferred) or HealthKit
             var entry = Entry(
                 id: entryID,
                 dateCreated: workout.startDate,
@@ -113,10 +136,10 @@ class WorkoutSyncViewModel: ObservableObject {
                 people: [],
                 placeCallout: nil,
                 content: content,
-                temperature: workout.temperature,
-                condition: workout.condition,
-                aqi: nil,
-                humidity: workout.humidity,
+                temperature: weatherData.temperature,
+                condition: weatherData.condition,
+                aqi: weatherData.aqi,
+                humidity: weatherData.humidity,
                 moodValence: nil,
                 moodLabels: nil,
                 moodAssociations: nil,

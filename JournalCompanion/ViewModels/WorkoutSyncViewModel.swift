@@ -135,6 +135,13 @@ class WorkoutSyncViewModel: ObservableObject {
             entry.unknownFields["workout_type"] = .string(workout.workoutType)
             entry.unknownFieldsOrder.append("workout_type")
 
+            // Add starting location if route available
+            if let coords = coordinates, let first = coords.first {
+                let locationString = String(format: "%.5f,%.5f", first.latitude, first.longitude)
+                entry.unknownFields["location"] = .string(locationString)
+                entry.unknownFieldsOrder.append("location")
+            }
+
             if let distance = workout.distance {
                 entry.unknownFields["distance"] = .double(distance)
                 entry.unknownFieldsOrder.append("distance")

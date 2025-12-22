@@ -296,7 +296,7 @@ extension Entry {
     }
 
     /// Workout type (from unknownFields)
-    var workoutType: String? {
+    nonisolated var workoutType: String? {
         guard let value = unknownFields["workout_type"] else { return nil }
 
         switch value {
@@ -308,7 +308,7 @@ extension Entry {
     }
 
     /// Calories burned (from unknownFields)
-    var calories: Int? {
+    nonisolated var calories: Int? {
         guard let value = unknownFields["calories"] else { return nil }
 
         switch value {
@@ -324,7 +324,7 @@ extension Entry {
     }
 
     /// HealthKit workout UUID (for duplicate detection)
-    var healthKitWorkoutID: String? {
+    nonisolated var healthKitWorkoutID: String? {
         guard let value = unknownFields["healthkit_workout_id"] else { return nil }
 
         switch value {
@@ -336,7 +336,7 @@ extension Entry {
     }
 
     /// GPX route filename reference (from unknownFields)
-    var routeFile: String? {
+    nonisolated var routeFile: String? {
         guard let value = unknownFields["route_file"] else { return nil }
 
         switch value {
@@ -348,7 +348,7 @@ extension Entry {
     }
 
     /// Running distance in miles (from unknownFields)
-    var distance: Double? {
+    nonisolated var distance: Double? {
         guard let value = unknownFields["distance"] else { return nil }
 
         switch value {
@@ -364,7 +364,7 @@ extension Entry {
     }
 
     /// Running time in MM:SS format (from unknownFields)
-    var time: String? {
+    nonisolated var time: String? {
         guard let value = unknownFields["time"] else { return nil }
 
         switch value {
@@ -376,7 +376,7 @@ extension Entry {
     }
 
     /// Running pace in MM:SS format (from unknownFields)
-    var pace: String? {
+    nonisolated var pace: String? {
         guard let value = unknownFields["pace"] else { return nil }
 
         switch value {
@@ -388,7 +388,7 @@ extension Entry {
     }
 
     /// Average cadence in steps per minute (from unknownFields)
-    var avgCadence: Int? {
+    nonisolated var avgCadence: Int? {
         guard let value = unknownFields["avg_cadence"] else { return nil }
 
         switch value {
@@ -404,7 +404,7 @@ extension Entry {
     }
 
     /// Average heart rate in beats per minute (from unknownFields)
-    var avgHeartRate: Int? {
+    nonisolated var avgHeartRate: Int? {
         guard let value = unknownFields["avg_hr"] else { return nil }
 
         switch value {
@@ -420,7 +420,7 @@ extension Entry {
     }
 
     /// Average power in watts (from unknownFields)
-    var avgPower: Int? {
+    nonisolated var avgPower: Int? {
         guard let value = unknownFields["avg_power"] else { return nil }
 
         switch value {
@@ -436,7 +436,7 @@ extension Entry {
     }
 
     /// Average ground contact time in milliseconds (from unknownFields)
-    var avgStanceTime: Double? {
+    nonisolated var avgStanceTime: Double? {
         guard let value = unknownFields["avg_stance_time"] else { return nil }
 
         switch value {
@@ -452,7 +452,7 @@ extension Entry {
     }
 
     /// Average step length in millimeters (from unknownFields)
-    var avgStepLength: Double? {
+    nonisolated var avgStepLength: Double? {
         guard let value = unknownFields["avg_step_length"] else { return nil }
 
         switch value {
@@ -468,7 +468,7 @@ extension Entry {
     }
 
     /// Average vertical oscillation in millimeters (from unknownFields)
-    var avgVerticalOscillation: Double? {
+    nonisolated var avgVerticalOscillation: Double? {
         guard let value = unknownFields["avg_vertical_oscillation"] else { return nil }
 
         switch value {
@@ -484,7 +484,7 @@ extension Entry {
     }
 
     /// Average vertical ratio as percentage (from unknownFields)
-    var avgVerticalRatio: Double? {
+    nonisolated var avgVerticalRatio: Double? {
         guard let value = unknownFields["avg_vertical_ratio"] else { return nil }
 
         switch value {
@@ -500,7 +500,7 @@ extension Entry {
     }
 
     /// Total strides (from unknownFields)
-    var totalStrides: Int? {
+    nonisolated var totalStrides: Int? {
         guard let value = unknownFields["total_strides"] else { return nil }
 
         switch value {

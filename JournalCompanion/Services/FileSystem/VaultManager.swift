@@ -11,6 +11,7 @@ import Combine
 class VaultManager: ObservableObject {
     @Published var vaultURL: URL?
     @Published var isVaultAccessible = false
+    @Published var isRestoringVault = true  // True during initial vault restoration attempt
     @Published var places: [Place] = []
     @Published var isLoadingPlaces = false
     @Published var people: [Person] = []
@@ -25,6 +26,11 @@ class VaultManager: ObservableObject {
     init() {
         // Try to restore vault from saved bookmark
         Task {
+            defer {
+                Task { @MainActor in
+                    self.isRestoringVault = false
+                }
+            }
             do {
                 _ = try await restoreVault()
                 _ = try await loadPlaces()

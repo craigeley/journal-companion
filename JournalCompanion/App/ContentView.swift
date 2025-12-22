@@ -42,7 +42,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if vaultManager.isVaultAccessible {
+            if vaultManager.isRestoringVault {
+                vaultLoading
+            } else if vaultManager.isVaultAccessible {
                 tabContent
             } else {
                 vaultSetup
@@ -451,6 +453,17 @@ struct ContentView: View {
         }
     }
 
+
+    private var vaultLoading: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Loading Vault...")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private var vaultSetup: some View {
         VStack(spacing: 20) {

@@ -150,10 +150,14 @@ actor EntryWriter {
                 // Generate map snapshot (non-fatal)
                 do {
                     let mapGenerator = MapSnapshotGenerator(vaultURL: vaultURL)
-                    _ = try await mapGenerator.generateMap(
+                    let mapFilename = try await mapGenerator.generateMap(
                         coordinates: coords,
                         for: entry.id
                     )
+
+                    // Embed map in entry content
+                    updatedEntry.content += "\n\n### Map\n![[maps/\(mapFilename)]]\n"
+
                     print("✓ Map snapshot generated successfully")
                 } catch {
                     print("⚠️ Map generation failed (non-fatal): \(error)")
@@ -198,8 +202,15 @@ actor EntryWriter {
         timeFormatter.dateFormat = "h:mm a"
         let timeString = timeFormatter.string(from: entry.dateCreated)
 
-        // Get place name or default title
-        let title = entry.place ?? "Entry"
+        // Determine title: workout type > place name > "Entry"
+        let title: String
+        if let workoutType = entry.workoutType {
+            title = workoutType
+        } else if let place = entry.place {
+            title = place
+        } else {
+            title = "Entry"
+        }
 
         // Get the entry filename for embedding
         let entryFilename = entry.filename

@@ -17,7 +17,6 @@ struct ContentView: View {
     @EnvironmentObject var searchCoordinator: SearchCoordinator
     @State private var showQuickEntry = false
     @State private var showAudioEntry = false
-    @State private var showFABExpanded = false
     @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
     @State private var showLocationSearchForNewPlace = false
@@ -56,13 +55,35 @@ struct ContentView: View {
                         Spacer()
 
                         if selectedTab == 0 {
-                            // Entries tab - fan-out FAB
-                            FanOutFAB(
-                                isExpanded: $showFABExpanded,
-                                onTextEntry: { showQuickEntry = true },
-                                onAudioEntry: { showAudioEntry = true },
-                                onWorkoutSync: { showWorkoutSync = true }
-                            )
+                            // Entries tab - menu FAB
+                            Menu {
+                                Button {
+                                    showQuickEntry = true
+                                } label: {
+                                    Label("Text Entry", systemImage: "square.and.pencil")
+                                }
+
+                                Button {
+                                    showAudioEntry = true
+                                } label: {
+                                    Label("Audio Entry", systemImage: "waveform")
+                                }
+
+                                Button {
+                                    showWorkoutSync = true
+                                } label: {
+                                    Label("Sync Workouts", systemImage: "figure.run")
+                                }
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 4)
+                            }
+                            .menuOrder(.fixed)
                         } else if selectedTab == 1 {
                             // People tab - single FAB
                             Button {
@@ -102,9 +123,7 @@ struct ContentView: View {
             QuickEntryView(viewModel: viewModel)
         }
         .onChange(of: showQuickEntry) { _, isShowing in
-            if isShowing {
-                showFABExpanded = false
-            } else {
+            if !isShowing {
                 // Refresh entries when quick entry view closes
                 Task {
                     do {
@@ -122,9 +141,7 @@ struct ContentView: View {
                 .environmentObject(templateManager)
         }
         .onChange(of: showAudioEntry) { _, isShowing in
-            if isShowing {
-                showFABExpanded = false
-            } else {
+            if !isShowing {
                 // Refresh entries when audio entry view closes
                 Task {
                     do {
@@ -222,9 +239,7 @@ struct ContentView: View {
             )
         }
         .onChange(of: showWorkoutSync) { _, isShowing in
-            if isShowing {
-                showFABExpanded = false
-            } else {
+            if !isShowing {
                 // Refresh entries when workout sync closes
                 Task {
                     do {
@@ -278,8 +293,6 @@ struct ContentView: View {
         .onChange(of: selectedTab) { _, _ in
             // Clear search when switching tabs
             searchCoordinator.searchText = ""
-            // Collapse FAB when switching tabs
-            showFABExpanded = false
         }
         .sheet(item: $searchCoordinator.selectedEntry) { entry in
             // Entry detail from search

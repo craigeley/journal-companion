@@ -523,12 +523,77 @@ extension Entry {
     }
 }
 
+// MARK: - Photo Entry Support
+extension Entry {
+    /// Check if this entry represents a photo entry
+    var isPhotoEntry: Bool {
+        tags.contains("photo_entry") || photoAttachment != nil
+    }
+
+    /// Photo attachment filename (from unknownFields)
+    nonisolated var photoAttachment: String? {
+        guard let value = unknownFields["photo_attachment"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Camera model (from unknownFields)
+    nonisolated var cameraModel: String? {
+        guard let value = unknownFields["camera_model"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Lens model (from unknownFields)
+    nonisolated var lensModel: String? {
+        guard let value = unknownFields["lens_model"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Focal length in mm (from unknownFields)
+    nonisolated var focalLength: Double? {
+        guard let value = unknownFields["focal_length"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .int(let i):
+            return Double(i)
+        case .string(let s):
+            return Double(s)
+        default:
+            return nil
+        }
+    }
+}
+
 // MARK: - Attachment Detection
 extension Entry {
-    /// Check if entry has any attachments (audio, GPX routes, or maps)
+    /// Check if entry has any attachments (audio, photo, GPX routes, or maps)
     nonisolated var hasAttachments: Bool {
         // Check for audio attachments
         if let audioFiles = audioAttachments, !audioFiles.isEmpty {
+            return true
+        }
+
+        // Check for photo attachment
+        if photoAttachment != nil {
             return true
         }
 
@@ -546,6 +611,10 @@ extension Entry {
 
         if let audioFiles = audioAttachments, !audioFiles.isEmpty {
             types.append("\(audioFiles.count) audio file\(audioFiles.count == 1 ? "" : "s")")
+        }
+
+        if photoAttachment != nil {
+            types.append("photo")
         }
 
         if routeFile != nil {

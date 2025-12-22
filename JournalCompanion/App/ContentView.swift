@@ -17,6 +17,7 @@ struct ContentView: View {
     @EnvironmentObject var searchCoordinator: SearchCoordinator
     @State private var showQuickEntry = false
     @State private var showAudioEntry = false
+    @State private var showPhotoEntry = false
     @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
     @State private var showLocationSearchForNewPlace = false
@@ -67,6 +68,12 @@ struct ContentView: View {
                                     showAudioEntry = true
                                 } label: {
                                     Label("Audio Entry", systemImage: "waveform")
+                                }
+
+                                Button {
+                                    showPhotoEntry = true
+                                } label: {
+                                    Label("Photo Entry", systemImage: "photo")
                                 }
 
                                 Button {
@@ -143,6 +150,24 @@ struct ContentView: View {
         .onChange(of: showAudioEntry) { _, isShowing in
             if !isShowing {
                 // Refresh entries when audio entry view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadEntries()
+                    } catch {
+                        print("❌ Failed to reload entries: \(error)")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showPhotoEntry) {
+            let viewModel = PhotoEntryViewModel(vaultManager: vaultManager, locationService: locationService)
+            PhotoEntryView(viewModel: viewModel)
+                .environmentObject(locationService)
+                .environmentObject(templateManager)
+        }
+        .onChange(of: showPhotoEntry) { _, isShowing in
+            if !isShowing {
+                // Refresh entries when photo entry view closes
                 Task {
                     do {
                         _ = try await vaultManager.loadEntries()

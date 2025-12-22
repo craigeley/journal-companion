@@ -157,7 +157,7 @@ struct EntryListView: View {
             ForEach(viewModel.entriesByDate(), id: \.date) { section in
                 Section {
                     ForEach(section.entries) { entry in
-                        EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place), places: viewModel.places, people: viewModel.people)
+                        EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place), places: viewModel.places, people: viewModel.people, vaultURL: viewModel.vaultManager.vaultURL)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedEntry = entry
@@ -187,76 +187,94 @@ struct EntryRowView: View {
     let placeCallout: String?
     let places: [Place]
     let people: [Person]
+    var vaultURL: URL?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header with time, place, and audio indicator
-            HStack {
-                Text(entry.dateCreated, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            // Photo thumbnail (if photo entry)
+            if isPhotoEntry, let vaultURL, let photoFilename = entry.photoAttachment {
+                PhotoThumbnailView(vaultURL: vaultURL, filename: photoFilename)
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
 
-                // Audio indicator for audio entries
-                if isAudioEntry {
-                    Image(systemName: "waveform")
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .imageScale(.small)
-                }
-
-                // Running indicator for running entries
-                if entry.isRunningEntry {
-                    Image(systemName: "figure.run")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                        .imageScale(.small)
-                }
-
-                // Place indicator (only for non-special entries)
-                if let place = entry.place, !isAudioEntry && !entry.isRunningEntry {
-                    Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
-                        .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
-                        .font(.caption)
-                        .imageScale(.small)
-                    Text(place)
+            VStack(alignment: .leading, spacing: 8) {
+                // Header with time, place, and entry type indicators
+                HStack {
+                    Text(entry.dateCreated, style: .time)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
 
-                Spacer()
-
-                // Weather indicator
-                if let temp = entry.temperature, let condition = entry.condition {
-                    HStack(spacing: 4) {
-                        Text(weatherEmoji(for: condition))
+                    // Photo indicator for photo entries
+                    if isPhotoEntry {
+                        Image(systemName: "photo.fill")
+                            .foregroundStyle(.blue)
                             .font(.caption)
-                        Text("\(temp)°")
+                            .imageScale(.small)
+                    }
+
+                    // Audio indicator for audio entries
+                    if isAudioEntry {
+                        Image(systemName: "waveform")
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                            .imageScale(.small)
+                    }
+
+                    // Running indicator for running entries
+                    if entry.isRunningEntry {
+                        Image(systemName: "figure.run")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                            .imageScale(.small)
+                    }
+
+                    // Place indicator (only for non-special entries)
+                    if let place = entry.place, !isAudioEntry && !entry.isRunningEntry && !isPhotoEntry {
+                        Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
+                            .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
+                            .font(.caption)
+                            .imageScale(.small)
+                        Text(place)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+
+                    Spacer()
+
+                    // Weather indicator
+                    if let temp = entry.temperature, let condition = entry.condition {
+                        HStack(spacing: 4) {
+                            Text(weatherEmoji(for: condition))
+                                .font(.caption)
+                            Text("\(temp)°")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
-            }
 
-            // Content preview (with markdown + wiki-links, audio embeds removed)
-            MarkdownWikiText(
-                text: contentWithoutAudioEmbeds,
-                places: places,
-                people: people,
-                lineLimit: 3,
-                font: .body
-            )
+                // Content preview (with markdown + wiki-links, embeds removed)
+                MarkdownWikiText(
+                    text: contentWithoutEmbeds,
+                    places: places,
+                    people: people,
+                    lineLimit: 3,
+                    font: .body
+                )
 
-            // Tags
-            if !entry.tags.isEmpty {
-                FlowLayout(spacing: 4) {
-                    ForEach(entry.tags.filter { $0 != "entry" && $0 != "iPhone" }, id: \.self) { tag in
-                        Text("#\(tag)")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.gray.opacity(0.1))
-                            .clipShape(Capsule())
+                // Tags
+                if !entry.tags.isEmpty {
+                    FlowLayout(spacing: 4) {
+                        ForEach(entry.tags.filter { $0 != "entry" && $0 != "iPhone" }, id: \.self) { tag in
+                            Text("#\(tag)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(Capsule())
+                        }
                     }
                 }
             }
@@ -271,13 +289,30 @@ struct EntryRowView: View {
         entry.audioAttachments != nil && !(entry.audioAttachments?.isEmpty ?? true)
     }
 
-    /// Content with audio embeds removed for cleaner display
-    private var contentWithoutAudioEmbeds: String {
+    /// Check if this is a photo entry
+    private var isPhotoEntry: Bool {
+        entry.isPhotoEntry
+    }
+
+    /// Content with audio and photo embeds removed for cleaner display
+    private var contentWithoutEmbeds: String {
         var cleaned = entry.content
 
         // Remove Obsidian audio embeds: ![[audio/filename.ext]]
         let audioEmbedPattern = #"!\[\[audio/[^\]]+\]\]"#
         if let regex = try? NSRegularExpression(pattern: audioEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Remove Obsidian photo embeds: ![[photos/filename.ext]]
+        let photoEmbedPattern = #"!\[\[photos/[^\]]+\]\]"#
+        if let regex = try? NSRegularExpression(pattern: photoEmbedPattern, options: []) {
             let range = NSRange(cleaned.startIndex..., in: cleaned)
             cleaned = regex.stringByReplacingMatches(
                 in: cleaned,
@@ -305,6 +340,72 @@ struct EntryRowView: View {
         }
     }
 
+}
+
+// MARK: - Photo Thumbnail View
+
+struct PhotoThumbnailView: View {
+    let vaultURL: URL
+    let filename: String
+
+    @State private var image: UIImage?
+
+    private var photoURL: URL {
+        vaultURL
+            .appendingPathComponent("_attachments")
+            .appendingPathComponent("photos")
+            .appendingPathComponent(filename)
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay {
+                        Image(systemName: "photo")
+                            .foregroundStyle(.gray)
+                    }
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() async {
+        let url = photoURL  // Capture URL before detached task
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+
+        // Load image on background thread
+        let loadedImage = await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url),
+                  let uiImage = UIImage(data: data) else {
+                return nil as UIImage?
+            }
+
+            // Create thumbnail for performance
+            let maxSize: CGFloat = 120
+            let scale = min(maxSize / uiImage.size.width, maxSize / uiImage.size.height)
+            let newSize = CGSize(
+                width: uiImage.size.width * scale,
+                height: uiImage.size.height * scale
+            )
+
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            return renderer.image { _ in
+                uiImage.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+        }.value
+
+        await MainActor.run {
+            self.image = loadedImage
+        }
+    }
 }
 
 // MARK: - Preview

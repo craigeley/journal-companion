@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreLocation
 
 actor EntryWriter {
     private let vaultURL: URL
@@ -114,6 +115,56 @@ actor EntryWriter {
         try fileManager.removeItem(at: fileURL)
 
         print("✓ Deleted entry: \(entry.filename).md")
+    }
+
+    /// Write workout entry with route data
+    /// Non-fatal: If GPX/map generation fails, entry still saves
+    func writeWorkoutEntry(
+        entry: Entry,
+        coordinates: [CLLocationCoordinate2D]?,
+        workoutName: String,
+        workoutType: String
+    ) async throws {
+        var updatedEntry = entry
+
+        // Generate GPX if coordinates available
+        if let coords = coordinates, !coords.isEmpty {
+            do {
+                let gpxWriter = GPXWriter(vaultURL: vaultURL)
+                let gpxFilename = try await gpxWriter.write(
+                    coordinates: coords,
+                    for: entry.id,
+                    workoutName: workoutName,
+                    workoutType: workoutType,
+                    startDate: entry.dateCreated
+                )
+
+                // Add route_file to unknownFields
+                updatedEntry.unknownFields["route_file"] = .string(gpxFilename)
+                if !updatedEntry.unknownFieldsOrder.contains("route_file") {
+                    updatedEntry.unknownFieldsOrder.append("route_file")
+                }
+
+                print("✓ GPX file written successfully")
+
+                // Generate map snapshot (non-fatal)
+                do {
+                    let mapGenerator = MapSnapshotGenerator(vaultURL: vaultURL)
+                    _ = try await mapGenerator.generateMap(
+                        coordinates: coords,
+                        for: entry.id
+                    )
+                    print("✓ Map snapshot generated successfully")
+                } catch {
+                    print("⚠️ Map generation failed (non-fatal): \(error)")
+                }
+            } catch {
+                print("⚠️ GPX write failed (non-fatal): \(error)")
+            }
+        }
+
+        // Write entry (always succeeds even if GPX/map failed)
+        try await write(entry: updatedEntry)
     }
 
     /// Add entry callout to day file

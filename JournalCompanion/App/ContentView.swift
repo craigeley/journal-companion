@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var pendingURL: String?
     @State private var pendingPOICategory: MKPointOfInterestCategory?
     @State private var showSettings = false
+    @State private var showWorkoutSync = false
     @State private var selectedTab = 0
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
@@ -181,6 +182,23 @@ struct ContentView: View {
                 .environmentObject(visitTracker)
                 .environmentObject(templateManager)
         }
+        .sheet(isPresented: $showWorkoutSync) {
+            WorkoutSyncView(
+                viewModel: WorkoutSyncViewModel(vaultManager: vaultManager)
+            )
+        }
+        .onChange(of: showWorkoutSync) { _, isShowing in
+            if !isShowing {
+                // Refresh entries when workout sync closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadEntries()
+                    } catch {
+                        print("❌ Failed to reload entries: \(error)")
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showHealthKitAuth) {
             HealthKitAuthView()
                 .onDisappear {
@@ -322,6 +340,25 @@ struct ContentView: View {
         Group {
             if let viewModel = entryViewModel {
                 EntryListView(viewModel: viewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Menu {
+                                Button {
+                                    showWorkoutSync = true
+                                } label: {
+                                    Label("Sync Workouts", systemImage: "figure.run")
+                                }
+
+                                Button {
+                                    showSettings = true
+                                } label: {
+                                    Label("Settings", systemImage: "gear")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                            }
+                        }
+                    }
             } else {
                 ProgressView("Loading...")
             }

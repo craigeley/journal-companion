@@ -15,6 +15,7 @@ struct EntryListView: View {
     @State private var entryToDelete: Entry?
     @State private var showDeleteConfirmation = false
     @State private var showSettings = false
+    @State private var showWorkoutSync = false
 
     var body: some View {
         NavigationStack {
@@ -37,10 +38,20 @@ struct EntryListView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
+                    Menu {
+                        Button {
+                            showWorkoutSync = true
+                        } label: {
+                            Label("Sync Workouts", systemImage: "figure.run")
+                        }
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gear")
+                        }
                     } label: {
-                        Image(systemName: "gear")
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
@@ -69,6 +80,19 @@ struct EntryListView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
                     .environmentObject(viewModel.vaultManager)
+            }
+            .sheet(isPresented: $showWorkoutSync) {
+                WorkoutSyncView(
+                    viewModel: WorkoutSyncViewModel(vaultManager: viewModel.vaultManager)
+                )
+            }
+            .onChange(of: showWorkoutSync) { _, isShowing in
+                if !isShowing {
+                    // Refresh entries when workout sync closes
+                    Task {
+                        await viewModel.loadEntries()
+                    }
+                }
             }
             .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }

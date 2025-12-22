@@ -282,11 +282,69 @@ extension Entry {
     }
 }
 
-// MARK: - Running Entry Support
+// MARK: - Workout Entry Support
 extension Entry {
+    /// Check if this entry represents any workout
+    var isWorkoutEntry: Bool {
+        tags.contains("workout") || tags.contains("running") ||
+        tags.contains("cycling") || tags.contains("walking")
+    }
+
     /// Check if this entry represents a running workout
     var isRunningEntry: Bool {
         tags.contains("running")
+    }
+
+    /// Workout type (from unknownFields)
+    var workoutType: String? {
+        guard let value = unknownFields["workout_type"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// Calories burned (from unknownFields)
+    var calories: Int? {
+        guard let value = unknownFields["calories"] else { return nil }
+
+        switch value {
+        case .int(let i):
+            return i
+        case .double(let d):
+            return Int(d)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
+
+    /// HealthKit workout UUID (for duplicate detection)
+    var healthKitWorkoutID: String? {
+        guard let value = unknownFields["healthkit_workout_id"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
+    }
+
+    /// GPX route filename reference (from unknownFields)
+    var routeFile: String? {
+        guard let value = unknownFields["route_file"] else { return nil }
+
+        switch value {
+        case .string(let s):
+            return s
+        default:
+            return nil
+        }
     }
 
     /// Running distance in miles (from unknownFields)
@@ -348,6 +406,102 @@ extension Entry {
     /// Average heart rate in beats per minute (from unknownFields)
     var avgHeartRate: Int? {
         guard let value = unknownFields["avg_hr"] else { return nil }
+
+        switch value {
+        case .int(let i):
+            return i
+        case .double(let d):
+            return Int(d)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average power in watts (from unknownFields)
+    var avgPower: Int? {
+        guard let value = unknownFields["avg_power"] else { return nil }
+
+        switch value {
+        case .int(let i):
+            return i
+        case .double(let d):
+            return Int(d)
+        case .string(let s):
+            return Int(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average ground contact time in milliseconds (from unknownFields)
+    var avgStanceTime: Double? {
+        guard let value = unknownFields["avg_stance_time"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .int(let i):
+            return Double(i)
+        case .string(let s):
+            return Double(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average step length in millimeters (from unknownFields)
+    var avgStepLength: Double? {
+        guard let value = unknownFields["avg_step_length"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .int(let i):
+            return Double(i)
+        case .string(let s):
+            return Double(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average vertical oscillation in millimeters (from unknownFields)
+    var avgVerticalOscillation: Double? {
+        guard let value = unknownFields["avg_vertical_oscillation"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .int(let i):
+            return Double(i)
+        case .string(let s):
+            return Double(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Average vertical ratio as percentage (from unknownFields)
+    var avgVerticalRatio: Double? {
+        guard let value = unknownFields["avg_vertical_ratio"] else { return nil }
+
+        switch value {
+        case .double(let d):
+            return d
+        case .int(let i):
+            return Double(i)
+        case .string(let s):
+            return Double(s)
+        default:
+            return nil
+        }
+    }
+
+    /// Total strides (from unknownFields)
+    var totalStrides: Int? {
+        guard let value = unknownFields["total_strides"] else { return nil }
 
         switch value {
         case .int(let i):

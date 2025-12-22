@@ -191,11 +191,8 @@ actor EntryWriter {
                     startDate: entry.dateCreated
                 )
 
-                // Add route_file to unknownFields
+                // Add route_file to unknownFields (order already set by WorkoutSyncViewModel)
                 updatedEntry.unknownFields["route_file"] = .string(gpxFilename)
-                if !updatedEntry.unknownFieldsOrder.contains("route_file") {
-                    updatedEntry.unknownFieldsOrder.append("route_file")
-                }
 
                 print("✓ GPX file written successfully")
 

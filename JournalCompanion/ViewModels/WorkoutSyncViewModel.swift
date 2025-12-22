@@ -161,14 +161,24 @@ class WorkoutSyncViewModel: ObservableObject {
             )
 
             // Add workout metadata to unknownFields
+            // Order: healthkit_workout_id, route_file (added by EntryWriter), workout_type,
+            //        location, distance, time, pace, calories, avg_hr, avg_cadence, temp, cond, humidity
             entry.unknownFields["healthkit_workout_id"] = .string(workout.id.uuidString)
             entry.unknownFieldsOrder.append("healthkit_workout_id")
+
+            // Placeholder for route_file - will be inserted here by EntryWriter
+            entry.unknownFieldsOrder.append("route_file")
 
             entry.unknownFields["workout_type"] = .string(workout.workoutType)
             entry.unknownFieldsOrder.append("workout_type")
 
+            // Include location in the field order (known field, but ordered here)
+            entry.unknownFieldsOrder.append("location")
+
             if let distance = workout.distance {
-                entry.unknownFields["distance"] = .double(distance)
+                // Round to 2 decimal places
+                let roundedDistance = (distance * 100).rounded() / 100
+                entry.unknownFields["distance"] = .double(roundedDistance)
                 entry.unknownFieldsOrder.append("distance")
             }
 
@@ -200,6 +210,11 @@ class WorkoutSyncViewModel: ObservableObject {
                 entry.unknownFields["avg_cadence"] = .int(cadence)
                 entry.unknownFieldsOrder.append("avg_cadence")
             }
+
+            // Include weather fields in order (known fields, but ordered here)
+            entry.unknownFieldsOrder.append("temp")
+            entry.unknownFieldsOrder.append("cond")
+            entry.unknownFieldsOrder.append("humidity")
 
             // MARK: Advanced running form metrics (disabled to reduce YAML clutter)
             // These metrics are still extracted from HealthKit and available in WorkoutData

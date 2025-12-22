@@ -29,7 +29,7 @@ class VaultManager: ObservableObject {
                 _ = try await restoreVault()
                 _ = try await loadPlaces()
                 _ = try await loadPeople()
-                _ = try await loadEntries()
+                // Note: Entries are loaded by EntryListView.task to avoid duplicate loads
             } catch {
                 // No saved vault or failed to restore - user will need to select one
                 print("No saved vault found")

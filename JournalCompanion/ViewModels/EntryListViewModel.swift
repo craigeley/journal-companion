@@ -74,7 +74,6 @@ class EntryListViewModel: ObservableObject {
         do {
             _ = try await vaultManager.loadEntries(limit: 100)
             filterEntries(searchText: searchText)
-            print("✓ Loaded \(entries.count) entries")
         } catch {
             errorMessage = error.localizedDescription
             print("❌ Failed to load entries: \(error)")

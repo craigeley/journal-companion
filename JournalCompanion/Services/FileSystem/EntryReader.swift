@@ -73,6 +73,7 @@ actor EntryReader {
         var dateCreated: Date?
         var tags: [String] = []
         var place: String?
+        var location: String?
         var people: [String] = []
         var temperature: Int?
         var condition: String?
@@ -137,6 +138,10 @@ actor EntryReader {
                 // Extract place name from wikilink [[Name]]
                 place = placeString.replacingOccurrences(of: "\"[[", with: "")
                     .replacingOccurrences(of: "]]\"", with: "")
+            } else if trimmed.hasPrefix("location:") {
+                inTags = false
+                inPeople = false
+                location = trimmed.replacingOccurrences(of: "location:", with: "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("people:") {
                 inTags = false
                 inPeople = true
@@ -280,6 +285,7 @@ actor EntryReader {
             place: place,
             people: people,
             placeCallout: nil,  // Will be looked up from Places at display time
+            location: location,
             content: bodyContent,
             temperature: temperature,
             condition: condition,
@@ -299,7 +305,7 @@ actor EntryReader {
 
     /// Check if a YAML key is a known field
     private func isKnownField(_ key: String) -> Bool {
-        ["date_created", "tags", "place", "people", "temp", "cond",
+        ["date_created", "tags", "place", "location", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate", "bit_depth"].contains(key)
     }

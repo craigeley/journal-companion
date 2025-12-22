@@ -39,6 +39,7 @@ struct Entry: Identifiable, Codable, Sendable {
     var place: String?  // Place name (without brackets)
     var people: [String]  // Array of person names (without brackets)
     var placeCallout: String?  // Place callout type (e.g., "cafe", "park", "home")
+    var location: String?  // GPS coordinates in "latitude,longitude" format
     var content: String
 
     // Optional weather data
@@ -107,7 +108,7 @@ struct Entry: Identifiable, Codable, Sendable {
         }
 
         // Write remaining known fields not in original order
-        let knownFieldKeys = ["date_created", "tags", "place", "temp", "cond",
+        let knownFieldKeys = ["date_created", "tags", "place", "location", "temp", "cond",
                               "humidity", "aqi", "mood_valence", "mood_labels",
                               "mood_associations", "audio_attachments",
                               "recording_device", "sample_rate", "bit_depth"]
@@ -120,7 +121,7 @@ struct Entry: Identifiable, Codable, Sendable {
     }
 
     private nonisolated func isKnownField(_ key: String) -> Bool {
-        ["date_created", "tags", "place", "people", "temp", "cond",
+        ["date_created", "tags", "place", "location", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate",
          "bit_depth"].contains(key)
@@ -145,6 +146,11 @@ struct Entry: Identifiable, Codable, Sendable {
         case "place":
             if let place = place, !place.isEmpty {
                 yaml += "place: \"[[\(place)]]\"\n"
+            }
+
+        case "location":
+            if let loc = location, !loc.isEmpty {
+                yaml += "location: \(loc)\n"
             }
 
         case "temp":
@@ -240,7 +246,7 @@ struct Entry: Identifiable, Codable, Sendable {
     }
 
     /// Create a new entry with current timestamp
-    static func create(content: String, place: String? = nil, people: [String] = [], tags: [String] = ["entry", "iPhone"]) -> Entry {
+    static func create(content: String, place: String? = nil, people: [String] = [], location: String? = nil, tags: [String] = ["entry", "iPhone"]) -> Entry {
         Entry(
             id: UUID().uuidString,
             dateCreated: Date(),
@@ -248,6 +254,7 @@ struct Entry: Identifiable, Codable, Sendable {
             place: place,
             people: people,
             placeCallout: nil,
+            location: location,
             content: content,
             temperature: nil,
             condition: nil,

@@ -187,6 +187,14 @@ class QuickEntryViewModel: ObservableObject {
                 entryTags.append("audio_entry")
             }
 
+            // Format current location for YAML storage
+            let locationString: String? = {
+                if let loc = currentLocation {
+                    return String(format: "%.5f,%.5f", loc.coordinate.latitude, loc.coordinate.longitude)
+                }
+                return nil
+            }()
+
             var entry = Entry(
                 id: UUID().uuidString,
                 dateCreated: timestamp,
@@ -194,6 +202,7 @@ class QuickEntryViewModel: ObservableObject {
                 place: selectedPlace?.name,
                 people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout,
+                location: locationString,
                 content: combinedContent,
                 temperature: nil,
                 condition: nil,
@@ -202,6 +211,10 @@ class QuickEntryViewModel: ObservableObject {
                 moodValence: nil,
                 moodLabels: nil,
                 moodAssociations: nil,
+                audioAttachments: nil,
+                recordingDevice: nil,
+                sampleRate: nil,
+                bitDepth: nil,
                 unknownFields: [:], // New entries have no unknown fields
                 unknownFieldsOrder: []
             )

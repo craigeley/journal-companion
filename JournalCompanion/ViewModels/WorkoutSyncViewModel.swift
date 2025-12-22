@@ -127,6 +127,14 @@ class WorkoutSyncViewModel: ObservableObject {
             // Create entry content
             let content = generateWorkoutContent(workout)
 
+            // Extract starting location if route available
+            let locationString: String? = {
+                if let coords = coordinates, let first = coords.first {
+                    return String(format: "%.5f,%.5f", first.latitude, first.longitude)
+                }
+                return nil
+            }()
+
             // Create entry with weather data from WeatherKit (preferred) or HealthKit
             var entry = Entry(
                 id: entryID,
@@ -135,6 +143,7 @@ class WorkoutSyncViewModel: ObservableObject {
                 place: nil,
                 people: [],
                 placeCallout: nil,
+                location: locationString,
                 content: content,
                 temperature: weatherData.temperature,
                 condition: weatherData.condition,
@@ -157,13 +166,6 @@ class WorkoutSyncViewModel: ObservableObject {
 
             entry.unknownFields["workout_type"] = .string(workout.workoutType)
             entry.unknownFieldsOrder.append("workout_type")
-
-            // Add starting location if route available
-            if let coords = coordinates, let first = coords.first {
-                let locationString = String(format: "%.5f,%.5f", first.latitude, first.longitude)
-                entry.unknownFields["location"] = .string(locationString)
-                entry.unknownFieldsOrder.append("location")
-            }
 
             if let distance = workout.distance {
                 entry.unknownFields["distance"] = .double(distance)

@@ -349,6 +349,35 @@ actor HealthKitService {
             return nil
         }()
 
+        // Extract weather data from workout metadata
+        let temperature: Int? = {
+            if let metadata = workout.metadata,
+               let tempQuantity = metadata[HKMetadataKeyWeatherTemperature] as? HKQuantity {
+                let fahrenheit = tempQuantity.doubleValue(for: HKUnit.degreeFahrenheit())
+                return Int(fahrenheit.rounded())
+            }
+            return nil
+        }()
+
+        let condition: String? = {
+            if let metadata = workout.metadata,
+               let conditionNumber = metadata[HKMetadataKeyWeatherCondition] as? NSNumber,
+               let weatherCondition = HKWeatherCondition(rawValue: conditionNumber.intValue) {
+                // Convert HKWeatherCondition to lowercase string matching Entry format
+                return weatherConditionString(weatherCondition)
+            }
+            return nil
+        }()
+
+        let humidity: Int? = {
+            if let metadata = workout.metadata,
+               let humidityQuantity = metadata[HKMetadataKeyWeatherHumidity] as? HKQuantity {
+                let percent = humidityQuantity.doubleValue(for: HKUnit.percent())
+                return Int(percent.rounded())
+            }
+            return nil
+        }()
+
         return WorkoutData(
             id: workout.uuid,
             workoutType: workoutType,
@@ -365,7 +394,10 @@ actor HealthKitService {
             avgStrideLength: avgStrideLength,
             avgVerticalOscillation: avgVerticalOscillation,
             avgVerticalRatio: avgVerticalRatio,
-            totalSteps: totalSteps
+            totalSteps: totalSteps,
+            temperature: temperature,
+            condition: condition,
+            humidity: humidity
         )
     }
 
@@ -497,6 +529,41 @@ actor HealthKitService {
         case .other: return "Other"
 
         @unknown default: return "Workout"
+        }
+    }
+
+    /// Convert HKWeatherCondition to Entry format string
+    private func weatherConditionString(_ condition: HKWeatherCondition) -> String {
+        switch condition {
+        case .none: return "unknown"
+        case .clear: return "clear"
+        case .fair: return "fair"
+        case .partlyCloudy: return "partly_cloudy"
+        case .mostlyCloudy: return "mostly_cloudy"
+        case .cloudy: return "cloudy"
+        case .foggy: return "foggy"
+        case .haze: return "haze"
+        case .windy: return "windy"
+        case .blustery: return "blustery"
+        case .smoky: return "smoky"
+        case .dust: return "dust"
+        case .snow: return "snow"
+        case .hail: return "hail"
+        case .sleet: return "sleet"
+        case .freezingDrizzle: return "freezing_drizzle"
+        case .freezingRain: return "freezing_rain"
+        case .mixedRainAndHail: return "mixed_rain_hail"
+        case .mixedRainAndSnow: return "mixed_rain_snow"
+        case .mixedRainAndSleet: return "mixed_rain_sleet"
+        case .mixedSnowAndSleet: return "mixed_snow_sleet"
+        case .drizzle: return "drizzle"
+        case .scatteredShowers: return "scattered_showers"
+        case .showers: return "showers"
+        case .thunderstorms: return "thunderstorms"
+        case .tropicalStorm: return "tropical_storm"
+        case .hurricane: return "hurricane"
+        case .tornado: return "tornado"
+        @unknown default: return "unknown"
         }
     }
 }

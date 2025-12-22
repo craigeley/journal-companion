@@ -28,6 +28,11 @@ struct WorkoutData: Identifiable, Sendable {
     let avgVerticalRatio: Double?  // percent
     let totalSteps: Int?  // total step count
 
+    // Weather data (from workout metadata)
+    let temperature: Int?  // Fahrenheit
+    let condition: String?  // "clear", "cloudy", "rain", etc.
+    let humidity: Int?  // Percent
+
     // MARK: - Computed Formatting
 
     var formattedDuration: String {

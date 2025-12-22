@@ -104,7 +104,7 @@ class WorkoutSyncViewModel: ObservableObject {
             // Create entry content
             let content = generateWorkoutContent(workout)
 
-            // Create entry
+            // Create entry with weather data from HealthKit
             var entry = Entry(
                 id: entryID,
                 dateCreated: workout.startDate,
@@ -113,10 +113,10 @@ class WorkoutSyncViewModel: ObservableObject {
                 people: [],
                 placeCallout: nil,
                 content: content,
-                temperature: nil,
-                condition: nil,
+                temperature: workout.temperature,
+                condition: workout.condition,
                 aqi: nil,
-                humidity: nil,
+                humidity: workout.humidity,
                 moodValence: nil,
                 moodLabels: nil,
                 moodAssociations: nil,

@@ -16,6 +16,8 @@ struct ContentView: View {
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @EnvironmentObject var searchCoordinator: SearchCoordinator
     @State private var showQuickEntry = false
+    @State private var showAudioEntry = false
+    @State private var showFABExpanded = false
     @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
     @State private var showLocationSearchForNewPlace = false
@@ -53,35 +55,45 @@ struct ContentView: View {
                     HStack {
                         Spacer()
 
-                        // FAB (right side)
-                        Button {
-                            // Context-aware action based on selected tab
-                            if selectedTab == 0 {
-                                // Entries tab - create entry
-                                showQuickEntry = true
-                            } else if selectedTab == 1 {
-                                // People tab - create person
+                        if selectedTab == 0 {
+                            // Entries tab - fan-out FAB
+                            FanOutFAB(
+                                isExpanded: $showFABExpanded,
+                                onTextEntry: { showQuickEntry = true },
+                                onAudioEntry: { showAudioEntry = true },
+                                onWorkoutSync: { showWorkoutSync = true }
+                            )
+                        } else if selectedTab == 1 {
+                            // People tab - single FAB
+                            Button {
                                 showPersonCreation = true
-                            } else if selectedTab == 2 {
-                                // Places tab - start with location search
-                                showLocationSearchForNewPlace = true
+                            } label: {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 4)
                             }
-                        } label: {
-                            // Context-aware icon based on selected tab
-                            Image(systemName: selectedTab == 0 ? "square.and.pencil" :
-                                               selectedTab == 1 ? "person.crop.circle.badge.plus" :
-                                               "mappin.circle")
-                                .font(.title2)
-                                .foregroundStyle(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.blue)
-                                .clipShape(Circle())
-                                .shadow(radius: 4)
+                        } else if selectedTab == 2 {
+                            // Places tab - single FAB
+                            Button {
+                                showLocationSearchForNewPlace = true
+                            } label: {
+                                Image(systemName: "mappin.circle")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 4)
+                            }
                         }
-                        .padding(.trailing, 20)
                     }
-                    .padding(.bottom, 70) // Extra padding to float above tab bar
+                    .padding(.trailing, 20)
                 }
+                .padding(.bottom, 70) // Extra padding to float above tab bar
             }
 
         }
@@ -90,8 +102,30 @@ struct ContentView: View {
             QuickEntryView(viewModel: viewModel)
         }
         .onChange(of: showQuickEntry) { _, isShowing in
-            if !isShowing {
+            if isShowing {
+                showFABExpanded = false
+            } else {
                 // Refresh entries when quick entry view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadEntries()
+                    } catch {
+                        print("❌ Failed to reload entries: \(error)")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showAudioEntry) {
+            let viewModel = AudioEntryViewModel(vaultManager: vaultManager, locationService: locationService)
+            AudioEntryView(viewModel: viewModel)
+                .environmentObject(locationService)
+                .environmentObject(templateManager)
+        }
+        .onChange(of: showAudioEntry) { _, isShowing in
+            if isShowing {
+                showFABExpanded = false
+            } else {
+                // Refresh entries when audio entry view closes
                 Task {
                     do {
                         _ = try await vaultManager.loadEntries()
@@ -188,7 +222,9 @@ struct ContentView: View {
             )
         }
         .onChange(of: showWorkoutSync) { _, isShowing in
-            if !isShowing {
+            if isShowing {
+                showFABExpanded = false
+            } else {
                 // Refresh entries when workout sync closes
                 Task {
                     do {
@@ -242,6 +278,8 @@ struct ContentView: View {
         .onChange(of: selectedTab) { _, _ in
             // Clear search when switching tabs
             searchCoordinator.searchText = ""
+            // Collapse FAB when switching tabs
+            showFABExpanded = false
         }
         .sheet(item: $searchCoordinator.selectedEntry) { entry in
             // Entry detail from search
@@ -342,20 +380,10 @@ struct ContentView: View {
                 EntryListView(viewModel: viewModel)
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
-                            Menu {
-                                Button {
-                                    showWorkoutSync = true
-                                } label: {
-                                    Label("Sync Workouts", systemImage: "figure.run")
-                                }
-
-                                Button {
-                                    showSettings = true
-                                } label: {
-                                    Label("Settings", systemImage: "gear")
-                                }
+                            Button {
+                                showSettings = true
                             } label: {
-                                Image(systemName: "ellipsis.circle")
+                                Image(systemName: "gear")
                             }
                         }
                     }

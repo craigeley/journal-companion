@@ -106,13 +106,6 @@ struct WorkoutRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-
-                    if let calories = workout.calories {
-                        Label("\(calories) kcal", systemImage: "flame.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
                 }
                 .fixedSize(horizontal: false, vertical: true)
 

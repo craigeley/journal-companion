@@ -99,21 +99,22 @@ struct WorkoutRow: View {
                         Label(distance, systemImage: "figure.run")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .fixedSize()
+                            .lineLimit(1)
                     }
 
                     Label(workout.formattedDuration, systemImage: "timer")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .fixedSize()
+                        .lineLimit(1)
 
                     if let calories = workout.calories {
                         Label("\(calories) kcal", systemImage: "flame.fill")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .fixedSize()
+                            .lineLimit(1)
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
 
                 if workout.hasRoute {
                     Label("Route available", systemImage: "map")

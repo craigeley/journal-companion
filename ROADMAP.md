@@ -1,1289 +1,1186 @@
-# JournalCompanion Roadmap
+# JournalCompanion Feature Roadmap
 
-This document outlines the planned features and implementation strategy for JournalCompanion's future development.
+This document contains implementation plans for upcoming features, serving as a reference for future development work.
+
+---
+
+# Feature 1: Photo Entry Type
 
 ## Overview
 
-Three major feature areas are planned:
-1. **Apple Watch App** - Quick entry creation on the go
-2. **Audio Journaling** - Record, store, and transcribe audio entries
-3. **People Records** - Track relationships alongside Places and Entries
+Add a new entry type called "Photo" that allows users to import a single photo from their iOS photo library. The photo will be copied into the vault's `_attachments/photos/` folder, and its EXIF metadata (location, timestamp, camera info) will be automatically extracted and used to populate entry fields.
 
----
+## User Requirements
 
-## Feature 1: Apple Watch App
+- **Single photo per entry**: Each photo entry contains exactly one image
+- **iOS Photo Picker integration**: Use native `PhotosPicker` to select images
+- **Copy to vault**: Photo is copied to `_attachments/photos/` for vault portability
+- **EXIF metadata extraction**: Automatically extract and use:
+  - GPS location (latitude/longitude) → entry location + place matching
+  - Timestamp → entry creation date
+  - Camera info (model, lens, focal length) → stored in entry metadata
+- **Obsidian embedding**: Link photo using `![[photos/filename.jpg]]` syntax
+- **Weather fetch**: Use photo timestamp + location to fetch historical weather
+- **Consistent UX**: Follow same FAB menu pattern as Text/Audio/Workout entries
 
-### Goal
-Enable users to quickly capture journal entries from Apple Watch that can be edited later on iPhone to add metadata (place, weather, tags, etc.).
+## Current State Analysis
 
-### Use Cases
-- Quick thought capture while walking/exercising
-- Voice dictation without taking out iPhone
-- Immediate journaling of moments (before context is forgotten)
-- Offline entry creation (synced when iPhone is nearby)
+### Existing Patterns to Follow
 
-### Architecture
+**Attachment Storage** (from AudioFileManager):
+- Directory structure: `_attachments/{type}/{entry-filename}.{ext}`
+- Atomic file operations using Swift actors
+- Security-scoped bookmark access for vault
+- Sidecar metadata files when needed (e.g., `.srt` for audio)
 
-#### 1. Watch App Target
-Create a new WatchOS app target within the existing project:
-- **Target Name**: `JournalCompanion Watch App`
-- **Min WatchOS**: 10.0+ (for latest SwiftUI features)
-- **Complications**: Show entry count or quick-add shortcut
+**Entry Creation Flow** (from AudioEntryViewModel):
+- Metadata capture: location, weather, State of Mind
+- File manager actors for thread-safe I/O
+- Placeholder replacement pattern: `![[PLACEHOLDER]]` → `![[photos/filename.jpg]]`
+- YAML frontmatter storage for attachment references
 
-#### 2. Shared Code via Swift Package
-Create local Swift Package for shared models:
+**iOS Pickers** (from PlacePickerView, LocationSearchView):
+- Native iOS picker components
+- Binding-based data flow
+- Sheet presentation patterns
+
+### What Doesn't Exist Yet
+
+1. **PhotoPicker integration** - Need to import `PhotosUI` framework
+2. **EXIF metadata extraction** - Need `CoreLocation`, `ImageIO` frameworks
+3. **Photo file manager** - New actor similar to `AudioFileManager`
+4. **Photo entry view model** - Similar to `AudioEntryViewModel`
+5. **Photo entry view** - UI for photo entry creation
+6. **Image import logic** - Copy from Photos library to vault
+
+## Architecture Design
+
+### Component Structure
+
 ```
-JournalCompanionShared/
-├── Sources/
-│   ├── Models/
-│   │   ├── Entry.swift (shared subset)
-│   │   ├── SimpleEntry.swift (watch-optimized)
-│   │   └── SyncState.swift
-│   └── Utilities/
-│       └── DateFormatters.swift
+Menu FAB (existing)
+  └── Photo Entry button (NEW)
+      → PhotoEntryView (NEW)
+        → PhotoEntryViewModel (NEW)
+          → PhotoFileManager (NEW - actor)
+            → EXIF metadata extraction
+            → File copy to _attachments/photos/
 ```
 
-**SimpleEntry Model** (optimized for Watch):
+### Data Flow
+
+1. **User selects photo** via `PhotosPicker`
+2. **Extract EXIF metadata**:
+   - GPS coordinates → `currentLocation`
+   - Timestamp → `timestamp`
+   - Camera model/lens/focal length → `cameraMetadata`
+3. **Auto-populate entry**:
+   - Set timestamp from EXIF
+   - Set location from GPS coords
+   - Find matching Place within 100m radius
+   - Fetch weather for timestamp + location
+4. **User can override** any auto-populated fields
+5. **Save entry**:
+   - Copy photo to `_attachments/photos/{entryID}.{ext}`
+   - Generate thumbnail for preview (optional)
+   - Create entry with photo link: `![[photos/{entryID}.jpg]]`
+   - Store camera metadata in YAML frontmatter
+
+### File Structure
+
+**New Files:**
+1. `JournalCompanion/Services/FileSystem/PhotoFileManager.swift` - Actor for photo I/O
+2. `JournalCompanion/ViewModels/PhotoEntryViewModel.swift` - Photo entry state management
+3. `JournalCompanion/Views/EntryCreation/PhotoEntryView.swift` - Photo entry UI
+4. `JournalCompanion/Models/PhotoMetadata.swift` - Camera/EXIF data model (optional)
+
+**Modified Files:**
+1. `JournalCompanion/App/ContentView.swift` - Add Photo button to FAB menu
+2. `JournalCompanion/Models/Entry.swift` - Add `photoAttachment` and `cameraMetadata` fields (optional)
+
+## Implementation Plan
+
+### Phase 1: Foundation - PhotoFileManager
+
+**File:** `JournalCompanion/Services/FileSystem/PhotoFileManager.swift`
+
+**Purpose:** Handle photo file I/O operations with thread safety.
+
+**Key Methods:**
 ```swift
-struct SimpleEntry: Identifiable, Codable, Sendable {
-    let id: String
-    let dateCreated: Date
-    var content: String
-    var tags: [String] = ["entry", "watch"]
-    var needsSync: Bool = true
-    var isEditedOniPhone: Bool = false
-}
-```
+actor PhotoFileManager {
+    let vaultURL: URL
+    private let fileManager = FileManager.default
 
-#### 3. Watch Connectivity
-Use **WatchConnectivity framework** for bidirectional sync:
-- **Watch → iPhone**: Send new SimpleEntry via `transferUserInfo()` (background)
-- **iPhone → Watch**: Confirm entry creation, send entry count
-- **Session State**: Monitor reachability for immediate vs queued sync
+    // Create photos directory: _attachments/photos/
+    func createPhotosDirectory() async throws -> URL
 
-**WatchConnectivityService** (actor):
-```swift
-actor WatchConnectivityService {
-    func sendEntry(_ entry: SimpleEntry) async throws
-    func requestSync() async throws
-    func receiveEntry(userInfo: [String: Any]) async -> SimpleEntry?
-}
-```
-
-#### 4. iPhone Receiver
-New service to handle incoming Watch entries:
-- **WatchEntryReceiver** (actor):
-  - Receives SimpleEntry from Watch
-  - Converts to full Entry model (adds empty metadata)
-  - Writes to vault via EntryWriter
-  - Marks as "pending enhancement" in metadata
-  - Sends confirmation back to Watch
-
-**Entry Enhancement Flow**:
-1. Watch entry arrives → saved to vault immediately
-2. User opens iPhone app → "Pending Entries" badge shown
-3. Tap entry → QuickEntryView opens with pre-filled content
-4. User adds place, adjusts timestamp, reviews weather
-5. Save → entry updated with full metadata
-
-#### 5. Watch UI
-
-**Main Watch View** (WatchQuickEntryView):
-- Large "New Entry" button
-- Text input via dictation or scribble
-- Immediate save (no cancel - just don't save if empty)
-- Success animation
-- Entry count badge
-
-**Complications**:
-- **Circular**: Entry count for today
-- **Corner**: Quick-add icon
-- **Rectangular**: "X entries today"
-
-#### 6. Data Persistence on Watch
-
-Use **SwiftData** for local storage:
-- Store entries locally until sync confirmed
-- Show sync status (pending/synced)
-- Retry failed syncs automatically
-- Clear synced entries after confirmation
-
-**SyncStatus States**:
-- `.pending` - Not yet sent to iPhone
-- `.syncing` - Transfer in progress
-- `.synced` - Confirmed by iPhone
-- `.failed` - Needs retry
-
-### Implementation Phases
-
-**Phase 1: Basic Watch App (Week 1-2)**
-- [ ] Create Watch app target
-- [ ] Implement SimpleEntry model
-- [ ] Build WatchQuickEntryView (text input only)
-- [ ] Local SwiftData persistence
-- [ ] Show entry list on Watch
-
-**Phase 2: Watch Connectivity (Week 2-3)**
-- [ ] Implement WatchConnectivityService
-- [ ] Build WatchEntryReceiver on iPhone
-- [ ] Bidirectional sync with retry logic
-- [ ] Sync status indicators
-- [ ] Background sync when reachable
-
-**Phase 3: iPhone Enhancement Flow (Week 3-4)**
-- [ ] Add "Pending Entries" filter/badge
-- [ ] Detect and highlight Watch entries needing metadata
-- [ ] Pre-populate QuickEntryView from Watch entry
-- [ ] Update sync status after enhancement
-
-**Phase 4: Complications & Polish (Week 4)**
-- [ ] Add Watch complications
-- [ ] Haptic feedback on success
-- [ ] Loading/error states
-- [ ] Offline handling
-- [ ] Settings sync (default tags, etc.)
-
-### Technical Decisions
-
-**Why WatchConnectivity over CloudKit?**
-- Faster sync when iPhone nearby
-- No separate iCloud container setup needed
-- Simpler state management
-- Falls back to background transfer when not reachable
-
-**Why SwiftData on Watch?**
-- Modern declarative API
-- Automatic persistence
-- Query support for pending entries
-- Less boilerplate than Core Data
-
-**Metadata Strategy**:
-- Watch entries have minimal metadata (timestamp, content, tags)
-- Weather/place added later on iPhone (can't reliably get on Watch)
-- User can choose to enhance or leave as-is
-
-### Files to Create
-
-**Watch App**:
-- `JournalCompanion Watch App/App/WatchApp.swift`
-- `JournalCompanion Watch App/Views/WatchQuickEntryView.swift`
-- `JournalCompanion Watch App/ViewModels/WatchEntryViewModel.swift`
-- `JournalCompanion Watch App/Services/WatchConnectivityService.swift`
-- `JournalCompanion Watch App/Models/SimpleEntry+SwiftData.swift`
-
-**iPhone App**:
-- `Services/WatchSync/WatchEntryReceiver.swift`
-- `Services/WatchSync/WatchConnectivityManager.swift`
-- `ViewModels/PendingEntriesViewModel.swift`
-
-**Shared Package**:
-- `JournalCompanionShared/Sources/Models/SimpleEntry.swift`
-- `JournalCompanionShared/Sources/Models/SyncState.swift`
-
----
-
-## Feature 2: Audio Journaling
-
-### Goal
-Record audio entries with automatic transcription, store in lossless format, and attach to journal entries with full-text search support.
-
-### Use Cases
-- Voice journaling while driving/commuting
-- Capture long-form thoughts without typing
-- Preserve tone/emotion (audio + transcript)
-- Search transcripts to find entries
-- Playback speed control for review
-
-### Architecture
-
-#### 1. Audio Data Model
-
-**AudioAttachment Model**:
-```swift
-struct AudioAttachment: Identifiable, Codable, Sendable {
-    let id: String  // UUID
-    let filename: String  // e.g., "202501151430-audio.m4a"
-    let duration: TimeInterval
-    let fileSize: Int64  // bytes
-    let format: AudioFormat  // .alac (lossless)
-    var transcript: String?
-    var transcriptionState: TranscriptionState
-    let dateRecorded: Date
-}
-
-enum AudioFormat: String, Codable {
-    case alac = "m4a"  // Apple Lossless
-}
-
-enum TranscriptionState: String, Codable {
-    case pending
-    case transcribing
-    case completed
-    case failed
-    case unavailable  // offline or no permission
-}
-```
-
-**Entry Model Update**:
-```swift
-// Add to Entry.swift:
-var audioAttachments: [AudioAttachment] = []
-
-// In toMarkdown():
-if !audioAttachments.isEmpty {
-    yaml += "audio:\n"
-    for audio in audioAttachments {
-        yaml += "  - file: \(audio.filename)\n"
-        yaml += "    duration: \(audio.duration)\n"
-        if let transcript = audio.transcript {
-            yaml += "    transcript: \"\(transcript.replacingOccurrences(of: "\"", with: "\\\""))\"\n"
-        }
-    }
-}
-```
-
-#### 2. Audio Storage Structure
-
-**Vault Layout**:
-```
-Vault/
-├── Entries/
-│   └── 2025/01-January/15/
-│       └── 202501151430.md
-└── Audio/
-    └── 2025/01-January/15/
-        ├── 202501151430-audio-1.m4a
-        ├── 202501151430-audio-2.m4a
-        └── 202501151431-audio.m4a
-```
-
-**Naming Convention**:
-- Format: `{YYYYMMDDHHmm}-audio-{index}.m4a`
-- Index increments if multiple recordings for same entry
-- Mirrors entry directory structure
-
-#### 3. Recording Service
-
-**AudioRecordingService** (actor):
-```swift
-actor AudioRecordingService {
-    private let audioEngine: AVAudioEngine
-    private let audioFile: AVAudioFile?
-    private var isRecording: Bool = false
-
-    // Use ALAC format (lossless)
-    private let audioFormat = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32,
-        sampleRate: 48000,
-        channels: 1,
-        interleaved: false
-    )
-
-    func startRecording() async throws
-    func stopRecording() async throws -> URL
-    func pauseRecording() async throws
-    func resumeRecording() async throws
-
-    var currentDuration: TimeInterval { get async }
-    var recordingLevel: Float { get async }  // for waveform visualization
-}
-```
-
-**Recording Flow**:
-1. Request microphone permission (AVAudioSession)
-2. Configure audio session for recording
-3. Start AVAudioEngine with ALAC encoder
-4. Real-time level monitoring for UI
-5. Stop → convert to .m4a (ALAC codec)
-6. Return file URL
-
-#### 4. Transcription Service
-
-Use **Speech framework** with `SFSpeechRecognizer`:
-
-**TranscriptionService** (actor):
-```swift
-actor TranscriptionService {
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-
-    func transcribe(audioURL: URL) async throws -> String {
-        // Request speech recognition permission
-        // Use SFSpeechURLRecognitionRequest for file-based transcription
-        // Return final transcript string
-    }
-
-    func transcribeRealtime(
-        audioBuffer: AVAudioPCMBuffer
-    ) async throws -> String {
-        // For live transcription during recording (optional)
-    }
-
-    var isAvailable: Bool { get async }
-}
-```
-
-**Transcription Strategy**:
-- **On-device only**: Use Speech framework (free, private)
-- **Post-recording**: Transcribe after recording completes
-- **Background processing**: Queue transcriptions for offline entries
-- **Language detection**: Auto-detect or use system language
-- **Punctuation**: Enable automatic punctuation in recognizer
-
-#### 5. Audio Writer
-
-**AudioWriter** (actor):
-```swift
-actor AudioWriter {
-    private let vaultURL: URL
-
-    func write(
-        audioURL: URL,
+    // Copy photo from Photos library to vault
+    func writePhoto(
+        from sourceURL: URL,
         for entry: Entry,
-        transcript: String?
-    ) async throws -> AudioAttachment {
-        // 1. Generate audio filename
-        // 2. Create Audio/YYYY/MM-Month/DD/ directory
-        // 3. Move audio file to vault (atomic)
-        // 4. Create AudioAttachment record
-        // 5. Return attachment for adding to Entry
-    }
+        originalFilename: String
+    ) async throws -> String
 
-    func delete(attachment: AudioAttachment, for entry: Entry) async throws {
-        // Delete audio file from vault
-    }
+    // Delete photo attachment
+    func deletePhoto(filename: String) async throws
+
+    // Generate filename: {entryID}.{ext}
+    private func generateFilename(for entry: Entry, extension: String) -> String
 }
 ```
 
-#### 6. UI Components
+**Filename Convention:**
+```
+YYYYMMDDHHmm.jpg  (or .png, .heic)
+```
 
-**AudioRecorderView** (SwiftUI):
+**Directory:**
+```
+_attachments/photos/202501151430.jpg
+```
+
+### Phase 2: EXIF Metadata Extraction
+
+**Location:** `PhotoEntryViewModel` helper methods
+
+**Frameworks:**
+- `import ImageIO` - For EXIF data extraction
+- `import CoreLocation` - For GPS coordinates
+
+**Key Code Pattern:**
 ```swift
-struct AudioRecorderView: View {
-    @StateObject var viewModel: AudioRecorderViewModel
+func extractEXIFMetadata(from imageURL: URL) async -> PhotoEXIF? {
+    guard let imageSource = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any]
+    else { return nil }
 
-    var body: some View {
-        VStack {
-            // Waveform visualization (live recording levels)
-            AudioWaveformView(levels: viewModel.recordingLevels)
+    var exif = PhotoEXIF()
 
-            // Duration display
-            Text(viewModel.formattedDuration)
-                .font(.system(.title, design: .monospaced))
-
-            // Recording controls
-            HStack {
-                if viewModel.isRecording {
-                    Button("Pause") { viewModel.pauseRecording() }
-                    Button("Stop") { viewModel.stopRecording() }
-                } else if viewModel.isPaused {
-                    Button("Resume") { viewModel.resumeRecording() }
-                    Button("Stop") { viewModel.stopRecording() }
-                } else {
-                    Button("Record") { viewModel.startRecording() }
-                }
-            }
-
-            // Transcription preview (if live transcription enabled)
-            if let transcript = viewModel.liveTranscript {
-                Text(transcript)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-```
-
-**AudioPlaybackView**:
-```swift
-struct AudioPlaybackView: View {
-    let attachment: AudioAttachment
-    @StateObject var player: AudioPlayerViewModel
-
-    var body: some View {
-        VStack {
-            // Playback controls
-            HStack {
-                Button(action: { player.playPause() }) {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                }
-
-                Slider(value: $player.currentTime, in: 0...attachment.duration)
-
-                Text(player.formattedRemainingTime)
-                    .font(.caption)
-                    .monospacedDigit()
-            }
-
-            // Playback speed
-            Picker("Speed", selection: $player.playbackSpeed) {
-                Text("0.5x").tag(0.5)
-                Text("1.0x").tag(1.0)
-                Text("1.5x").tag(1.5)
-                Text("2.0x").tag(2.0)
-            }
-            .pickerStyle(.segmented)
-
-            // Transcript (if available)
-            if let transcript = attachment.transcript {
-                ScrollView {
-                    Text(transcript)
-                        .textSelection(.enabled)
-                }
-            } else if attachment.transcriptionState == .transcribing {
-                ProgressView("Transcribing...")
-            }
-        }
-    }
-}
-```
-
-**Integration into QuickEntryView**:
-```swift
-// Add to QuickEntryView:
-Section("Audio") {
-    if viewModel.audioAttachments.isEmpty {
-        Button("Record Audio") {
-            showAudioRecorder = true
-        }
-    } else {
-        ForEach(viewModel.audioAttachments) { audio in
-            AudioPlaybackView(attachment: audio, player: makePlayer(for: audio))
-        }
-        Button("Add Another Recording") {
-            showAudioRecorder = true
-        }
-    }
-}
-.sheet(isPresented: $showAudioRecorder) {
-    AudioRecorderView(viewModel: AudioRecorderViewModel())
-}
-```
-
-#### 7. Search Integration
-
-Extend entry search to include audio transcripts:
-
-**EntrySearcher** update:
-```swift
-func search(query: String) -> [Entry] {
-    entries.filter { entry in
-        // Existing: content, tags, place
-        entry.content.localizedCaseInsensitiveContains(query) ||
-        entry.tags.contains { $0.localizedCaseInsensitiveContains(query) } ||
-
-        // NEW: Audio transcripts
-        entry.audioAttachments.contains { audio in
-            audio.transcript?.localizedCaseInsensitiveContains(query) ?? false
-        }
-    }
-}
-```
-
-### Implementation Phases
-
-**Phase 1: Audio Recording (Week 1-2)**
-- [ ] Create AudioAttachment model
-- [ ] Implement AudioRecordingService with ALAC format
-- [ ] Build AudioRecorderView with waveform visualization
-- [ ] Request microphone permissions
-- [ ] Save audio files to vault structure
-- [ ] AudioWriter actor for file management
-
-**Phase 2: Basic Playback (Week 2)**
-- [ ] Implement AudioPlayerViewModel
-- [ ] Build AudioPlaybackView with controls
-- [ ] Playback speed control
-- [ ] Progress slider
-- [ ] Duration formatting
-
-**Phase 3: Transcription (Week 3)**
-- [ ] Implement TranscriptionService with Speech framework
-- [ ] Request speech recognition permissions
-- [ ] Post-recording transcription
-- [ ] Show transcription state in UI
-- [ ] Store transcripts in YAML frontmatter
-- [ ] Retry failed transcriptions
-
-**Phase 4: Integration & Search (Week 4)**
-- [ ] Update Entry model with audio array
-- [ ] Integrate recorder into QuickEntryView
-- [ ] Update EntryReader to parse audio metadata
-- [ ] Extend search to include transcripts
-- [ ] Audio attachment management (delete, reorder)
-- [ ] Background transcription queue
-
-**Phase 5: Advanced Features (Week 5)**
-- [ ] Live transcription during recording (optional)
-- [ ] Multiple audio attachments per entry
-- [ ] Audio trimming/editing
-- [ ] Export audio files
-- [ ] Audio-only entry type
-- [ ] Voice command to start recording
-
-### Technical Decisions
-
-**Why ALAC over MP3/AAC?**
-- Lossless quality preserves original audio
-- Apple native format (.m4a container)
-- Smaller than WAV but higher quality than AAC
-- Good balance: quality vs file size
-
-**Why Speech Framework over cloud APIs?**
-- Free (no API costs)
-- Private (on-device only)
-- Works offline
-- Low latency
-- Native iOS integration
-
-**Storage in Vault**:
-- Audio files alongside markdown (not database)
-- Easy backup (files are portable)
-- Obsidian plugins can potentially play audio
-- Transcript searchable in any text editor
-
-**Transcription Timing**:
-- Post-recording (not live) to avoid UI lag
-- Background queue for batch processing
-- User can save entry before transcription completes
-- Transcript added to entry when ready (atomic update)
-
-### Files to Create
-
-**Models**:
-- `Models/AudioAttachment.swift`
-
-**Services**:
-- `Services/Audio/AudioRecordingService.swift`
-- `Services/Audio/TranscriptionService.swift`
-- `Services/FileSystem/AudioWriter.swift`
-- `Services/Audio/AudioPlayerService.swift`
-
-**ViewModels**:
-- `ViewModels/AudioRecorderViewModel.swift`
-- `ViewModels/AudioPlayerViewModel.swift`
-
-**Views**:
-- `Views/Audio/AudioRecorderView.swift`
-- `Views/Audio/AudioPlaybackView.swift`
-- `Views/Audio/AudioWaveformView.swift`
-
----
-
-## Feature 3: People Records
-
-### Goal
-Create a "People" entity similar to Places to track relationships, interactions, and connections with individuals mentioned in journal entries.
-
-### Use Cases
-- Link entries to specific people
-- Track interactions over time
-- See all entries involving a person
-- Contact info storage (phone, email, social media)
-- Relationship metadata (friend, family, colleague)
-- Birthday/anniversary reminders
-- Visualize relationship timeline
-
-### Architecture
-
-#### 1. Person Data Model
-
-**Person Model**:
-```swift
-struct Person: Identifiable, Codable, Sendable {
-    let id: String  // Sanitized filename (without .md)
-    var name: String
-    var pronouns: String?  // they/them, she/her, he/him, etc.
-    var relationshipType: RelationshipType
-    var tags: [String]  // family, work, friend, etc.
-    var contactInfo: ContactInfo?
-    var birthday: DateComponents?  // month/day only
-    var metDate: Date?  // when you met this person
-    var socialMedia: [SocialMediaLink]
-    var color: String?  // rgb(72,133,237) for UI theming
-    var photo: String?  // filename of photo in People/Photos/
-    var content: String  // Body text (notes about the person)
-
-    var filename: String {
-        id + ".md"
-    }
-}
-
-enum RelationshipType: String, Codable {
-    case family
-    case friend
-    case colleague
-    case acquaintance
-    case partner
-    case mentor
-    case other
-}
-
-struct ContactInfo: Codable {
-    var email: String?
-    var phone: String?
-    var address: String?
-}
-
-struct SocialMediaLink: Codable, Identifiable {
-    let id = UUID()
-    let platform: String  // Twitter, Instagram, LinkedIn, etc.
-    let username: String
-    let url: String?
-}
-```
-
-#### 2. Vault Structure
-
-**File Layout**:
-```
-Vault/
-├── People/
-│   ├── Alice-Smith.md
-│   ├── Bob-Jones.md
-│   └── Photos/
-│       ├── Alice-Smith.jpg
-│       └── Bob-Jones.jpg
-├── Entries/
-│   └── 2025/01-January/15/
-│       └── 202501151430.md
-```
-
-**Person Markdown Format**:
-```markdown
----
-pronouns: she/her
-relationship: friend
-tags: [climbing, tech, college]
-email: alice@example.com
-phone: +1-555-0123
-birthday: 03-15  # March 15 (no year for privacy)
-met_date: 2018-09-01
-social:
-  - platform: Instagram
-    username: alice_smith
-  - platform: LinkedIn
-    username: alicesmith
-color: rgb(255,149,0)
-photo: Alice-Smith.jpg
----
-
-Met Alice at university in 2018. She's a software engineer who loves rock climbing.
-
-Last saw her on 2025-01-10 for coffee.
-```
-
-#### 3. Entry Linking
-
-**Update Entry Model**:
-```swift
-// Add to Entry.swift:
-var people: [String]?  // Array of person names (without brackets)
-
-// In toMarkdown():
-if let people = people, !people.isEmpty {
-    yaml += "people:\n"
-    for person in people {
-        yaml += "  - \"[[\(person)]]\"\n"
-    }
-}
-```
-
-**Linking Format** (wikilink style):
-```markdown
----
-date_created: 2025-01-15T14:30:00.000-08:00
-tags: [coffee, weekend]
-people:
-  - "[[Alice Smith]]"
-  - "[[Bob Jones]]"
----
-
-Had coffee with Alice and Bob today. Alice told me about her new climbing project.
-```
-
-#### 4. Services
-
-**PersonWriter** (actor):
-```swift
-actor PersonWriter {
-    private let vaultURL: URL
-
-    func write(person: Person) async throws {
-        // Create People/ directory if needed
-        // Write person to People/{sanitized-name}.md
-        // Save photo if provided
+    // Extract GPS coordinates
+    if let gpsInfo = properties[kCGImagePropertyGPSDictionary as String] as? [String: Any],
+       let latitude = gpsInfo[kCGImagePropertyGPSLatitude as String] as? Double,
+       let longitude = gpsInfo[kCGImagePropertyGPSLongitude as String] as? Double,
+       let latRef = gpsInfo[kCGImagePropertyGPSLatitudeRef as String] as? String,
+       let lonRef = gpsInfo[kCGImagePropertyGPSLongitudeRef as String] as? String {
+        let lat = latRef == "N" ? latitude : -latitude
+        let lon = lonRef == "E" ? longitude : -longitude
+        exif.location = CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
 
-    func update(person: Person) async throws {
-        // Update existing person file
+    // Extract timestamp
+    if let exifDict = properties[kCGImagePropertyExifDictionary as String] as? [String: Any],
+       let dateString = exifDict[kCGImagePropertyExifDateTimeOriginal as String] as? String {
+        // Parse EXIF date format: "YYYY:MM:DD HH:mm:ss"
+        exif.timestamp = parseEXIFDate(dateString)
     }
 
-    func delete(person: Person) async throws {
-        // Delete person file and photo
-        // Don't delete entry links (keep wikilinks as text)
+    // Extract camera info
+    if let tiffDict = properties[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
+        exif.cameraModel = tiffDict[kCGImagePropertyTIFFModel as String] as? String
     }
+    if let exifDict = properties[kCGImagePropertyExifDictionary as String] as? [String: Any] {
+        exif.lensModel = exifDict[kCGImagePropertyExifLensModel as String] as? String
+        exif.focalLength = exifDict[kCGImagePropertyExifFocalLength as String] as? Double
+    }
+
+    return exif
+}
+
+struct PhotoEXIF {
+    var location: CLLocationCoordinate2D?
+    var timestamp: Date?
+    var cameraModel: String?
+    var lensModel: String?
+    var focalLength: Double?
 }
 ```
 
-**PersonReader** (actor):
-```swift
-actor PersonReader {
-    func readAll(from vaultURL: URL) async throws -> [Person] {
-        // Read all .md files from People/ directory
-        // Parse YAML frontmatter
-        // Return array of Person objects
-    }
+### Phase 3: PhotoEntryViewModel
 
-    func read(filename: String, from vaultURL: URL) async throws -> Person? {
-        // Read single person file
-    }
-}
-```
+**File:** `JournalCompanion/ViewModels/PhotoEntryViewModel.swift`
 
-#### 5. VaultManager Integration
+**Pattern:** Mirror `AudioEntryViewModel` structure, adapt for photo.
 
-**Update VaultManager**:
+**Core Properties:**
 ```swift
 @MainActor
-class VaultManager: ObservableObject {
-    @Published var places: [Place] = []
-    @Published var people: [Person] = []  // NEW
+class PhotoEntryViewModel: ObservableObject {
+    let vaultManager: VaultManager
+    private let locationService: LocationService
+    private let weatherService = WeatherService()
+    private lazy var healthKitService = HealthKitService()
 
-    private func loadPeople() async {
-        guard let vaultURL = vaultURL else { return }
+    // Photo selection
+    @Published var selectedPhoto: PhotosPickerItem?
+    @Published var photoImage: UIImage?
+    @Published var photoData: Data?
+    @Published var photoEXIF: PhotoEXIF?
 
-        do {
-            let reader = PersonReader()
-            let loadedPeople = try await reader.readAll(from: vaultURL)
+    // Location & Weather (auto-populated from EXIF)
+    @Published var currentLocation: CLLocation?
+    @Published var weatherData: WeatherData?
+    @Published var isFetchingWeather: Bool = false
 
-            await MainActor.run {
-                self.people = loadedPeople
-            }
-        } catch {
-            print("❌ Failed to load people: \(error)")
+    // State of Mind
+    @Published var moodData: StateOfMindData?
+    @Published var showStateOfMindPicker: Bool = false
+    @Published var tempMoodValence: Double = 0.0
+    @Published var tempMoodLabels: [HKStateOfMind.Label] = []
+    @Published var tempMoodAssociations: [HKStateOfMind.Association] = []
+
+    // Entry metadata (timestamp from EXIF)
+    @Published var timestamp: Date = Date()
+    @Published var tags: [String] = ["entry", "iPhone", "photo_entry"]
+    @Published var selectedPlace: Place?
+    @Published var isCreating: Bool = false
+    @Published var errorMessage: String?
+    @Published var showSuccess: Bool = false
+
+    var isValid: Bool { photoData != nil }
+}
+```
+
+**Key Methods:**
+```swift
+// Handle photo selection
+func handlePhotoSelection(_ item: PhotosPickerItem) async {
+    // Load photo data
+    guard let data = try? await item.loadTransferable(type: Data.self),
+          let image = UIImage(data: data) else { return }
+
+    photoData = data
+    photoImage = image
+
+    // Extract EXIF metadata
+    if let tempURL = saveTempFile(data: data),
+       let exif = await extractEXIFMetadata(from: tempURL) {
+        photoEXIF = exif
+
+        // Auto-populate timestamp from EXIF
+        if let exifTimestamp = exif.timestamp {
+            timestamp = exifTimestamp
+        }
+
+        // Auto-populate location from GPS
+        if let coords = exif.location {
+            currentLocation = CLLocation(latitude: coords.latitude, longitude: coords.longitude)
+
+            // Try to match nearby place
+            selectedPlace = findMatchingPlace(for: currentLocation!)
+
+            // Fetch weather for photo's timestamp and location
+            await fetchWeather(for: currentLocation!, date: timestamp)
         }
     }
+}
 
-    func refreshPeople() async {
-        await loadPeople()
+// Create and save photo entry
+func createEntry() async {
+    guard let photoData, let vaultURL = vaultManager.vaultURL else { return }
+
+    isCreating = true
+    defer { isCreating = false }
+
+    do {
+        // Determine file extension from photo data
+        let ext = determineExtension(from: photoData) // .jpg, .png, .heic
+
+        // Build entry with placeholder
+        let content = "![[PHOTO_PLACEHOLDER]]"
+
+        // Create entry
+        var entry = Entry(
+            id: UUID().uuidString,
+            dateCreated: timestamp,
+            tags: tags,
+            place: selectedPlace?.name,
+            location: formatLocation(currentLocation),
+            content: content,
+            temperature: weatherData?.temperature,
+            condition: weatherData?.condition,
+            humidity: weatherData?.humidity,
+            aqi: weatherData?.aqi,
+            // Camera metadata (optional new fields)
+            cameraModel: photoEXIF?.cameraModel,
+            lensModel: photoEXIF?.lensModel,
+            focalLength: photoEXIF?.focalLength
+        )
+
+        // Add mood data if available
+        if let mood = moodData {
+            entry.moodValence = mood.valence
+            entry.moodLabels = mood.labels
+            entry.moodAssociations = mood.associations
+        }
+
+        // Save photo file
+        let photoFileManager = PhotoFileManager(vaultURL: vaultURL)
+        let tempURL = saveTempFile(data: photoData)!
+        let filename = try await photoFileManager.writePhoto(
+            from: tempURL,
+            for: entry,
+            extension: ext
+        )
+
+        // Replace placeholder with actual filename
+        entry.content = entry.content.replacingOccurrences(
+            of: "![[PHOTO_PLACEHOLDER]]",
+            with: "![[photos/\(filename)]]"
+        )
+
+        // Store photo filename in entry (optional)
+        entry.photoAttachment = filename
+
+        // Write entry
+        let writer = EntryWriter(vaultURL: vaultURL)
+        try await writer.write(entry: entry)
+
+        // Save State of Mind to HealthKit (non-fatal)
+        if let mood = moodData {
+            // ... same pattern as AudioEntryViewModel
+        }
+
+        showSuccess = true
+    } catch {
+        errorMessage = error.localizedDescription
     }
 }
 ```
 
-#### 6. UI Components
+### Phase 4: PhotoEntryView
 
-**PeopleListView**:
-```swift
-struct PeopleListView: View {
-    @EnvironmentObject var vaultManager: VaultManager
-    @State private var searchText = ""
-    @State private var selectedRelationshipFilter: RelationshipType?
+**File:** `JournalCompanion/Views/EntryCreation/PhotoEntryView.swift`
 
-    var filteredPeople: [Person] {
-        vaultManager.people.filter { person in
-            (searchText.isEmpty || person.name.localizedCaseInsensitiveContains(searchText)) &&
-            (selectedRelationshipFilter == nil || person.relationshipType == selectedRelationshipFilter)
-        }
-    }
+**UI Structure:**
+```
+NavigationStack
+  Form
+    Section "Photo"
+      - If no photo: PhotosPicker button (large, centered)
+      - If photo selected: Image preview + "Change Photo" button
+      - Display camera metadata (read-only, if available)
 
-    var body: some View {
-        List {
-            ForEach(filteredPeople) { person in
-                NavigationLink(destination: PersonDetailView(person: person)) {
-                    PersonRowView(person: person)
-                }
-            }
-        }
-        .searchable(text: $searchText)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Add Person") {
-                    // Show PersonCreationView
-                }
-            }
-        }
-    }
-}
+    Section "Location"
+      - Place picker button (auto-populated from EXIF GPS)
+      - Show "Auto-detected from photo" hint if EXIF location used
+
+    Section "Weather" (if available)
+      - Auto-fetched weather display for photo's time + location
+      - Refresh button if timestamp/location changed
+
+    Section "State of Mind" (optional)
+      - Mood picker button
+
+    Section "Details"
+      - Timestamp picker (auto-populated from EXIF)
+      - Tags display
+
+  Toolbar
+    - Cancel (leading)
+    - Save (trailing, disabled until photo selected)
 ```
 
-**PersonRowView**:
+**Key Code:**
 ```swift
-struct PersonRowView: View {
-    let person: Person
+struct PhotoEntryView: View {
+    @StateObject var viewModel: PhotoEntryViewModel
+    @Environment(\.dismiss) var dismiss
+    @State private var showPlacePicker = false
 
     var body: some View {
-        HStack {
-            // Photo or initials avatar
-            if let photoName = person.photo {
-                AsyncImage(url: photoURL(for: photoName)) { image in
-                    image.resizable()
-                } placeholder: {
-                    Color.gray
-                }
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
-            } else {
-                Text(person.initials)
-                    .font(.headline)
-                    .frame(width: 50, height: 50)
-                    .background(Color.blue.opacity(0.2))
-                    .clipShape(Circle())
+        NavigationStack {
+            Form {
+                photoSection
+                locationSection
+                weatherSection
+                stateOfMindSection
+                detailsSection
             }
+            .navigationTitle("Photo Entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbarContent }
+        }
+        .task {
+            // No auto-detect location on appear - wait for photo EXIF
+        }
+        .onChange(of: viewModel.selectedPhoto) { _, newItem in
+            if let item = newItem {
+                Task {
+                    await viewModel.handlePhotoSelection(item)
+                }
+            }
+        }
+        .onChange(of: viewModel.showSuccess) { _, success in
+            if success { dismiss() }
+        }
+        // Sheet presentations for place picker, State of Mind, etc.
+    }
 
-            VStack(alignment: .leading) {
-                Text(person.name)
-                    .font(.headline)
+    private var photoSection: some View {
+        Section {
+            if let image = viewModel.photoImage {
+                VStack(spacing: 12) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 300)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                HStack {
-                    Text(person.relationshipType.rawValue.capitalized)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.2))
-                        .clipShape(Capsule())
+                    PhotosPicker(selection: $viewModel.selectedPhoto, matching: .images) {
+                        Label("Change Photo", systemImage: "photo")
+                    }
+                    .buttonStyle(.bordered)
 
-                    if let pronouns = person.pronouns {
-                        Text(pronouns)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    // Camera metadata (if available)
+                    if let exif = viewModel.photoEXIF {
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let camera = exif.cameraModel {
+                                Text("Camera: \(camera)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let lens = exif.lensModel {
+                                Text("Lens: \(lens)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let focal = exif.focalLength {
+                                Text("Focal Length: \(Int(focal))mm")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+            } else {
+                PhotosPicker(selection: $viewModel.selectedPhoto, matching: .images) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.blue)
+                        Text("Select Photo")
+                            .font(.headline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                }
+                .buttonStyle(.plain)
             }
-
-            Spacer()
-
-            // Entry count badge
-            Text("\(entryCount) entries")
+        } header: {
+            Text("Photo")
+        } footer: {
+            Text("Select a photo from your library. Location and time will be extracted from photo metadata.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
 
-    private var entryCount: Int {
-        // Count entries that mention this person
-        // (requires VaultManager access or pass as parameter)
-        0
+    // Other sections follow AudioEntryView patterns...
+}
+```
+
+### Phase 5: ContentView Integration
+
+**File:** `JournalCompanion/App/ContentView.swift`
+
+**Changes:**
+
+1. **Add state variable:**
+```swift
+@State private var showPhotoEntry = false
+```
+
+2. **Add Photo button to Menu:**
+```swift
+Menu {
+    Button {
+        showQuickEntry = true
+    } label: {
+        Label("Text Entry", systemImage: "square.and.pencil")
+    }
+
+    Button {
+        showAudioEntry = true
+    } label: {
+        Label("Audio Entry", systemImage: "waveform")
+    }
+
+    Button {
+        showPhotoEntry = true  // NEW
+    } label: {
+        Label("Photo Entry", systemImage: "photo")  // NEW
+    }
+
+    Button {
+        showWorkoutSync = true
+    } label: {
+        Label("Sync Workouts", systemImage: "figure.run")
     }
 }
 ```
 
-**PersonDetailView**:
+3. **Add PhotoEntryView sheet:**
 ```swift
-struct PersonDetailView: View {
-    let person: Person
-    @EnvironmentObject var vaultManager: VaultManager
-
-    var relatedEntries: [Entry] {
-        // Find all entries that mention this person
-        vaultManager.entries.filter { entry in
-            entry.people?.contains(person.name) ?? false
-        }
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header with photo and basic info
-                PersonHeaderView(person: person)
-
-                // Contact info section
-                if let contact = person.contactInfo {
-                    ContactInfoView(contact: contact)
-                }
-
-                // Social media links
-                if !person.socialMedia.isEmpty {
-                    SocialMediaView(links: person.socialMedia)
-                }
-
-                // Notes
-                if !person.content.isEmpty {
-                    Text(person.content)
-                        .padding()
-                }
-
-                // Related entries timeline
-                Section("Related Entries") {
-                    ForEach(relatedEntries) { entry in
-                        EntryRowView(entry: entry)
-                    }
-                }
-            }
-        }
-        .navigationTitle(person.name)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Edit") {
-                    // Show PersonEditView
-                }
-            }
-        }
-    }
+.sheet(isPresented: $showPhotoEntry) {
+    let viewModel = PhotoEntryViewModel(
+        vaultManager: vaultManager,
+        locationService: locationService
+    )
+    PhotoEntryView(viewModel: viewModel)
+        .environmentObject(locationService)
+        .environmentObject(templateManager)
 }
-```
-
-**PersonCreationView** (similar to PlaceCreationView):
-```swift
-struct PersonCreationView: View {
-    @StateObject var viewModel: PersonCreationViewModel
-    @Environment(\.dismiss) var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Basic Info") {
-                    TextField("Name", text: $viewModel.name)
-                    TextField("Pronouns (optional)", text: $viewModel.pronouns)
-                    Picker("Relationship", selection: $viewModel.relationshipType) {
-                        ForEach(RelationshipType.allCases, id: \.self) { type in
-                            Text(type.rawValue.capitalized).tag(type)
-                        }
-                    }
-                }
-
-                Section("Contact") {
-                    TextField("Email", text: $viewModel.email)
-                        .keyboardType(.emailAddress)
-                    TextField("Phone", text: $viewModel.phone)
-                        .keyboardType(.phonePad)
-                }
-
-                Section("Dates") {
-                    DatePicker("Birthday", selection: $viewModel.birthday, displayedComponents: .date)
-                    DatePicker("Met On", selection: $viewModel.metDate, displayedComponents: .date)
-                }
-
-                Section("Tags") {
-                    // Tag editor (similar to QuickEntryView)
-                }
-
-                Section("Notes") {
-                    TextEditor(text: $viewModel.notes)
-                        .frame(minHeight: 100)
-                }
-            }
-            .navigationTitle("New Person")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            await viewModel.createPerson()
-                            dismiss()
-                        }
-                    }
-                    .disabled(!viewModel.isValid)
-                }
-
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+.onChange(of: showPhotoEntry) { _, isShowing in
+    if !isShowing {
+        // Refresh entries when photo entry view closes
+        Task {
+            do {
+                _ = try await vaultManager.loadEntries()
+            } catch {
+                print("❌ Failed to reload entries: \(error)")
             }
         }
     }
 }
 ```
 
-**PersonPickerView** (for linking to entries):
+### Phase 6: Entry Model Updates (Optional)
+
+**File:** `JournalCompanion/Models/Entry.swift`
+
+**New optional fields for camera metadata:**
 ```swift
-struct PersonPickerView: View {
-    @EnvironmentObject var vaultManager: VaultManager
-    @Binding var selectedPeople: [Person]
-    @Environment(\.dismiss) var dismiss
-    @State private var searchText = ""
+// Photo metadata (optional)
+var photoAttachment: String?      // Filename in _attachments/photos/
+var cameraModel: String?           // Camera model from EXIF
+var lensModel: String?             // Lens model from EXIF
+var focalLength: Double?           // Focal length in mm
+```
 
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(vaultManager.people) { person in
-                    Button {
-                        toggleSelection(person)
-                    } label: {
-                        HStack {
-                            PersonRowView(person: person)
-                            Spacer()
-                            if selectedPeople.contains(where: { $0.id == person.id }) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                    }
-                }
-            }
-            .searchable(text: $searchText)
-            .navigationTitle("Select People")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
+**EntryReader updates:**
+Parse new YAML fields:
+```yaml
+photo_attachment: "202501151430.jpg"
+camera_model: "iPhone 17 Pro"
+lens_model: "iPhone 17 Pro back camera 5.7mm f/1.78"
+focal_length: 5.7
+```
+
+## Testing Checklist
+
+### EXIF Extraction
+- [ ] GPS coordinates extracted correctly
+- [ ] Timestamp extracted and parsed correctly
+- [ ] Camera model/lens/focal length extracted
+- [ ] Handles photos without GPS data gracefully
+- [ ] Handles photos without timestamp gracefully
+
+### Photo Import
+- [ ] Photo copied to `_attachments/photos/`
+- [ ] Filename format matches `{entryID}.{ext}`
+- [ ] Supports .jpg, .png, .heic formats
+- [ ] File permissions correct for vault access
+
+### Auto-Population
+- [ ] Timestamp auto-fills from EXIF
+- [ ] Location auto-fills from GPS
+- [ ] Place auto-matched within 100m
+- [ ] Weather fetches for photo's time + location
+- [ ] User can override any auto-populated fields
+
+### Entry Creation
+- [ ] Photo link embedded as `![[photos/filename.jpg]]`
+- [ ] Camera metadata stored in YAML
+- [ ] Entry appears in list with photo indicator
+- [ ] Photo displays correctly in entry detail view
+
+### Edge Cases
+- [ ] Photo without EXIF data (manual entry required)
+- [ ] Photo with partial EXIF (missing GPS or timestamp)
+- [ ] Large photo files (>10MB)
+- [ ] HEIC format conversion if needed
+
+## Open Questions / Future Enhancements
+
+1. **Thumbnail generation**: Should we generate thumbnails for list view performance?
+2. **Image optimization**: Should large photos be compressed before import?
+3. **Multiple photos**: Future enhancement to support photo galleries per entry?
+4. **Photo editing**: Basic cropping/rotation before import?
+5. **iCloud Photos**: Handle photos still in iCloud (not yet downloaded)?
+
+---
+
+# Feature 2: Configurable Folder Structure
+
+## Overview
+
+Make all vault folder paths user-configurable to support different Obsidian vault structures. Currently, all paths are hardcoded (e.g., `Entries/`, `Places/`, `_attachments/audio/`). Users need flexibility to match their existing vault organization.
+
+## User Requirements
+
+- **Settings-based configuration**: Accessible anytime in Settings view
+- **Configure all paths**: Entries, People, Places, and all attachment types
+- **Validation**: Ensure folders exist or can be created
+- **Migration warnings**: Alert users if changing paths with existing data
+- **Persistent storage**: Save configuration to UserDefaults
+- **Backward compatibility**: Default to current hardcoded paths
+- **Path preview**: Show full paths before saving
+
+## Current State Analysis
+
+### Hardcoded Path Locations
+
+| Component | File | Line | Hardcoded Path |
+|-----------|------|------|----------------|
+| Entries directory | Entry.swift | 75-91 | `Entries/YYYY/MM-MMMM/DD/` |
+| Days directory | EntryWriter.swift | 246 | `Days/YYYY/MM-MMMM/` |
+| Places directory | PlaceWriter.swift | 27 | `Places/` |
+| People directory | PersonWriter.swift | 27 | `People/` |
+| Audio attachments | AudioFileManager.swift | 228 | `_attachments/audio/` |
+| Routes (GPX) | GPXWriter.swift | 29-31 | `_attachments/routes/` |
+| Maps | EntryWriter.swift | 161 | `_attachments/maps/` |
+
+### Configuration Gap
+
+**What exists:**
+- Template management settings (PlaceTemplateSettingsView, PersonTemplateSettingsView)
+- Vault root URL selection (VaultManager)
+
+**What doesn't exist:**
+- Path configuration storage
+- Settings UI for folder paths
+- Path validation logic
+- Migration handling
+
+## Architecture Design
+
+### Configuration Model
+
+**New File:** `JournalCompanion/Models/VaultConfiguration.swift`
+
+```swift
+struct VaultConfiguration: Codable {
+    // Entry paths
+    var entriesDirectory: String = "Entries"
+    var daysDirectory: String = "Days"
+
+    // Entity paths
+    var placesDirectory: String = "Places"
+    var peopleDirectory: String = "People"
+
+    // Attachment paths
+    var attachmentsDirectory: String = "_attachments"
+    var audioDirectory: String = "audio"         // Relative to attachments
+    var photosDirectory: String = "photos"       // Relative to attachments
+    var routesDirectory: String = "routes"       // Relative to attachments
+    var mapsDirectory: String = "maps"           // Relative to attachments
+
+    // Template presets
+    static let `default` = VaultConfiguration()
+
+    static let flatStructure = VaultConfiguration(
+        entriesDirectory: "Journal",
+        daysDirectory: "Journal/Daily",
+        placesDirectory: "Journal/Places",
+        peopleDirectory: "Journal/People",
+        attachmentsDirectory: "Journal/Attachments"
+    )
+
+    // Full path builders
+    func entryPath(for date: Date) -> String {
+        let year = Calendar.current.component(.year, from: date)
+        let month = Calendar.current.component(.month, from: date)
+        let day = Calendar.current.component(.day, from: date)
+        let monthName = DateFormatter().monthSymbols[month - 1]
+        return "\(entriesDirectory)/\(year)/\(String(format: "%02d", month))-\(monthName)/\(String(format: "%02d", day))"
     }
 
-    private func toggleSelection(_ person: Person) {
-        if let index = selectedPeople.firstIndex(where: { $0.id == person.id }) {
-            selectedPeople.remove(at: index)
-        } else {
-            selectedPeople.append(person)
-        }
+    func audioAttachmentsPath() -> String {
+        "\(attachmentsDirectory)/\(audioDirectory)"
     }
+
+    func photoAttachmentsPath() -> String {
+        "\(attachmentsDirectory)/\(photosDirectory)"
+    }
+
+    // ... similar for other paths
 }
 ```
 
-**Integration into QuickEntryView**:
+### Configuration Storage
+
+**Modified File:** `JournalCompanion/Services/FileSystem/VaultManager.swift`
+
+**New properties:**
 ```swift
-// Add to QuickEntryView Form:
-Section("People") {
-    if viewModel.selectedPeople.isEmpty {
-        Button("Add People") {
-            showPersonPicker = true
-        }
+@Published var vaultConfiguration: VaultConfiguration = .default
+private let configKey = "vaultConfiguration"
+```
+
+**New methods:**
+```swift
+// Load configuration from UserDefaults
+func loadConfiguration() {
+    if let data = UserDefaults.standard.data(forKey: configKey),
+       let config = try? JSONDecoder().decode(VaultConfiguration.self, from: data) {
+        vaultConfiguration = config
     } else {
-        ForEach(viewModel.selectedPeople) { person in
-            HStack {
-                Text(person.name)
-                Spacer()
-                Button {
-                    viewModel.removePerson(person)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        Button("Add More") {
-            showPersonPicker = true
-        }
+        vaultConfiguration = .default
     }
 }
-.sheet(isPresented: $showPersonPicker) {
-    PersonPickerView(selectedPeople: $viewModel.selectedPeople)
-        .environmentObject(viewModel.vaultManager)
+
+// Save configuration to UserDefaults
+func saveConfiguration(_ config: VaultConfiguration) throws {
+    let data = try JSONEncoder().encode(config)
+    UserDefaults.standard.set(data, forKey: configKey)
+    vaultConfiguration = config
+}
+
+// Validate that configured directories exist or can be created
+func validateConfiguration(_ config: VaultConfiguration) async throws -> [String: Bool] {
+    guard let vaultURL else { throw VaultError.noVaultConfigured }
+
+    var validation: [String: Bool] = [:]
+
+    // Check each directory
+    validation["entries"] = directoryExistsOrCanCreate(path: config.entriesDirectory)
+    validation["days"] = directoryExistsOrCanCreate(path: config.daysDirectory)
+    validation["places"] = directoryExistsOrCanCreate(path: config.placesDirectory)
+    validation["people"] = directoryExistsOrCanCreate(path: config.peopleDirectory)
+    validation["attachments"] = directoryExistsOrCanCreate(path: config.attachmentsDirectory)
+
+    return validation
 }
 ```
 
-#### 7. Timeline & Analytics
+### Settings UI
 
-**PersonTimelineView**:
-- Chronological list of all entries mentioning person
-- Group by date
-- Show entry snippets
-- Filter by entry type (audio, text, place visits)
+**New File:** `JournalCompanion/Views/Settings/FolderStructureSettingsView.swift`
 
-**RelationshipAnalyticsView** (optional):
-- Interaction frequency graph
-- Last contact date
-- Most common places met
-- Most common tags in shared entries
+```swift
+struct FolderStructureSettingsView: View {
+    @EnvironmentObject var vaultManager: VaultManager
+    @State private var config: VaultConfiguration
+    @State private var showValidation = false
+    @State private var validationResults: [String: Bool] = [:]
+    @State private var showMigrationWarning = false
+    @State private var hasExistingData = false
 
-### Implementation Phases
+    init(vaultManager: VaultManager) {
+        _config = State(initialValue: vaultManager.vaultConfiguration)
+    }
 
-**Phase 1: Core Person Model (Week 1)**
-- [ ] Create Person model with full metadata
-- [ ] Implement PersonWriter actor
-- [ ] Implement PersonReader actor
-- [ ] Update VaultManager to load people
-- [ ] Markdown parsing and generation
+    var body: some View {
+        Form {
+            templateSection
+            entriesSection
+            entitiesSection
+            attachmentsSection
+            previewSection
+            actionsSection
+        }
+        .navigationTitle("Folder Structure")
+        .alert("Migration Warning", isPresented: $showMigrationWarning) {
+            Button("Cancel", role: .cancel) { }
+            Button("Change Anyway", role: .destructive) {
+                saveConfiguration()
+            }
+        } message: {
+            Text("Changing folder paths won't move existing files. You may need to manually reorganize your vault.")
+        }
+    }
 
-**Phase 2: Basic UI (Week 2)**
-- [ ] Build PeopleListView with search/filter
-- [ ] Build PersonRowView
-- [ ] Build PersonDetailView
-- [ ] Build PersonCreationView
-- [ ] Photo upload/selection
+    private var templateSection: some View {
+        Section {
+            Button {
+                config = .default
+            } label: {
+                HStack {
+                    Text("Default Structure")
+                    Spacer()
+                    if config == .default {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
 
-**Phase 3: Entry Linking (Week 3)**
-- [ ] Update Entry model with people array
-- [ ] Build PersonPickerView
-- [ ] Integrate into QuickEntryView
-- [ ] Update EntryReader to parse people links
-- [ ] Update EntryWriter to serialize people array
+            Button {
+                config = .flatStructure
+            } label: {
+                HStack {
+                    Text("Flat Structure")
+                    Spacer()
+                    if config == .flatStructure {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+        } header: {
+            Text("Presets")
+        } footer: {
+            Text("Choose a preset or customize paths below")
+        }
+    }
 
-**Phase 4: Timeline & Search (Week 4)**
-- [ ] Build PersonTimelineView
-- [ ] Filter entries by person in main entry list
-- [ ] Add people filter to search
-- [ ] Related entries count badges
-- [ ] Quick actions (call, email, message)
+    private var entriesSection: some View {
+        Section("Entries") {
+            HStack {
+                Text("Entries")
+                Spacer()
+                TextField("Entries", text: $config.entriesDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-**Phase 5: Advanced Features (Week 5)**
-- [ ] Birthday/anniversary reminders
-- [ ] Contact import from system Contacts
-- [ ] Relationship type analytics
-- [ ] Export person profile
-- [ ] Bulk operations (merge duplicates)
+            HStack {
+                Text("Days")
+                Spacer()
+                TextField("Days", text: $config.daysDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
 
-### Technical Decisions
+    private var entitiesSection: some View {
+        Section("Entities") {
+            HStack {
+                Text("Places")
+                Spacer()
+                TextField("Places", text: $config.placesDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-**Why Not Use Contacts Framework?**
-- More control over metadata structure
-- Can add custom fields (met date, relationship notes)
-- No sync issues with system contacts
-- Privacy (keep journaling separate from system)
-- But: Optional import from Contacts for convenience
+            HStack {
+                Text("People")
+                Spacer()
+                TextField("People", text: $config.peopleDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
 
-**Pronouns Field**:
-- Free-text to support all identities
-- Stored in frontmatter for Obsidian compatibility
-- Optional but encouraged
+    private var attachmentsSection: some View {
+        Section("Attachments") {
+            HStack {
+                Text("Base Directory")
+                Spacer()
+                TextField("_attachments", text: $config.attachmentsDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-**Photo Storage**:
-- Store in `People/Photos/` subdirectory
-- Reference by filename in YAML
-- Support common formats (JPG, PNG)
-- Optional compression for performance
+            HStack {
+                Text("Audio")
+                Spacer()
+                TextField("audio", text: $config.audioDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-**Privacy Considerations**:
-- No automatic contact syncing
-- Birthdays stored as month-day only (no year)
-- User controls what info to store
-- No cloud sync (vault only)
+            HStack {
+                Text("Photos")
+                Spacer()
+                TextField("photos", text: $config.photosDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-### Files to Create
+            HStack {
+                Text("Routes")
+                Spacer()
+                TextField("routes", text: $config.routesDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
 
-**Models**:
-- `Models/Person.swift`
-- `Models/RelationshipType.swift`
-- `Models/ContactInfo.swift`
+            HStack {
+                Text("Maps")
+                Spacer()
+                TextField("maps", text: $config.mapsDirectory)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 150)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
+    }
 
-**Services**:
-- `Services/FileSystem/PersonWriter.swift`
-- `Services/FileSystem/PersonReader.swift`
+    private var previewSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Full Paths:")
+                    .font(.headline)
 
-**ViewModels**:
-- `ViewModels/PersonCreationViewModel.swift`
-- `ViewModels/PersonDetailViewModel.swift`
+                Text("Entries: \(config.entryPath(for: Date()))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-**Views**:
-- `Views/People/PeopleListView.swift`
-- `Views/People/PersonRowView.swift`
-- `Views/People/PersonDetailView.swift`
-- `Views/People/PersonCreationView.swift`
-- `Views/People/PersonPickerView.swift`
-- `Views/People/PersonTimelineView.swift`
-- `Views/People/PersonHeaderView.swift`
+                Text("Places: \(config.placesDirectory)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("Audio: \(config.audioAttachmentsPath())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("Photos: \(config.photoAttachmentsPath())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Preview")
+        }
+    }
+
+    private var actionsSection: some View {
+        Section {
+            Button {
+                Task {
+                    do {
+                        validationResults = try await vaultManager.validateConfiguration(config)
+                        showValidation = true
+                    } catch {
+                        // Handle error
+                    }
+                }
+            } label: {
+                Label("Validate Paths", systemImage: "checkmark.circle")
+            }
+
+            Button {
+                if hasExistingData {
+                    showMigrationWarning = true
+                } else {
+                    saveConfiguration()
+                }
+            } label: {
+                Label("Save Configuration", systemImage: "square.and.arrow.down")
+            }
+            .disabled(config == vaultManager.vaultConfiguration)
+        }
+    }
+
+    private func saveConfiguration() {
+        do {
+            try vaultManager.saveConfiguration(config)
+        } catch {
+            // Handle error
+        }
+    }
+}
+```
+
+### Writer/Reader Updates
+
+**Strategy:** Replace all hardcoded path strings with configuration lookups.
+
+**Example - EntryWriter.swift:**
+
+**Before:**
+```swift
+let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
+```
+
+**After:**
+```swift
+let config = vaultManager.vaultConfiguration
+let directoryPath = config.entryPath(for: entry.dateCreated)
+let directoryURL = vaultURL.appendingPathComponent(directoryPath)
+```
+
+**Files to update:**
+1. `Entry.swift` - Replace `directoryPath` computed property with config-based version
+2. `EntryWriter.swift` - Use config for entry and day paths
+3. `EntryReader.swift` - Use config for loading entries
+4. `PlaceWriter.swift` - Use config for places directory
+5. `PersonWriter.swift` - Use config for people directory
+6. `AudioFileManager.swift` - Use config for audio attachments path
+7. `PhotoFileManager.swift` (NEW) - Use config for photos path
+8. `GPXWriter.swift` - Use config for routes path
+9. Map snapshot code - Use config for maps path
+
+### VaultManager Dependency Injection
+
+**Challenge:** Writers/Readers need access to configuration, but currently only have `vaultURL`.
+
+**Solution:** Pass configuration through initializers or make it accessible via a shared singleton.
+
+**Option 1: Pass config to initializers**
+```swift
+actor EntryWriter {
+    let vaultURL: URL
+    let configuration: VaultConfiguration
+
+    init(vaultURL: URL, configuration: VaultConfiguration) {
+        self.vaultURL = vaultURL
+        self.configuration = configuration
+    }
+}
+```
+
+**Option 2: Shared configuration manager (simpler)**
+```swift
+// In VaultManager
+static var shared: VaultManager?
+
+// Writers/readers access config
+VaultManager.shared?.vaultConfiguration ?? .default
+```
+
+## Implementation Plan
+
+### Phase 1: Configuration Model & Storage
+
+1. Create `VaultConfiguration.swift` with default paths
+2. Add configuration storage to `VaultManager`
+3. Add preset templates (default, flat structure)
+4. Add configuration persistence (UserDefaults)
+
+### Phase 2: Settings UI
+
+1. Create `FolderStructureSettingsView.swift`
+2. Add to main `SettingsView` navigation
+3. Implement path validation
+4. Add migration warning system
+5. Show full path previews
+
+### Phase 3: Writer/Reader Migration
+
+**Critical Files to Update (in order):**
+
+1. `Entry.swift` - Make directoryPath configuration-aware
+2. `VaultManager.swift` - Add shared instance or config injection pattern
+3. `EntryWriter.swift` - Replace hardcoded paths with config
+4. `EntryReader.swift` - Use config for loading
+5. `PlaceWriter.swift` - Use config for places
+6. `PersonWriter.swift` - Use config for people
+7. `AudioFileManager.swift` - Use config for audio
+8. `GPXWriter.swift` - Use config for routes
+9. Map snapshot generation - Use config for maps
+
+### Phase 4: Testing & Validation
+
+**Test Cases:**
+- [ ] Default configuration loads correctly
+- [ ] Configuration persists across app restarts
+- [ ] Path validation catches invalid directories
+- [ ] Entries save to configured location
+- [ ] Places/People save to configured locations
+- [ ] Attachments save to configured subdirectories
+- [ ] Existing vault with default structure still works
+- [ ] User can change configuration without data loss
+- [ ] Migration warning appears when appropriate
+
+### Phase 5: Documentation & Migration Guide
+
+Create user-facing documentation:
+- How to configure folder structure
+- Common vault organization patterns
+- Migration steps for existing vaults
+- Troubleshooting path issues
+
+## Edge Cases & Considerations
+
+### Data Migration
+- **No automatic migration**: App won't move existing files
+- **User responsibility**: Users must manually reorganize vault if needed
+- **Warning system**: Alert users that changing paths requires manual migration
+
+### Path Validation
+- **Check for conflicts**: Ensure paths don't overlap (e.g., Entries can't be inside Places)
+- **Relative vs absolute**: All paths relative to vault root
+- **Special characters**: Validate folder names don't contain invalid characters
+- **Nested paths**: Support arbitrary nesting depth
+
+### Backward Compatibility
+- **Default configuration**: Matches current hardcoded paths exactly
+- **Existing installs**: Load default config on first launch
+- **No breaking changes**: Old vaults continue working without reconfiguration
+
+### Performance
+- **Configuration caching**: Don't reload from UserDefaults on every file operation
+- **Singleton pattern**: Consider shared VaultManager instance for performance
+
+## Testing Checklist
+
+### Configuration Storage
+- [ ] Default configuration loads on first launch
+- [ ] Configuration persists across app restarts
+- [ ] Preset templates apply correctly
+- [ ] Custom paths save and load correctly
+
+### Path Validation
+- [ ] Valid paths pass validation
+- [ ] Invalid characters rejected
+- [ ] Overlapping paths detected
+- [ ] Non-existent directories flagged
+
+### File Operations
+- [ ] Entries save to configured path
+- [ ] Days file created in configured path
+- [ ] Places save to configured path
+- [ ] People save to configured path
+- [ ] Audio attachments save to configured path
+- [ ] Photo attachments save to configured path
+- [ ] Routes save to configured path
+- [ ] Maps save to configured path
+
+### Migration
+- [ ] Warning appears when changing paths with existing data
+- [ ] Users can cancel configuration changes
+- [ ] No data loss when configuration changes
+
+## Open Questions / Future Enhancements
+
+1. **Automatic migration**: Tool to move files to new paths automatically?
+2. **Multi-vault support**: Support switching between multiple vaults with different configs?
+3. **Export/import config**: Share configuration between devices?
+4. **Path templates**: More sophisticated templating for entry paths (e.g., custom date formats)?
+5. **Validation depth**: Should we scan vault and warn about existing content in new paths?
 
 ---
 
-## Integration & Cross-Feature Synergies
+# Implementation Priority
 
-### Watch + Audio
-- Record audio entries directly from Watch (voice note style)
-- Auto-transcribe and sync to iPhone
-- Quick voice capture without opening full recorder
+## Recommended Order
 
-### Audio + People
-- Tag people in audio entries via transcript keywords
-- "Mentioned: Alice Smith" detected from transcript
-- Link people to audio conversations
+1. **Photo Entry Type** (Feature 1)
+   - Standalone feature, no dependencies
+   - Adds immediate user value
+   - Can be implemented without folder structure changes
+   - Estimated effort: 1-2 weeks
 
-### People + Places
-- Track which people you meet at specific places
-- "Coffee meetings with Alice" → list of cafe entries
-- Location-based relationship insights
+2. **Configurable Folder Structure** (Feature 2)
+   - More complex, touches many files
+   - Should be done after photo entry to avoid rework
+   - Critical for app distribution/public release
+   - Estimated effort: 2-3 weeks
 
-### All Three Together
-**Example Use Case**:
-1. User at coffee shop with friend
-2. Creates Watch entry: "Great convo with Alice"
-3. Records 5-minute audio discussing ideas
-4. iPhone receives entry, transcribes audio
-5. Auto-detects: Place = "Blue Bottle Coffee", Person = "Alice Smith"
-6. User confirms auto-links, adds tags
-7. Entry saved with: timestamp, place, person, audio, transcript, weather
+## Pre-Distribution Checklist
 
----
-
-## Development Timeline
-
-### Quarter 1 (Months 1-3)
-- **Month 1**: Apple Watch App (Phases 1-4)
-- **Month 2**: Audio Journaling (Phases 1-3)
-- **Month 3**: Audio Journaling (Phases 4-5) + People Records (Phase 1)
-
-### Quarter 2 (Months 4-6)
-- **Month 4**: People Records (Phases 2-3)
-- **Month 5**: People Records (Phases 4-5)
-- **Month 6**: Integration, polish, bug fixes
-
-### Quarter 3 (Month 7+)
-- Synergy features (Watch + Audio, Audio + People)
-- Advanced analytics
-- User testing and refinement
+Before releasing the app publicly:
+- [ ] Photo entry feature complete and tested
+- [ ] Folder structure configuration complete and tested
+- [ ] User documentation created
+- [ ] Migration guide for different vault structures
+- [ ] App Store screenshots with various entry types
+- [ ] Privacy policy for photo/location access
+- [ ] TestFlight beta testing with diverse vault structures
 
 ---
 
-## Technical Dependencies
-
-### Frameworks & APIs
-- **WatchConnectivity**: Watch-iPhone sync
-- **SwiftData**: Watch local persistence
-- **AVFoundation**: Audio recording/playback
-- **Speech**: On-device transcription
-- **JournalingSuggestions**: Already integrated (iOS 17.2+)
-- **WeatherKit**: Already integrated
-- **MapKit**: Already integrated
-
-### Minimum OS Versions
-- **iOS**: 17.2+ (for JournalingSuggestions)
-- **WatchOS**: 10.0+ (for latest SwiftUI)
-- **macOS**: N/A (iOS-only app for now)
-
-### Permissions Required
-- **Microphone**: Audio recording
-- **Speech Recognition**: Transcription
-- **Location**: Weather (already granted)
-- **Contacts**: Optional import for People
-
----
-
-## Success Metrics
-
-### Apple Watch App
-- [ ] 80%+ sync success rate
-- [ ] <5 second sync time when iPhone nearby
-- [ ] <30 second entry creation time (from wrist raise to saved)
-- [ ] Watch complications work reliably
-
-### Audio Journaling
-- [ ] <2% transcription error rate (English)
-- [ ] Transcription completes within 30 seconds for 5-minute audio
-- [ ] <10MB file size for 5-minute lossless audio
-- [ ] Audio playback works offline
-
-### People Records
-- [ ] Support 500+ people without performance issues
-- [ ] <1 second to filter/search people list
-- [ ] Entry linking works for 1000+ entries
-- [ ] Zero data loss during file operations
-
----
-
-## Future Considerations (Post-Roadmap)
-
-### Phase 4+ Ideas
-- **iPad App**: Optimized layouts, Split View support
-- **Mac App**: Catalyst or native SwiftUI, menubar app
-- **Widgets**: Home screen/lock screen entry counts
-- **Shortcuts**: Siri integration for voice entry creation
-- **Export**: PDF, DOCX, JSON export options
-- **Themes**: Custom color schemes and typography
-- **Plugins**: Obsidian-style community plugins
-- **Encryption**: End-to-end encryption option
-- **Cloud Sync**: Optional iCloud sync (alternative to Obsidian Sync)
-- **Collaboration**: Shared journals for couples/families
-- **AI Features**: Sentiment analysis, memory suggestions, writing prompts
-
----
-
-## Notes
-
-This roadmap is a living document. Features may be reprioritized based on:
-- User feedback
-- Technical feasibility discoveries
-- Platform API changes
-- Development velocity
-
-**Last Updated**: 2025-01-15
-
-**Status**: Planning Phase - Ready for implementation
+*End of Roadmap*

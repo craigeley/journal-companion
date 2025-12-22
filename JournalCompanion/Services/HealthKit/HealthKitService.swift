@@ -350,10 +350,39 @@ actor HealthKitService {
         }()
 
         // Extract weather data from workout metadata
+        print("🌤️ Checking weather metadata for workout: \(workoutType)")
+        if let metadata = workout.metadata {
+            print("  Metadata keys: \(metadata.keys)")
+
+            // Check for temperature
+            if let tempQuantity = metadata[HKMetadataKeyWeatherTemperature] {
+                print("  Temperature key exists: \(tempQuantity)")
+            } else {
+                print("  ⚠️ No temperature data")
+            }
+
+            // Check for condition
+            if let conditionValue = metadata[HKMetadataKeyWeatherCondition] {
+                print("  Condition key exists: \(conditionValue) (type: \(type(of: conditionValue)))")
+            } else {
+                print("  ⚠️ No condition data")
+            }
+
+            // Check for humidity
+            if let humidityValue = metadata[HKMetadataKeyWeatherHumidity] {
+                print("  Humidity key exists: \(humidityValue)")
+            } else {
+                print("  ⚠️ No humidity data")
+            }
+        } else {
+            print("  ⚠️ No metadata at all")
+        }
+
         let temperature: Int? = {
             if let metadata = workout.metadata,
                let tempQuantity = metadata[HKMetadataKeyWeatherTemperature] as? HKQuantity {
                 let fahrenheit = tempQuantity.doubleValue(for: HKUnit.degreeFahrenheit())
+                print("  ✓ Temperature: \(Int(fahrenheit.rounded()))°F")
                 return Int(fahrenheit.rounded())
             }
             return nil
@@ -361,10 +390,16 @@ actor HealthKitService {
 
         let condition: String? = {
             if let metadata = workout.metadata,
-               let conditionNumber = metadata[HKMetadataKeyWeatherCondition] as? NSNumber,
-               let weatherCondition = HKWeatherCondition(rawValue: conditionNumber.intValue) {
-                // Convert HKWeatherCondition to lowercase string matching Entry format
-                return weatherConditionString(weatherCondition)
+               let conditionNumber = metadata[HKMetadataKeyWeatherCondition] as? NSNumber {
+                let rawValue = conditionNumber.intValue
+                print("  Condition raw value: \(rawValue)")
+                if let weatherCondition = HKWeatherCondition(rawValue: rawValue) {
+                    let conditionStr = weatherConditionString(weatherCondition)
+                    print("  ✓ Condition: \(conditionStr)")
+                    return conditionStr
+                } else {
+                    print("  ⚠️ Could not create HKWeatherCondition from raw value: \(rawValue)")
+                }
             }
             return nil
         }()
@@ -373,6 +408,7 @@ actor HealthKitService {
             if let metadata = workout.metadata,
                let humidityQuantity = metadata[HKMetadataKeyWeatherHumidity] as? HKQuantity {
                 let percent = humidityQuantity.doubleValue(for: HKUnit.percent())
+                print("  ✓ Humidity: \(Int(percent.rounded()))%")
                 return Int(percent.rounded())
             }
             return nil

@@ -169,35 +169,39 @@ class WorkoutSyncViewModel: ObservableObject {
                 entry.unknownFieldsOrder.append("avg_cadence")
             }
 
-            if let power = workout.avgPower {
-                entry.unknownFields["avg_power"] = .int(power)
-                entry.unknownFieldsOrder.append("avg_power")
-            }
+            // MARK: Advanced running form metrics (disabled to reduce YAML clutter)
+            // These metrics are still extracted from HealthKit and available in WorkoutData
+            // Can be re-enabled or made optional via settings in the future
 
-            if let groundContactTime = workout.avgGroundContactTime {
-                entry.unknownFields["avg_stance_time"] = .double(groundContactTime)
-                entry.unknownFieldsOrder.append("avg_stance_time")
-            }
-
-            if let strideLength = workout.avgStrideLength {
-                entry.unknownFields["avg_step_length"] = .double(strideLength * 1000) // convert to mm
-                entry.unknownFieldsOrder.append("avg_step_length")
-            }
-
-            if let verticalOscillation = workout.avgVerticalOscillation {
-                entry.unknownFields["avg_vertical_oscillation"] = .double(verticalOscillation * 10) // convert to mm
-                entry.unknownFieldsOrder.append("avg_vertical_oscillation")
-            }
-
-            if let verticalRatio = workout.avgVerticalRatio {
-                entry.unknownFields["avg_vertical_ratio"] = .double(verticalRatio)
-                entry.unknownFieldsOrder.append("avg_vertical_ratio")
-            }
-
-            if let steps = workout.totalSteps {
-                entry.unknownFields["total_strides"] = .int(steps)
-                entry.unknownFieldsOrder.append("total_strides")
-            }
+            // if let power = workout.avgPower {
+            //     entry.unknownFields["avg_power"] = .int(power)
+            //     entry.unknownFieldsOrder.append("avg_power")
+            // }
+            //
+            // if let groundContactTime = workout.avgGroundContactTime {
+            //     entry.unknownFields["avg_stance_time"] = .double(groundContactTime)
+            //     entry.unknownFieldsOrder.append("avg_stance_time")
+            // }
+            //
+            // if let strideLength = workout.avgStrideLength {
+            //     entry.unknownFields["avg_step_length"] = .double(strideLength * 1000) // convert to mm
+            //     entry.unknownFieldsOrder.append("avg_step_length")
+            // }
+            //
+            // if let verticalOscillation = workout.avgVerticalOscillation {
+            //     entry.unknownFields["avg_vertical_oscillation"] = .double(verticalOscillation * 10) // convert to mm
+            //     entry.unknownFieldsOrder.append("avg_vertical_oscillation")
+            // }
+            //
+            // if let verticalRatio = workout.avgVerticalRatio {
+            //     entry.unknownFields["avg_vertical_ratio"] = .double(verticalRatio)
+            //     entry.unknownFieldsOrder.append("avg_vertical_ratio")
+            // }
+            //
+            // if let steps = workout.totalSteps {
+            //     entry.unknownFields["total_strides"] = .int(steps)
+            //     entry.unknownFieldsOrder.append("total_strides")
+            // }
 
             // Write entry
             let writer = EntryWriter(vaultURL: vaultURL)

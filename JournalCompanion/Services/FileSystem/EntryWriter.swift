@@ -331,6 +331,16 @@ actor EntryWriter {
             return "audio-journal"
         }
 
+        // Check for workout entries
+        if entry.tags.contains("workout") {
+            // Use specific callout for running workouts
+            if entry.tags.contains("running") {
+                return "run"
+            }
+            // Generic workout callout for other types
+            return "workout"
+        }
+
         // If entry has a place with a callout, use it
         if let placeCallout = entry.placeCallout, !placeCallout.isEmpty {
             return placeCallout

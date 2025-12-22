@@ -175,7 +175,8 @@ struct Entry: Identifiable, Codable, Sendable {
 
         case "mood_valence":
             if let mv = moodValence {
-                yaml += "mood_valence: \(mv)\n"
+                // Round to 1 decimal place for readability
+                yaml += "mood_valence: \(String(format: "%.1f", mv))\n"
             }
 
         case "mood_labels":
@@ -231,7 +232,19 @@ struct Entry: Identifiable, Codable, Sendable {
         case .int(let i):
             yaml += "\(key): \(i)\n"
         case .double(let d):
-            yaml += "\(key): \(d)\n"
+            // Format doubles cleanly: use 1 decimal for aperture-like values,
+            // remove unnecessary trailing zeros for others
+            if key == "aperture" {
+                yaml += "\(key): \(String(format: "%.1f", d))\n"
+            } else if d == d.rounded() {
+                // Whole number - write as integer
+                yaml += "\(key): \(Int(d))\n"
+            } else {
+                // Use up to 2 decimal places, trimming trailing zeros
+                let formatted = String(format: "%.2f", d)
+                    .replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
+                yaml += "\(key): \(formatted)\n"
+            }
         case .bool(let b):
             yaml += "\(key): \(b)\n"
         case .array(let arr):

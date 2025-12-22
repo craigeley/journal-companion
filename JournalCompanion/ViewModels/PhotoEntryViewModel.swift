@@ -337,11 +337,14 @@ class PhotoEntryViewModel: ObservableObject {
                     entry.unknownFieldsOrder.append("lens_model")
                 }
                 if let focal = exif.focalLength {
-                    entry.unknownFields["focal_length"] = .double(focal)
+                    // Store as integer mm (industry standard)
+                    entry.unknownFields["focal_length"] = .int(Int(focal.rounded()))
                     entry.unknownFieldsOrder.append("focal_length")
                 }
                 if let aperture = exif.aperture {
-                    entry.unknownFields["aperture"] = .double(aperture)
+                    // Round to 1 decimal place (industry standard for f-stops)
+                    let roundedAperture = (aperture * 10).rounded() / 10
+                    entry.unknownFields["aperture"] = .double(roundedAperture)
                     entry.unknownFieldsOrder.append("aperture")
                 }
                 if let iso = exif.iso {

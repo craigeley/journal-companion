@@ -294,12 +294,10 @@ actor HealthKitService {
                 let steps = sumQuantity.doubleValue(for: .count())
                 totalSteps = Int(steps)
                 // Calculate cadence: steps per minute
-                // Note: HealthKit stepCount represents strides (gait cycles), not individual foot strikes
-                // Multiply by 2 to get total steps per minute (both feet)
+                // HealthKit stepCount already counts both feet during workouts
                 if workout.duration > 0 {
                     let minutes = workout.duration / 60.0
-                    let stridesPerMinute = steps / minutes
-                    avgCadence = Int(stridesPerMinute * 2) // Convert strides/min to steps/min
+                    avgCadence = Int(steps / minutes)
                 }
             }
         }

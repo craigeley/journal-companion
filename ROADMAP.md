@@ -4,7 +4,43 @@ This document contains implementation plans for upcoming features, serving as a 
 
 ---
 
-# Feature 1: Photo Entry Type
+# Feature 1: Photo Entry Type ✅ COMPLETED
+
+**Completed:** December 22, 2025
+
+## Summary of Implementation
+
+Photo entry creation with EXIF metadata extraction and hero zoom preview.
+
+### What Was Built
+
+**New Files:**
+- `PhotoEXIF.swift` - EXIF metadata model and extraction
+- `PhotoFileManager.swift` - Actor for photo file I/O
+- `PhotoEntryViewModel.swift` - Photo entry state management
+- `PhotoEntryView.swift` - Photo entry creation UI
+- `QuickLookPresenter` (in EntryDetailView) - Hero zoom fullscreen preview
+
+**Modified Files:**
+- `ContentView.swift` - Added Photo Entry button to FAB menu
+- `Entry.swift` - Added photo entry support (isPhotoEntry, photoAttachment, camera metadata)
+- `EntryListView.swift` - Photo thumbnails in entry rows
+- `EntryDetailView.swift` - Photo display with hero zoom to fullscreen
+
+### Features Delivered
+- Single photo per entry from iOS Photo Picker
+- EXIF metadata extraction (GPS, timestamp, camera/lens info)
+- Auto-populate location and timestamp from photo metadata
+- Weather fetch for photo's time and location
+- Photo copied to `_attachments/photos/` in vault
+- Obsidian embedding with `![[photos/filename.jpg]]` syntax
+- Photo thumbnails in entry list (optimized loading)
+- Hero zoom transition to fullscreen using native Quick Look
+- Full Quick Look UI (share, markup, Done button)
+
+---
+
+## Original Planning Document
 
 ## Overview
 
@@ -571,36 +607,36 @@ focal_length: 5.7
 ## Testing Checklist
 
 ### EXIF Extraction
-- [ ] GPS coordinates extracted correctly
-- [ ] Timestamp extracted and parsed correctly
-- [ ] Camera model/lens/focal length extracted
-- [ ] Handles photos without GPS data gracefully
-- [ ] Handles photos without timestamp gracefully
+- [x] GPS coordinates extracted correctly
+- [x] Timestamp extracted and parsed correctly
+- [x] Camera model/lens/focal length extracted
+- [x] Handles photos without GPS data gracefully
+- [x] Handles photos without timestamp gracefully
 
 ### Photo Import
-- [ ] Photo copied to `_attachments/photos/`
-- [ ] Filename format matches `{entryID}.{ext}`
-- [ ] Supports .jpg, .png, .heic formats
-- [ ] File permissions correct for vault access
+- [x] Photo copied to `_attachments/photos/`
+- [x] Filename format matches `{entryID}.{ext}`
+- [x] Supports .jpg, .png, .heic formats
+- [x] File permissions correct for vault access
 
 ### Auto-Population
-- [ ] Timestamp auto-fills from EXIF
-- [ ] Location auto-fills from GPS
-- [ ] Place auto-matched within 100m
-- [ ] Weather fetches for photo's time + location
-- [ ] User can override any auto-populated fields
+- [x] Timestamp auto-fills from EXIF
+- [x] Location auto-fills from GPS
+- [x] Place auto-matched within 100m
+- [x] Weather fetches for photo's time + location
+- [x] User can override any auto-populated fields
 
 ### Entry Creation
-- [ ] Photo link embedded as `![[photos/filename.jpg]]`
-- [ ] Camera metadata stored in YAML
-- [ ] Entry appears in list with photo indicator
-- [ ] Photo displays correctly in entry detail view
+- [x] Photo link embedded as `![[photos/filename.jpg]]`
+- [x] Camera metadata stored in YAML
+- [x] Entry appears in list with photo indicator
+- [x] Photo displays correctly in entry detail view
 
 ### Edge Cases
-- [ ] Photo without EXIF data (manual entry required)
-- [ ] Photo with partial EXIF (missing GPS or timestamp)
-- [ ] Large photo files (>10MB)
-- [ ] HEIC format conversion if needed
+- [x] Photo without EXIF data (manual entry required)
+- [x] Photo with partial EXIF (missing GPS or timestamp)
+- [ ] Large photo files (>10MB) - not tested
+- [x] HEIC format conversion if needed
 
 ## Open Questions / Future Enhancements
 
@@ -1156,24 +1192,21 @@ Create user-facing documentation:
 
 # Implementation Priority
 
-## Recommended Order
+## Status
 
-1. **Photo Entry Type** (Feature 1)
-   - Standalone feature, no dependencies
-   - Adds immediate user value
-   - Can be implemented without folder structure changes
-   - Estimated effort: 1-2 weeks
+1. **Photo Entry Type** (Feature 1) ✅ **COMPLETED** - December 22, 2025
+   - Full implementation with EXIF extraction
+   - Hero zoom fullscreen preview
+   - Photo thumbnails in list view
 
-2. **Configurable Folder Structure** (Feature 2)
+2. **Configurable Folder Structure** (Feature 2) - **NEXT**
    - More complex, touches many files
-   - Should be done after photo entry to avoid rework
    - Critical for app distribution/public release
-   - Estimated effort: 2-3 weeks
 
 ## Pre-Distribution Checklist
 
 Before releasing the app publicly:
-- [ ] Photo entry feature complete and tested
+- [x] Photo entry feature complete and tested
 - [ ] Folder structure configuration complete and tested
 - [ ] User documentation created
 - [ ] Migration guide for different vault structures

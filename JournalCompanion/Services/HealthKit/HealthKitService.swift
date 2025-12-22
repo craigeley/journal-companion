@@ -164,7 +164,8 @@ actor HealthKitService {
                     results.append(data)
                 }
             }
-            return results
+            // Sort by start date (newest first) since TaskGroup doesn't preserve order
+            return results.sorted { $0.startDate > $1.startDate }
         }
     }
 

@@ -99,7 +99,7 @@ actor EntryWriter {
     }
 
     /// Delete an entry
-    func delete(entry: Entry) async throws {
+    func delete(entry: Entry, deleteAttachments: Bool = false) async throws {
         let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
         let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
 
@@ -111,10 +111,62 @@ actor EntryWriter {
         // Remove from day file first
         try await removeFromDayFile(entry: entry)
 
+        // Delete attachments if requested
+        if deleteAttachments {
+            try await deleteEntryAttachments(entry: entry)
+        }
+
         // Delete the entry file
         try fileManager.removeItem(at: fileURL)
 
         print("✓ Deleted entry: \(entry.filename).md")
+    }
+
+    /// Delete all attachments associated with an entry
+    func deleteEntryAttachments(entry: Entry) async throws {
+        let attachmentsDir = vaultURL.appendingPathComponent("_attachments")
+
+        // Delete audio files and their .srt sidecar files
+        if let audioFiles = entry.audioAttachments {
+            let audioDir = attachmentsDir.appendingPathComponent("audio")
+
+            for audioFile in audioFiles {
+                let audioURL = audioDir.appendingPathComponent(audioFile)
+                if fileManager.fileExists(atPath: audioURL.path) {
+                    try fileManager.removeItem(at: audioURL)
+                    print("✓ Deleted audio file: \(audioFile)")
+                }
+
+                // Delete .srt sidecar file
+                let srtFilename = (audioFile as NSString).deletingPathExtension + ".srt"
+                let srtURL = audioDir.appendingPathComponent(srtFilename)
+                if fileManager.fileExists(atPath: srtURL.path) {
+                    try fileManager.removeItem(at: srtURL)
+                    print("✓ Deleted SRT file: \(srtFilename)")
+                }
+            }
+        }
+
+        // Delete GPX route file
+        if let routeFile = entry.routeFile {
+            let routesDir = attachmentsDir.appendingPathComponent("routes")
+            let routeURL = routesDir.appendingPathComponent(routeFile)
+            if fileManager.fileExists(atPath: routeURL.path) {
+                try fileManager.removeItem(at: routeURL)
+                print("✓ Deleted GPX route: \(routeFile)")
+            }
+        }
+
+        // Delete map snapshot (inferred from entry ID)
+        let mapsDir = attachmentsDir.appendingPathComponent("maps")
+        let mapFilename = "\(entry.filename)-map.png"
+        let mapURL = mapsDir.appendingPathComponent(mapFilename)
+        if fileManager.fileExists(atPath: mapURL.path) {
+            try fileManager.removeItem(at: mapURL)
+            print("✓ Deleted map snapshot: \(mapFilename)")
+        }
+
+        print("✓ Deleted all attachments for entry: \(entry.filename)")
     }
 
     /// Write workout entry with route data

@@ -128,13 +128,13 @@ class EntryListViewModel: ObservableObject {
     }
 
     /// Delete an entry
-    func deleteEntry(_ entry: Entry) async throws {
+    func deleteEntry(_ entry: Entry, deleteAttachments: Bool = false) async throws {
         guard let vaultURL = vaultManager.vaultURL else {
             throw NSError(domain: "EntryListViewModel", code: 1, userInfo: [NSLocalizedDescriptionKey: "No vault configured"])
         }
 
         let writer = EntryWriter(vaultURL: vaultURL)
-        try await writer.delete(entry: entry)
+        try await writer.delete(entry: entry, deleteAttachments: deleteAttachments)
 
         // Reload entries from vault to update the list
         _ = try await vaultManager.loadEntries(limit: 100)

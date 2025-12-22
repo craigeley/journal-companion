@@ -515,3 +515,36 @@ extension Entry {
         }
     }
 }
+
+// MARK: - Attachment Detection
+extension Entry {
+    /// Check if entry has any attachments (audio, GPX routes, or maps)
+    nonisolated var hasAttachments: Bool {
+        // Check for audio attachments
+        if let audioFiles = audioAttachments, !audioFiles.isEmpty {
+            return true
+        }
+
+        // Check for GPX route file
+        if routeFile != nil {
+            return true
+        }
+
+        return false
+    }
+
+    /// List of attachment types present
+    nonisolated var attachmentTypes: [String] {
+        var types: [String] = []
+
+        if let audioFiles = audioAttachments, !audioFiles.isEmpty {
+            types.append("\(audioFiles.count) audio file\(audioFiles.count == 1 ? "" : "s")")
+        }
+
+        if routeFile != nil {
+            types.append("GPX route and map")
+        }
+
+        return types
+    }
+}

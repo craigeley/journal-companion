@@ -14,6 +14,7 @@ struct EntryListView: View {
     @State private var showDetailView = false
     @State private var entryToDelete: Entry?
     @State private var showDeleteConfirmation = false
+    @State private var showAttachmentDeleteConfirmation = false
     @State private var showSettings = false
     @State private var showWorkoutSync = false
 
@@ -95,12 +96,19 @@ struct EntryListView: View {
                 }
             }
             .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
+                Button("Cancel", role: .cancel) {
+                    entryToDelete = nil
+                }
                 Button("Delete", role: .destructive) {
-                    if let entry = entryToDelete {
+                    if let entry = entryToDelete, entry.hasAttachments {
+                        // Show second confirmation for attachments
+                        showAttachmentDeleteConfirmation = true
+                    } else if let entry = entryToDelete {
+                        // No attachments, delete immediately
                         Task {
                             do {
-                                try await viewModel.deleteEntry(entry)
+                                try await viewModel.deleteEntry(entry, deleteAttachments: false)
+                                entryToDelete = nil
                             } catch {
                                 print("❌ Failed to delete entry: \(error)")
                             }
@@ -109,6 +117,37 @@ struct EntryListView: View {
                 }
             } message: {
                 Text("This will permanently delete the entry and cannot be undone.")
+            }
+            .alert("Also Delete Attachments?", isPresented: $showAttachmentDeleteConfirmation) {
+                Button("Keep Attachments") {
+                    if let entry = entryToDelete {
+                        Task {
+                            do {
+                                try await viewModel.deleteEntry(entry, deleteAttachments: false)
+                                entryToDelete = nil
+                            } catch {
+                                print("❌ Failed to delete entry: \(error)")
+                            }
+                        }
+                    }
+                }
+                Button("Delete Attachments", role: .destructive) {
+                    if let entry = entryToDelete {
+                        Task {
+                            do {
+                                try await viewModel.deleteEntry(entry, deleteAttachments: true)
+                                entryToDelete = nil
+                            } catch {
+                                print("❌ Failed to delete entry: \(error)")
+                            }
+                        }
+                    }
+                }
+            } message: {
+                if let entry = entryToDelete {
+                    let attachmentList = entry.attachmentTypes.joined(separator: ", ")
+                    Text("This entry has \(attachmentList). Do you want to delete them as well?")
+                }
             }
         }
     }

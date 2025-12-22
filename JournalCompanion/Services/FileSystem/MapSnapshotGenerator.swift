@@ -168,6 +168,7 @@ actor MapSnapshotGenerator {
         }
     }
 
+    @MainActor
     private func drawMarker(at point: CGPoint, color: UIColor) {
         let markerSize: CGFloat = 16
         let markerRect = CGRect(

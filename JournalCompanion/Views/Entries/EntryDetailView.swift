@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import QuickLook
 
 struct EntryDetailView: View {
     let entry: Entry
@@ -17,6 +18,8 @@ struct EntryDetailView: View {
     @State private var currentEntry: Entry
     @State private var showPlaybackView = false
     @State private var selectedAudioIndex: Int?
+    @State private var sourceImageView: UIView?
+    @State private var quickLookPresenter = QuickLookPresenter()
 
     init(entry: Entry) {
         self.entry = entry
@@ -26,6 +29,19 @@ struct EntryDetailView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Photo Section (if photo entry)
+                if hasPhoto, let vaultURL = vaultManager.vaultURL, let photoFilename = currentEntry.photoAttachment {
+                    Section("Photo") {
+                        PhotoDetailImageView(
+                            vaultURL: vaultURL,
+                            filename: photoFilename,
+                            sourceView: $sourceImageView
+                        ) { url in
+                            quickLookPresenter.present(url: url, sourceView: sourceImageView)
+                        }
+                    }
+                }
+
                 // Audio Section (if audio entry)
                 if hasAudio {
                     Section("Audio Recording") {
@@ -87,10 +103,10 @@ struct EntryDetailView: View {
                     }
                 }
 
-                // Entry Content Section (read-only with rendered markdown + wiki-links, audio embeds removed)
+                // Entry Content Section (read-only with rendered markdown + wiki-links, embeds removed)
                 Section("Entry") {
                     MarkdownWikiText(
-                        text: contentWithoutAudioEmbeds,
+                        text: contentWithoutEmbeds,
                         places: vaultManager.places,
                         people: vaultManager.people,
                         lineLimit: nil,
@@ -219,18 +235,34 @@ struct EntryDetailView: View {
         }
     }
 
-    // MARK: - Audio Playback
+    // MARK: - Entry Type Detection
 
     private var hasAudio: Bool {
         currentEntry.audioAttachments != nil && !(currentEntry.audioAttachments?.isEmpty ?? true)
     }
 
-    private var contentWithoutAudioEmbeds: String {
+    private var hasPhoto: Bool {
+        currentEntry.isPhotoEntry
+    }
+
+    private var contentWithoutEmbeds: String {
         var cleaned = currentEntry.content
 
         // Remove Obsidian audio embeds: ![[audio/filename.ext]]
         let audioEmbedPattern = #"!\[\[audio/[^\]]+\]\]"#
         if let regex = try? NSRegularExpression(pattern: audioEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Remove Obsidian photo embeds: ![[photos/filename.ext]]
+        let photoEmbedPattern = #"!\[\[photos/[^\]]+\]\]"#
+        if let regex = try? NSRegularExpression(pattern: photoEmbedPattern, options: []) {
             let range = NSRange(cleaned.startIndex..., in: cleaned)
             cleaned = regex.stringByReplacingMatches(
                 in: cleaned,
@@ -319,6 +351,169 @@ struct AudioPlaybackContainerView: View {
         }
 
         isLoading = false
+    }
+}
+
+// MARK: - Photo Detail Image View
+
+/// View for displaying a photo in entry detail with full size and camera metadata
+struct PhotoDetailImageView: View {
+    let vaultURL: URL
+    let filename: String
+    @Binding var sourceView: UIView?
+    let onTap: (URL) -> Void
+
+    @State private var image: UIImage?
+    @State private var isLoading = true
+
+    private var photoURL: URL {
+        vaultURL
+            .appendingPathComponent("_attachments")
+            .appendingPathComponent("photos")
+            .appendingPathComponent(filename)
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if isLoading {
+                ProgressView()
+                    .frame(height: 200)
+            } else if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 400)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .background(
+                        SourceViewCapture(sourceView: $sourceView)
+                    )
+                    .onTapGesture {
+                        onTap(photoURL)
+                    }
+            } else {
+                ContentUnavailableView {
+                    Label("Photo Not Found", systemImage: "photo")
+                } description: {
+                    Text(filename)
+                }
+                .frame(height: 200)
+            }
+        }
+        .task {
+            await loadImage()
+        }
+    }
+
+    private func loadImage() async {
+        let url = photoURL  // Capture URL before detached task
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            isLoading = false
+            return
+        }
+
+        // Load image on background thread
+        let loadedImage = await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url),
+                  let uiImage = UIImage(data: data) else {
+                return nil as UIImage?
+            }
+            return uiImage
+        }.value
+
+        await MainActor.run {
+            self.image = loadedImage
+            self.isLoading = false
+        }
+    }
+}
+
+// MARK: - Source View Capture
+
+/// Captures the underlying UIView for hero zoom transitions
+struct SourceViewCapture: UIViewRepresentable {
+    @Binding var sourceView: UIView?
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        DispatchQueue.main.async {
+            // Walk up to find the image view's superview that contains the actual rendered content
+            if let superview = view.superview {
+                sourceView = superview
+            }
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            if let superview = uiView.superview {
+                sourceView = superview
+            }
+        }
+    }
+}
+
+// MARK: - Quick Look Presenter
+
+/// Presents QLPreviewController using UIKit's native presentation for proper hero zoom transitions
+@MainActor
+class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    private var url: URL?
+    private weak var sourceView: UIView?
+
+    func present(url: URL, sourceView: UIView?) {
+        self.url = url
+        self.sourceView = sourceView
+
+        let previewController = QLPreviewController()
+        // Set presentation style before accessing dataSource/delegate to avoid console warning
+        previewController.modalPresentationStyle = .overFullScreen
+        previewController.dataSource = self
+        previewController.delegate = self
+
+        // Find the topmost view controller to present from
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            return
+        }
+
+        var topController = rootViewController
+        while let presented = topController.presentedViewController {
+            topController = presented
+        }
+
+        topController.present(previewController, animated: true)
+    }
+
+    // MARK: - QLPreviewControllerDataSource
+
+    nonisolated func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        return 1
+    }
+
+    nonisolated func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        return MainActor.assumeIsolated {
+            (url ?? URL(fileURLWithPath: "")) as QLPreviewItem
+        }
+    }
+
+    // MARK: - QLPreviewControllerDelegate (Hero Zoom)
+
+    nonisolated func previewController(_ controller: QLPreviewController, transitionViewFor item: any QLPreviewItem) -> UIView? {
+        return MainActor.assumeIsolated {
+            sourceView
+        }
+    }
+
+    nonisolated func previewController(_ controller: QLPreviewController, frameFor item: any QLPreviewItem, inSourceView view: AutoreleasingUnsafeMutablePointer<UIView?>) -> CGRect {
+        return MainActor.assumeIsolated {
+            guard let sourceView = sourceView else {
+                return .zero
+            }
+            view.pointee = sourceView
+            return sourceView.bounds
+        }
     }
 }
 

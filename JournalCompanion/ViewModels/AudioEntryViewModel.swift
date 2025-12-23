@@ -261,18 +261,14 @@ class AudioEntryViewModel: ObservableObject {
             entry.sampleRate = recordingSampleRate
             entry.bitDepth = recordingBitDepth
 
-            // Replace placeholder file links with actual filenames
-            var updatedContent = entry.content
-            for (index, filename) in filenames.enumerated() {
-                updatedContent = updatedContent.replacingOccurrences(
-                    of: "![[AUDIO_\(index)]]",
-                    with: "![[audio/\(filename)]]"
-                )
-            }
-            entry.content = updatedContent
+            // Mirror SRT transcripts to entry content (SRT is source of truth)
+            let writer = EntryWriter(vaultURL: vaultURL)
+            try await writer.mirrorTranscriptsToContent(
+                entry: &entry,
+                audioFileManager: audioFileManager
+            )
 
             // Write entry
-            let writer = EntryWriter(vaultURL: vaultURL)
             try await writer.write(entry: entry)
 
             // Save State of Mind to HealthKit (non-fatal if fails)

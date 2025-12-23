@@ -278,7 +278,7 @@ actor EntryReader {
         // Generate ID from filename (without .md extension)
         let id = fileURL.deletingPathExtension().lastPathComponent
 
-        return Entry(
+        var entry = Entry(
             id: id,
             dateCreated: date,
             tags: tags,
@@ -301,6 +301,25 @@ actor EntryReader {
             unknownFields: unknownFields,
             unknownFieldsOrder: unknownFieldsOrder
         )
+
+        // Auto-sync stale audio entry content from SRT files
+        if isAudioContentStale(entry: entry) {
+            let audioFileManager = AudioFileManager(vaultURL: vaultURL)
+            let entryWriter = EntryWriter(vaultURL: vaultURL)
+
+            do {
+                try await entryWriter.mirrorTranscriptsToContent(
+                    entry: &entry,
+                    audioFileManager: audioFileManager
+                )
+                print("✓ Auto-synced stale audio entry content: \(entry.id)")
+            } catch {
+                print("⚠️ Failed to auto-sync audio entry content: \(error)")
+                // Non-fatal - return entry with existing content
+            }
+        }
+
+        return entry
     }
 
     /// Check if a YAML key is a known field
@@ -308,6 +327,29 @@ actor EntryReader {
         ["date_created", "tags", "place", "location", "people", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate", "bit_depth"].contains(key)
+    }
+
+    /// Check if audio entry content is stale (needs re-mirroring from SRT)
+    private func isAudioContentStale(entry: Entry) -> Bool {
+        // Only check audio entries
+        guard let audioAttachments = entry.audioAttachments, !audioAttachments.isEmpty else {
+            return false
+        }
+
+        // Check if content contains expected audio embeds
+        let content = entry.content
+
+        // Each audio attachment should have a corresponding embed: ![[audio/filename]]
+        for filename in audioAttachments {
+            let expectedEmbed = "![[audio/\(filename)]]"
+            if !content.contains(expectedEmbed) {
+                print("⚠️ Missing embed for \(filename) in entry \(entry.id)")
+                return true  // Stale - missing embed
+            }
+        }
+
+        // Content appears valid
+        return false
     }
 
     /// Parse a YAML value string into a YAMLValue type

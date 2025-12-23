@@ -96,6 +96,11 @@ class EntryEditViewModel: ObservableObject {
         }
     }
 
+    /// Check if this is an audio entry (content is mirrored from SRT, read-only)
+    var isAudioEntry: Bool {
+        originalEntry.audioAttachments != nil && !(originalEntry.audioAttachments?.isEmpty ?? true)
+    }
+
     /// Extract Obsidian media embeds from content and return editable text separately
     /// Embeds like ![[audio/file.m4a]] and ![[photos/file.jpg]] are preserved for reinsertion on save
     private static func extractEmbeds(from content: String) -> (editableContent: String, embeds: [String]) {

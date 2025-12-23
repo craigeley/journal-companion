@@ -169,6 +169,42 @@ actor EntryWriter {
         print("✓ Deleted all attachments for entry: \(entry.filename)")
     }
 
+    /// Mirror SRT transcripts to entry content field
+    /// Entry content becomes a readable copy of SRT text for Obsidian
+    func mirrorTranscriptsToContent(
+        entry: inout Entry,
+        audioFileManager: AudioFileManager
+    ) async throws {
+        // Only process audio entries
+        guard let audioAttachments = entry.audioAttachments, !audioAttachments.isEmpty else {
+            return
+        }
+
+        var contentParts: [String] = []
+
+        // Process each audio attachment
+        for audioFilename in audioAttachments {
+            // Build audio embed for Obsidian
+            let embed = "![[audio/\(audioFilename)]]"
+
+            // Extract transcript text from SRT file
+            let transcriptText = try await audioFileManager.extractTranscriptText(
+                for: audioFilename,
+                entry: entry
+            )
+
+            // Add embed + transcript to content
+            contentParts.append(embed)
+            contentParts.append("")  // Blank line
+            contentParts.append(transcriptText)
+        }
+
+        // Update entry content with mirrored transcripts
+        entry.content = contentParts.joined(separator: "\n")
+
+        print("✓ Mirrored \(audioAttachments.count) transcript(s) to entry content")
+    }
+
     /// Write workout entry with route data
     /// Non-fatal: If GPX/map generation fails, entry still saves
     func writeWorkoutEntry(

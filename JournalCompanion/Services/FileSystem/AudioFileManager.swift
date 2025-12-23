@@ -152,6 +152,56 @@ actor AudioFileManager {
         return parseSRT(content)
     }
 
+    /// Extract plain text from SRT file (timestamps stripped)
+    /// Returns concatenated transcript text for mirroring to entry content
+    func extractTranscriptText(for audioFilename: String, entry: Entry) async throws -> String {
+        let audioDir = audioDirectory(for: entry)
+
+        // Replace audio extension with .srt
+        let srtFilename = (audioFilename as NSString).deletingPathExtension + ".srt"
+        let srtURL = audioDir.appendingPathComponent(srtFilename)
+
+        // Check if SRT file exists
+        guard fileManager.fileExists(atPath: srtURL.path) else {
+            print("⚠️ No SRT file found for \(audioFilename), using placeholder")
+            return "[Transcription unavailable]"
+        }
+
+        // Load and parse SRT
+        do {
+            let content = try String(contentsOf: srtURL, encoding: .utf8)
+            let timeRanges = parseSRT(content)
+
+            // Extract text from each time range and concatenate
+            let transcriptText = timeRanges.map { $0.text }.joined(separator: " ")
+            return transcriptText.isEmpty ? "[Transcription unavailable]" : transcriptText
+        } catch {
+            print("⚠️ Failed to read SRT file for \(audioFilename): \(error)")
+            return "[Transcription unavailable]"
+        }
+    }
+
+    /// Update SRT file with new time ranges (preserves timestamps, updates text)
+    func updateSRTFile(
+        for audioFilename: String,
+        entry: Entry,
+        newTimeRanges: [TimeRange]
+    ) async throws {
+        let audioDir = audioDirectory(for: entry)
+
+        // Replace audio extension with .srt
+        let srtFilename = (audioFilename as NSString).deletingPathExtension + ".srt"
+        let srtURL = audioDir.appendingPathComponent(srtFilename)
+
+        // Generate updated SRT content
+        let srtContent = generateSRT(from: newTimeRanges)
+
+        // Write atomically
+        try srtContent.write(to: srtURL, atomically: true, encoding: .utf8)
+
+        print("✓ Updated SRT file: \(srtFilename) (\(newTimeRanges.count) segments)")
+    }
+
     // MARK: - Private Helpers
 
     /// Generate SRT (SubRip) subtitle format from time ranges

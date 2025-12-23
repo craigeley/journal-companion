@@ -18,6 +18,7 @@ struct EntryDetailView: View {
     @State private var currentEntry: Entry
     @State private var showPlaybackView = false
     @State private var selectedAudioIndex: Int?
+    @State private var showTranscriptEdit = false
     @State private var sourceImageView: UIView?
     @State private var quickLookPresenter = QuickLookPresenter()
 
@@ -46,34 +47,52 @@ struct EntryDetailView: View {
                 if hasAudio {
                     Section("Audio Recording") {
                         ForEach(Array((currentEntry.audioAttachments ?? []).enumerated()), id: \.offset) { index, filename in
-                            HStack {
-                                Image(systemName: "waveform")
-                                    .foregroundStyle(.red)
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Image(systemName: "waveform")
+                                        .foregroundStyle(.red)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Recording \(index + 1)")
-                                        .font(.subheadline)
-                                    if let device = currentEntry.recordingDevice {
-                                        Text(device)
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Recording \(index + 1)")
+                                            .font(.subheadline)
+                                        if let device = currentEntry.recordingDevice {
+                                            Text(device)
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
+
+                                    Spacer()
+
+                                    Button {
+                                        selectedAudioIndex = index
+                                        showPlaybackView = true
+                                    } label: {
+                                        Image(systemName: "play.fill")
+                                            .foregroundStyle(.white)
+                                            .frame(width: 44, height: 44)
+                                            .background(Color.red)
+                                            .clipShape(Circle())
+                                    }
+                                    .buttonStyle(.plain)
                                 }
 
-                                Spacer()
-
+                                // Edit Transcript button
                                 Button {
                                     selectedAudioIndex = index
-                                    showPlaybackView = true
+                                    showTranscriptEdit = true
                                 } label: {
-                                    Image(systemName: "play.fill")
-                                        .foregroundStyle(.white)
-                                        .frame(width: 44, height: 44)
-                                        .background(Color.red)
-                                        .clipShape(Circle())
+                                    HStack {
+                                        Image(systemName: "pencil")
+                                        Text("Edit Transcript")
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
                                 }
-                                .buttonStyle(.plain)
                             }
+                            .padding(.vertical, 4)
                         }
 
                         if let rate = currentEntry.sampleRate, let depth = currentEntry.bitDepth {
@@ -216,6 +235,28 @@ struct EntryDetailView: View {
                     )
                 }
             }
+            .sheet(isPresented: $showTranscriptEdit) {
+                if let index = selectedAudioIndex,
+                   let filename = currentEntry.audioAttachments?[safe: index],
+                   let vaultURL = vaultManager.vaultURL {
+
+                    // Load time ranges from SRT and present edit view
+                    TranscriptEditContainerView(
+                        entry: currentEntry,
+                        audioFilename: filename,
+                        vaultURL: vaultURL,
+                        vaultManager: vaultManager
+                    )
+                }
+            }
+            .onChange(of: showTranscriptEdit) { _, isShowing in
+                if !isShowing {
+                    // Reload entry when transcript edit view closes
+                    Task {
+                        await reloadEntry()
+                    }
+                }
+            }
         }
     }
 
@@ -347,6 +388,62 @@ struct AudioPlaybackContainerView: View {
             print("📖 Loaded \(timeRanges.count) time ranges from SRT file")
         } catch {
             print("⚠️ Failed to load time ranges: \(error)")
+            timeRanges = []
+        }
+
+        isLoading = false
+    }
+}
+
+// MARK: - Transcript Edit Container
+
+/// Container view that loads time ranges from SRT before presenting transcript edit view
+struct TranscriptEditContainerView: View {
+    let entry: Entry
+    let audioFilename: String
+    let vaultURL: URL
+    let vaultManager: VaultManager
+
+    @State private var timeRanges: [TimeRange] = []
+    @State private var isLoading = true
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView("Loading transcript...")
+            } else if timeRanges.isEmpty {
+                ContentUnavailableView {
+                    Label("No Transcript", systemImage: "text.bubble")
+                } description: {
+                    Text("This audio recording has no transcript data")
+                }
+            } else {
+                TranscriptEditView(
+                    viewModel: TranscriptEditViewModel(
+                        entry: entry,
+                        audioFilename: audioFilename,
+                        timeRanges: timeRanges,
+                        vaultManager: vaultManager
+                    )
+                )
+            }
+        }
+        .task {
+            await loadTimeRanges()
+        }
+    }
+
+    private func loadTimeRanges() async {
+        let audioFileManager = AudioFileManager(vaultURL: vaultURL)
+
+        do {
+            timeRanges = try await audioFileManager.loadTimeRanges(
+                for: audioFilename,
+                entry: entry
+            )
+            print("📖 Loaded \(timeRanges.count) time ranges for editing")
+        } catch {
+            print("⚠️ Failed to load time ranges for editing: \(error)")
             timeRanges = []
         }
 

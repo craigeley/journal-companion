@@ -33,14 +33,37 @@ struct EntryEditView: View {
         NavigationStack {
             Form {
                 // Entry Content Section
-                Section("Entry") {
-                    SmartTextEditor(
-                        text: $viewModel.entryText,
-                        places: viewModel.vaultManager.places,
-                        people: viewModel.vaultManager.people,
-                        minHeight: 200
-                    )
-                    .font(.body)
+                Section {
+                    if viewModel.isAudioEntry {
+                        // Audio entries: content is read-only (mirrored from SRT)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(viewModel.entryText)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 8)
+
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .foregroundStyle(.blue)
+                                Text("This is an audio entry. Edit transcripts in entry details.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    } else {
+                        // Regular entries: content is editable
+                        SmartTextEditor(
+                            text: $viewModel.entryText,
+                            places: viewModel.vaultManager.places,
+                            people: viewModel.vaultManager.people,
+                            minHeight: 200
+                        )
+                        .font(.body)
+                    }
+                } header: {
+                    Text("Entry")
                 }
 
                 // Location Section

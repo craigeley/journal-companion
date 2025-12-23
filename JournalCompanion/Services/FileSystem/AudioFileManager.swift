@@ -173,7 +173,8 @@ actor AudioFileManager {
             let timeRanges = parseSRT(content)
 
             // Extract text from each time range and concatenate
-            let transcriptText = timeRanges.map { $0.text }.joined(separator: " ")
+            // Join without separator since SRT segments typically include their own spacing
+            let transcriptText = timeRanges.map { $0.text }.joined()
             return transcriptText.isEmpty ? "[Transcription unavailable]" : transcriptText
         } catch {
             print("⚠️ Failed to read SRT file for \(audioFilename): \(error)")

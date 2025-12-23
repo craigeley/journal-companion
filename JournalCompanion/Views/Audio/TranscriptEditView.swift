@@ -15,7 +15,7 @@ struct TranscriptEditView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach($viewModel.timeRanges) { $range in
+                    ForEach($viewModel.editableTimeRanges) { $range in
                         VStack(alignment: .leading, spacing: 8) {
                             // Timestamp (read-only)
                             Text(viewModel.formatTimeRange(range.start, range.end))

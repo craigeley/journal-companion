@@ -8,9 +8,27 @@
 import Foundation
 import Combine
 
+/// Editable wrapper for TimeRange (since TimeRange has immutable properties)
+struct EditableTimeRange: Identifiable {
+    let id: UUID = UUID()
+    let start: TimeInterval
+    let end: TimeInterval
+    var text: String
+
+    init(from timeRange: TimeRange) {
+        self.start = timeRange.start
+        self.end = timeRange.end
+        self.text = timeRange.text
+    }
+
+    func toTimeRange() -> TimeRange {
+        TimeRange(text: text, start: start, end: end)
+    }
+}
+
 @MainActor
 class TranscriptEditViewModel: ObservableObject {
-    @Published var timeRanges: [TimeRange]
+    @Published var editableTimeRanges: [EditableTimeRange]
     @Published var isSaving: Bool = false
     @Published var saveError: String?
 
@@ -26,13 +44,13 @@ class TranscriptEditViewModel: ObservableObject {
     ) {
         self.entry = entry
         self.audioFilename = audioFilename
-        self.timeRanges = timeRanges
+        self.editableTimeRanges = timeRanges.map { EditableTimeRange(from: $0) }
         self.vaultManager = vaultManager
     }
 
     /// Validate that no time range has empty text
     var isValid: Bool {
-        !timeRanges.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        !editableTimeRanges.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     /// Save updated transcript to SRT file and re-mirror to entry content
@@ -53,6 +71,9 @@ class TranscriptEditViewModel: ObservableObject {
         do {
             let audioFileManager = AudioFileManager(vaultURL: vaultURL)
             let entryWriter = EntryWriter(vaultURL: vaultURL)
+
+            // Convert editable time ranges back to TimeRange
+            let timeRanges = editableTimeRanges.map { $0.toTimeRange() }
 
             // Update SRT file with edited time ranges
             try await audioFileManager.updateSRTFile(

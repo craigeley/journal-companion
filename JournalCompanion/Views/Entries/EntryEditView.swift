@@ -32,197 +32,11 @@ struct EntryEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Entry Content Section
-                Section {
-                    if viewModel.isAudioEntry {
-                        // Audio entries: content is read-only (mirrored from SRT)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(viewModel.entryText)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 8)
-
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .foregroundStyle(.blue)
-                                Text("This is an audio entry. Edit transcripts in entry details.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.top, 4)
-                        }
-                    } else {
-                        // Regular entries: content is editable
-                        SmartTextEditor(
-                            text: $viewModel.entryText,
-                            places: viewModel.vaultManager.places,
-                            people: viewModel.vaultManager.people,
-                            minHeight: 200
-                        )
-                        .font(.body)
-                    }
-                } header: {
-                    Text("Entry")
-                }
-
-                // Location Section
-                Section("Location") {
-                    if let place = viewModel.selectedPlace {
-                        HStack {
-                            // Tappable area for place name/icon
-                            HStack {
-                                Image(systemName: PlaceIcon.systemName(for: place.callout))
-                                    .foregroundStyle(PlaceIcon.color(for: place.callout))
-                                Text(place.name)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                showPlaceDetails = true
-                            }
-
-                            Spacer()
-
-                            // Keep existing "Change" button
-                            Button("Change") {
-                                showPlacePicker = true
-                            }
-                            .font(.caption)
-                        }
-                    } else {
-                        Button("Add Location") {
-                            showPlacePicker = true
-                        }
-                    }
-                } footer: {
-                    if viewModel.coordinatesWillBeCleared {
-                        Text("Auto-captured coordinates will be cleared when place changes")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                }
-
-                // Details Section
-                Section("Details") {
-                    DatePicker("Timestamp", selection: $viewModel.timestamp)
-                }
-
-                // Tags Section
-                Section("Tags") {
-                    ForEach(viewModel.tags.indices, id: \.self) { index in
-                        HStack {
-                            Text(viewModel.tags[index])
-                            Spacer()
-                            Button(action: {
-                                viewModel.tags.remove(at: index)
-                            }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                        }
-                    }
-
-                    Button("Add Tag") {
-                        showAddTag = true
-                    }
-                }
-
-                // Weather Section (if exists)
-                if viewModel.temperature != nil || viewModel.condition != nil {
-                    Section {
-                        if let temp = viewModel.temperature {
-                            HStack {
-                                Text("Temperature")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(temp)°F")
-                            }
-                        }
-                        if let condition = viewModel.condition {
-                            HStack {
-                                Text("Condition")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text(condition)
-                            }
-                        }
-                        if let humidity = viewModel.humidity {
-                            HStack {
-                                Text("Humidity")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(humidity)%")
-                            }
-                        }
-                        if let aqi = viewModel.aqi {
-                            HStack {
-                                Text("AQI")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(aqi)")
-                            }
-                        }
-
-                        // Show refresh button if weather is stale
-                        if viewModel.weatherIsStale {
-                            Button {
-                                Task {
-                                    await viewModel.refreshWeather()
-                                }
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.clockwise")
-                                    Text("Refresh Weather")
-                                    Spacer()
-                                }
-                                .foregroundStyle(.blue)
-                            }
-                        }
-                    } header: {
-                        Text("Weather")
-                    } footer: {
-                        if viewModel.weatherIsStale {
-                            Text("Date or location changed. Tap to refresh weather.")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                } else if viewModel.isFetchingWeather {
-                    Section("Weather") {
-                        HStack {
-                            ProgressView()
-                            Text("Fetching weather...")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } else {
-                    // No weather data - offer to add it
-                    Section {
-                        Button {
-                            Task {
-                                await viewModel.detectCurrentLocation()
-                                await viewModel.refreshWeather()
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "cloud.sun")
-                                    .foregroundStyle(.blue)
-                                Text("Add Weather")
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.tertiary)
-                                    .font(.caption)
-                            }
-                        }
-                    } header: {
-                        Text("Weather")
-                    } footer: {
-                        Text("Fetch weather data for this entry's date and location")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                entryContentSection
+                locationSection
+                detailsSection
+                tagsSection
+                weatherSection
             }
             .navigationTitle("Edit Entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -374,6 +188,221 @@ struct EntryEditView: View {
             } message: {
                 Text("Enter a tag for this entry")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var entryContentSection: some View {
+        Section {
+            if viewModel.isAudioEntry {
+                // Audio entries: content is read-only (mirrored from SRT)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(viewModel.entryText)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.blue)
+                        Text("This is an audio entry. Edit transcripts in entry details.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+            } else {
+                // Regular entries: content is editable
+                SmartTextEditor(
+                    text: $viewModel.entryText,
+                    places: viewModel.vaultManager.places,
+                    people: viewModel.vaultManager.people,
+                    minHeight: 200
+                )
+                .font(.body)
+            }
+        } header: {
+            Text("Entry")
+        }
+    }
+
+    @ViewBuilder
+    private var locationSection: some View {
+        Section {
+            if let place = viewModel.selectedPlace {
+                HStack {
+                    // Tappable area for place name/icon
+                    HStack {
+                        Image(systemName: PlaceIcon.systemName(for: place.callout))
+                            .foregroundStyle(PlaceIcon.color(for: place.callout))
+                        Text(place.name)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showPlaceDetails = true
+                    }
+
+                    Spacer()
+
+                    // Keep existing "Change" button
+                    Button("Change") {
+                        showPlacePicker = true
+                    }
+                    .font(.caption)
+                }
+            } else {
+                Button("Add Location") {
+                    showPlacePicker = true
+                }
+            }
+        } header: {
+            Text("Location")
+        } footer: {
+            footerView
+        }
+    }
+
+    @ViewBuilder
+    private var detailsSection: some View {
+        Section {
+            DatePicker("Timestamp", selection: $viewModel.timestamp)
+        } header: {
+            Text("Details")
+        }
+    }
+
+    @ViewBuilder
+    private var tagsSection: some View {
+        Section {
+            ForEach(viewModel.tags.indices, id: \.self) { index in
+                HStack {
+                    Text(viewModel.tags[index])
+                    Spacer()
+                    Button(action: {
+                        viewModel.tags.remove(at: index)
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+
+            Button("Add Tag") {
+                showAddTag = true
+            }
+        } header: {
+            Text("Tags")
+        }
+    }
+
+    @ViewBuilder
+    private var weatherSection: some View {
+        if viewModel.temperature != nil || viewModel.condition != nil {
+            Section {
+                if let temp = viewModel.temperature {
+                    HStack {
+                        Text("Temperature")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(temp)°F")
+                    }
+                }
+                if let condition = viewModel.condition {
+                    HStack {
+                        Text("Condition")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(condition)
+                    }
+                }
+                if let humidity = viewModel.humidity {
+                    HStack {
+                        Text("Humidity")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(humidity)%")
+                    }
+                }
+                if let aqi = viewModel.aqi {
+                    HStack {
+                        Text("AQI")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(aqi)")
+                    }
+                }
+
+                // Show refresh button if weather is stale
+                if viewModel.weatherIsStale {
+                    Button {
+                        Task {
+                            await viewModel.refreshWeather()
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Refresh Weather")
+                            Spacer()
+                        }
+                        .foregroundStyle(.blue)
+                    }
+                }
+            } header: {
+                Text("Weather")
+            } footer: {
+                if viewModel.weatherIsStale {
+                    Text("Date or location changed. Tap to refresh weather.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        } else if viewModel.isFetchingWeather {
+            Section {
+                HStack {
+                    ProgressView()
+                    Text("Fetching weather...")
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Weather")
+            }
+        } else {
+            // No weather data - offer to add it
+            Section {
+                Button {
+                    Task {
+                        await viewModel.detectCurrentLocation()
+                        await viewModel.refreshWeather()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "cloud.sun")
+                            .foregroundStyle(.blue)
+                        Text("Add Weather")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
+                }
+            } header: {
+                Text("Weather")
+            } footer: {
+                Text("Fetch weather data for this entry's date and location")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var footerView: some View {
+        if viewModel.coordinatesWillBeCleared {
+            Text("Auto-captured coordinates will be cleared when place changes")
+                .font(.caption)
+                .foregroundStyle(.orange)
         }
     }
 }

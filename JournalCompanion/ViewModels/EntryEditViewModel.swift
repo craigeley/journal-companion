@@ -101,6 +101,18 @@ class EntryEditViewModel: ObservableObject {
         originalEntry.audioAttachments != nil && !(originalEntry.audioAttachments?.isEmpty ?? true)
     }
 
+    /// Check if coordinates will be cleared on save (when place is added or changed)
+    var coordinatesWillBeCleared: Bool {
+        guard originalEntry.location != nil else { return false }
+
+        let placeWasAdded = originalEntry.place == nil && selectedPlace?.name != nil
+        let placeWasChanged = originalEntry.place != nil &&
+                              selectedPlace?.name != nil &&
+                              selectedPlace?.name != originalEntry.place
+
+        return placeWasAdded || placeWasChanged
+    }
+
     /// Extract Obsidian media embeds from content and return editable text separately
     /// Embeds like ![[audio/file.m4a]] and ![[photos/file.jpg]] are preserved for reinsertion on save
     private static func extractEmbeds(from content: String) -> (editableContent: String, embeds: [String]) {
@@ -187,6 +199,19 @@ class EntryEditViewModel: ObservableObject {
         // Reconstruct full content with preserved embeds
         let fullContent = reconstructContent()
 
+        // Determine if coordinates should be cleared when place changes
+        // Clear if place was ADDED or CHANGED (not removed)
+        let shouldClearCoordinates = {
+            let placeWasAdded = originalEntry.place == nil && selectedPlace?.name != nil
+            let placeWasChanged = originalEntry.place != nil &&
+                                  selectedPlace?.name != nil &&
+                                  selectedPlace?.name != originalEntry.place
+
+            return placeWasAdded || placeWasChanged
+        }()
+
+        let finalLocation: String? = shouldClearCoordinates ? nil : originalEntry.location
+
         // Create updated entry with same ID
         let updatedEntry = Entry(
             id: originalEntry.id,
@@ -195,6 +220,7 @@ class EntryEditViewModel: ObservableObject {
             place: selectedPlace?.name,
             people: [], // Deprecated - people now parsed from wiki-links in content
             placeCallout: selectedPlace?.callout,
+            location: finalLocation,
             content: fullContent,
             temperature: temperature,
             condition: condition,

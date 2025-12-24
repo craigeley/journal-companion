@@ -94,6 +94,12 @@ struct EntryEditView: View {
                             showPlacePicker = true
                         }
                     }
+                } footer: {
+                    if viewModel.coordinatesWillBeCleared {
+                        Text("Auto-captured coordinates will be cleared when place changes")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 // Details Section

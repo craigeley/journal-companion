@@ -32,6 +32,7 @@
 		B6FF4B2B2EF060190004FE81 /* JournalCompanionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalCompanionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6FF4B352EF060190004FE81 /* JournalCompanionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JournalCompanionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JournalingSuggestions.framework; path = System/Library/Frameworks/JournalingSuggestions.framework; sourceTree = SDKROOT; };
+		B6FF4D012EF200000004FE81 /* JournalCompanionWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JournalCompanionWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -41,6 +42,13 @@
 				Info.plist,
 			);
 			target = B6FF4B1D2EF060180004FE81 /* JournalCompanion */;
+		};
+		B6FF4D022EF200000004FE81 /* Exceptions for "JournalCompanionWatch" folder in "JournalCompanionWatch" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B6FF4D002EF200000004FE81 /* JournalCompanionWatch */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -61,6 +69,14 @@
 		B6FF4B382EF060190004FE81 /* JournalCompanionUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = JournalCompanionUITests;
+			sourceTree = "<group>";
+		};
+		B6FF4D032EF200000004FE81 /* JournalCompanionWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B6FF4D022EF200000004FE81 /* Exceptions for "JournalCompanionWatch" folder in "JournalCompanionWatch" target */,
+			);
+			path = JournalCompanionWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -88,6 +104,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B6FF4D042EF200000004FE81 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -95,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				B6FF4B202EF060180004FE81 /* JournalCompanion */,
+				B6FF4D032EF200000004FE81 /* JournalCompanionWatch */,
 				B6FF4B2E2EF060190004FE81 /* JournalCompanionTests */,
 				B6FF4B382EF060190004FE81 /* JournalCompanionUITests */,
 				B6FF4C402EF107AB0004FE81 /* Frameworks */,
@@ -106,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				B6FF4B1E2EF060180004FE81 /* JournalCompanion.app */,
+				B6FF4D012EF200000004FE81 /* JournalCompanionWatch.app */,
 				B6FF4B2B2EF060190004FE81 /* JournalCompanionTests.xctest */,
 				B6FF4B352EF060190004FE81 /* JournalCompanionUITests.xctest */,
 			);
@@ -191,6 +216,28 @@
 			productReference = B6FF4B352EF060190004FE81 /* JournalCompanionUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B6FF4D002EF200000004FE81 /* JournalCompanionWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B6FF4D0A2EF200000004FE81 /* Build configuration list for PBXNativeTarget "JournalCompanionWatch" */;
+			buildPhases = (
+				B6FF4D052EF200000004FE81 /* Sources */,
+				B6FF4D042EF200000004FE81 /* Frameworks */,
+				B6FF4D062EF200000004FE81 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B6FF4D032EF200000004FE81 /* JournalCompanionWatch */,
+			);
+			name = JournalCompanionWatch;
+			packageProductDependencies = (
+			);
+			productName = JournalCompanionWatch;
+			productReference = B6FF4D012EF200000004FE81 /* JournalCompanionWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -212,6 +259,9 @@
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = B6FF4B1D2EF060180004FE81;
 					};
+					B6FF4D002EF200000004FE81 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 				};
 			};
 			buildConfigurationList = B6FF4B192EF060180004FE81 /* Build configuration list for PBXProject "JournalCompanion" */;
@@ -229,6 +279,7 @@
 			projectRoot = "";
 			targets = (
 				B6FF4B1D2EF060180004FE81 /* JournalCompanion */,
+				B6FF4D002EF200000004FE81 /* JournalCompanionWatch */,
 				B6FF4B2A2EF060190004FE81 /* JournalCompanionTests */,
 				B6FF4B342EF060190004FE81 /* JournalCompanionUITests */,
 			);
@@ -257,6 +308,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B6FF4D062EF200000004FE81 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -275,6 +333,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B6FF4B312EF060190004FE81 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6FF4D052EF200000004FE81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -586,6 +651,74 @@
 			};
 			name = Release;
 		};
+		B6FF4D072EF200000004FE81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SWE6H8G9FB;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JournalCompanionWatch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Journal;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Journal Companion needs your location to log where you check in.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = fieldnoise.JournalCompanion;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fieldnoise.JournalCompanion.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		B6FF4D082EF200000004FE81 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SWE6H8G9FB;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JournalCompanionWatch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Journal;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Journal Companion needs your location to log where you check in.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = fieldnoise.JournalCompanion;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fieldnoise.JournalCompanion.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -621,6 +754,15 @@
 			buildConfigurations = (
 				B6FF4B462EF060190004FE81 /* Debug */,
 				B6FF4B472EF060190004FE81 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B6FF4D0A2EF200000004FE81 /* Build configuration list for PBXNativeTarget "JournalCompanionWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B6FF4D072EF200000004FE81 /* Debug */,
+				B6FF4D082EF200000004FE81 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -14,6 +14,7 @@ struct JournalCompanionApp: App {
     @StateObject private var visitTracker = SignificantLocationTracker()
     @StateObject private var templateManager = TemplateManager()
     @StateObject private var searchCoordinator = SearchCoordinator()
+    @StateObject private var watchSyncService = WatchSyncService.shared
 
     var body: some Scene {
         WindowGroup {
@@ -23,6 +24,11 @@ struct JournalCompanionApp: App {
                 .environmentObject(visitTracker)
                 .environmentObject(templateManager)
                 .environmentObject(searchCoordinator)
+                .environmentObject(watchSyncService)
+                .onAppear {
+                    // Configure watch sync service with vault manager
+                    watchSyncService.configure(vaultManager: vaultManager)
+                }
         }
     }
 }

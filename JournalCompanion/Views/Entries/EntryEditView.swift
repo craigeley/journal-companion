@@ -62,6 +62,7 @@ struct EntryEditView: View {
                 PlacePickerView(
                     places: viewModel.vaultManager.places,
                     currentLocation: viewModel.currentLocation,
+                    entryCoordinates: viewModel.entryCoordinates,
                     selectedPlace: $viewModel.selectedPlace,
                     onCreatePlaceRequested: $createPlaceRequested,
                     onSearchNearbyRequested: $searchNearbyRequested

@@ -11,6 +11,7 @@ import CoreLocation
 struct PlacePickerView: View {
     let places: [Place]
     let currentLocation: CLLocation?
+    let entryCoordinates: CLLocation?
     @Binding var selectedPlace: Place?
     @Binding var onCreatePlaceRequested: Bool
     @Binding var onSearchNearbyRequested: Bool
@@ -18,6 +19,11 @@ struct PlacePickerView: View {
     @State private var searchText = ""
     @State private var nearbyPlaces: [PlaceWithDistance] = []
     @State private var placeMatcher = PlaceMatcher()
+
+    /// Use entry coordinates if available, otherwise fall back to current location
+    private var referenceLocation: CLLocation? {
+        entryCoordinates ?? currentLocation
+    }
 
     var filteredPlaces: [Place] {
         if searchText.isEmpty {
@@ -32,8 +38,8 @@ struct PlacePickerView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Quick Actions Section
-                if currentLocation != nil && searchText.isEmpty {
+                // Quick Actions Section (only show if user has current location, not for stored coordinates)
+                if currentLocation != nil && entryCoordinates == nil && searchText.isEmpty {
                     Section {
                         Button {
                             onSearchNearbyRequested = true
@@ -119,9 +125,11 @@ struct PlacePickerView: View {
             }
             .task {
                 // Calculate nearby places when view appears
-                if let location = currentLocation {
+                // Use entry coordinates if available, otherwise use current location
+                if let location = referenceLocation {
                     nearbyPlaces = placeMatcher.findNearbyPlaces(from: location, in: places)
-                    print("Found \(nearbyPlaces.count) nearby places")
+                    let source = entryCoordinates != nil ? "entry coordinates" : "current location"
+                    print("Found \(nearbyPlaces.count) nearby places from \(source)")
                 }
             }
         }
@@ -210,6 +218,7 @@ struct PlaceRowWithDistance: View {
                   url: nil, aliases: [], content: "")
         ],
         currentLocation: nil,
+        entryCoordinates: nil,
         selectedPlace: .constant(nil),
         onCreatePlaceRequested: .constant(false),
         onSearchNearbyRequested: .constant(false)

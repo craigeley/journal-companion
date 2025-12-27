@@ -146,6 +146,7 @@ struct AudioEntryView: View {
         PlacePickerView(
             places: viewModel.vaultManager.places,
             currentLocation: viewModel.currentLocation,
+            entryCoordinates: nil,
             selectedPlace: $viewModel.selectedPlace,
             onCreatePlaceRequested: $createPlaceRequested,
             onSearchNearbyRequested: $searchNearbyRequested

@@ -297,6 +297,20 @@ class EntryEditViewModel: ObservableObject {
         currentLocation = await locationService.getCurrentLocation()
     }
 
+    /// Get entry's stored coordinates as CLLocation (for entries with location but no place)
+    var entryCoordinates: CLLocation? {
+        guard let locationString = originalEntry.location else { return nil }
+
+        let components = locationString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard components.count == 2,
+              let latitude = Double(components[0]),
+              let longitude = Double(components[1]) else {
+            return nil
+        }
+
+        return CLLocation(latitude: latitude, longitude: longitude)
+    }
+
     /// Check if entry has unsaved changes
     var hasChanges: Bool {
         // Compare editable text against original editable content (without embeds)

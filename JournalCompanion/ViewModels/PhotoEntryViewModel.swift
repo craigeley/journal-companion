@@ -44,6 +44,7 @@ class PhotoEntryViewModel: ObservableObject {
     @Published var timestamp: Date = Date()
     @Published var tags: [String] = ["entry", "iPhone", "photo_entry"]
     @Published var selectedPlace: Place?
+    @Published var entryContent: String = ""
     @Published var isCreating: Bool = false
     @Published var errorMessage: String?
     @Published var showSuccess: Bool = false
@@ -64,9 +65,14 @@ class PhotoEntryViewModel: ObservableObject {
         photoData != nil
     }
 
-    init(vaultManager: VaultManager, locationService: LocationService) {
+    init(vaultManager: VaultManager, locationService: LocationService, initialPhotoItem: PhotosPickerItem? = nil) {
         self.vaultManager = vaultManager
         self.locationService = locationService
+
+        // Pre-load photo if provided
+        if let photoItem = initialPhotoItem {
+            self.selectedPhotoItem = photoItem
+        }
     }
 
     // MARK: - Photo Selection
@@ -276,8 +282,12 @@ class PhotoEntryViewModel: ObservableObject {
             // Determine file extension
             let fileExtension = determineFileExtension(from: photoData)
 
-            // Build entry content with photo placeholder
-            let content = "![[PHOTO_PLACEHOLDER]]"
+            // Build entry content with photo embed and user text
+            // Photo embed goes first, then user content (if any)
+            var content = "![[PHOTO_PLACEHOLDER]]"
+            if !entryContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                content += "\n\n" + entryContent
+            }
 
             // Format current location for YAML storage
             let locationString: String? = {
@@ -462,6 +472,7 @@ class PhotoEntryViewModel: ObservableObject {
         moodData = nil
         timestamp = Date()
         selectedPlace = nil
+        entryContent = ""
         errorMessage = nil
         showSuccess = false
         initialTimestamp = nil

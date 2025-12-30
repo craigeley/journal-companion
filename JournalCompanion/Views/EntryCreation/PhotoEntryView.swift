@@ -39,9 +39,10 @@ struct PhotoEntryView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { toolbarContent }
         }
-        .onChange(of: viewModel.selectedPhotoItem) { _, newItem in
-            Task {
-                await viewModel.handlePhotoSelection(newItem)
+        .task {
+            // Auto-load photo if pre-selected
+            if viewModel.selectedPhotoItem != nil && viewModel.photoImage == nil {
+                await viewModel.handlePhotoSelection(viewModel.selectedPhotoItem)
             }
         }
         .onChange(of: viewModel.showSuccess) { _, success in
@@ -86,6 +87,9 @@ struct PhotoEntryView: View {
     private var formView: some View {
         Form {
             photoSection
+            if viewModel.photoImage != nil {
+                entryContentSection
+            }
             locationSection
             weatherSection
             stateOfMindSection
@@ -202,6 +206,24 @@ struct PhotoEntryView: View {
 
     // MARK: - Section Views
 
+    private var entryContentSection: some View {
+        Section {
+            SmartTextEditor(
+                text: $viewModel.entryContent,
+                places: viewModel.vaultManager.places,
+                people: viewModel.vaultManager.people,
+                minHeight: 120
+            )
+            .font(.body)
+        } header: {
+            Text("Entry")
+        } footer: {
+            Text("Add notes or context about this photo")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var photoSection: some View {
         Section {
             if viewModel.isLoadingPhoto {
@@ -231,6 +253,11 @@ struct PhotoEntryView: View {
                         Label("Change Photo", systemImage: "photo")
                     }
                     .buttonStyle(.bordered)
+                    .onChange(of: viewModel.selectedPhotoItem) { _, newItem in
+                        Task {
+                            await viewModel.handlePhotoSelection(newItem)
+                        }
+                    }
 
                     // Camera metadata display
                     if let exif = viewModel.photoEXIF, exif.hasCameraInfo {
@@ -265,7 +292,7 @@ struct PhotoEntryView: View {
                     }
                 }
             } else {
-                // No photo selected - show picker
+                // No photo selected - show picker (fallback if opened without photo)
                 PhotosPicker(selection: $viewModel.selectedPhotoItem, matching: .images) {
                     VStack(spacing: 12) {
                         Image(systemName: "photo.circle.fill")
@@ -278,6 +305,11 @@ struct PhotoEntryView: View {
                     .padding(.vertical, 20)
                 }
                 .buttonStyle(.plain)
+                .onChange(of: viewModel.selectedPhotoItem) { _, newItem in
+                    Task {
+                        await viewModel.handlePhotoSelection(newItem)
+                    }
+                }
             }
         } header: {
             Text("Photo")

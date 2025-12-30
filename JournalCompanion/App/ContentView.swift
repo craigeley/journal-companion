@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreLocation
 import MapKit
+import PhotosUI
 
 struct ContentView: View {
     @EnvironmentObject var vaultManager: VaultManager
@@ -18,6 +19,8 @@ struct ContentView: View {
     @State private var showQuickEntry = false
     @State private var showAudioEntry = false
     @State private var showPhotoEntry = false
+    @State private var showPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showPersonCreation = false
     @State private var showPlaceCreation = false
     @State private var showLocationSearchForNewPlace = false
@@ -73,7 +76,7 @@ struct ContentView: View {
                                 }
 
                                 Button {
-                                    showPhotoEntry = true
+                                    showPhotoPicker = true
                                 } label: {
                                     Label("Photo Entry", systemImage: "photo")
                                 }
@@ -161,8 +164,26 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPhotoEntry) {
-            let viewModel = PhotoEntryViewModel(vaultManager: vaultManager, locationService: locationService)
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhotoItem,
+            matching: .images
+        )
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            if newItem != nil {
+                // Photo selected - show PhotoEntryView with pre-loaded photo
+                showPhotoEntry = true
+            }
+        }
+        .sheet(isPresented: $showPhotoEntry, onDismiss: {
+            // Clear photo selection when sheet dismisses
+            selectedPhotoItem = nil
+        }) {
+            let viewModel = PhotoEntryViewModel(
+                vaultManager: vaultManager,
+                locationService: locationService,
+                initialPhotoItem: selectedPhotoItem
+            )
             PhotoEntryView(viewModel: viewModel)
                 .environmentObject(locationService)
                 .environmentObject(templateManager)

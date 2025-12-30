@@ -240,8 +240,13 @@ actor EntryWriter {
                         for: entry.id
                     )
 
-                    // Embed map in entry content
-                    updatedEntry.content += "\n\n### Map\n![[maps/\(mapFilename)]]\n"
+                    // Add map to preserved sections (system-generated content)
+                    let mapSection = "### Map\n![[maps/\(mapFilename)]]"
+                    if let existing = updatedEntry.preservedSections {
+                        updatedEntry.preservedSections = existing + "\n\n" + mapSection
+                    } else {
+                        updatedEntry.preservedSections = mapSection
+                    }
 
                     print("✓ Map snapshot generated successfully")
                 } catch {

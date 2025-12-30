@@ -69,6 +69,10 @@ actor EntryReader {
         let frontmatter = components[1]
         let bodyContent = components.dropFirst(2).joined(separator: "---\n").trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Split body content into user content and preserved sections
+        // Find first line starting with markdown header (# ## ### etc.)
+        let (userContent, preservedSections) = splitContentAtFirstHeader(bodyContent)
+
         // Parse YAML frontmatter
         var dateCreated: Date?
         var tags: [String] = []
@@ -286,7 +290,8 @@ actor EntryReader {
             people: people,
             placeCallout: nil,  // Will be looked up from Places at display time
             location: location,
-            content: bodyContent,
+            content: userContent,
+            preservedSections: preservedSections,
             temperature: temperature,
             condition: condition,
             aqi: aqi,
@@ -384,5 +389,35 @@ actor EntryReader {
 
         // Default to String
         return .string(cleaned)
+    }
+
+    /// Split content at first markdown header (# ## ### etc.)
+    /// Returns (userContent, preservedSections)
+    private func splitContentAtFirstHeader(_ content: String) -> (String, String?) {
+        let lines = content.components(separatedBy: .newlines)
+
+        // Find first line starting with # (markdown header)
+        for (index, line) in lines.enumerated() {
+            // Check if line starts with one or more # followed by space
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("#") {
+                // Find where the actual header text starts (after the #'s and space)
+                if let firstNonHash = trimmed.firstIndex(where: { $0 != "#" }),
+                   trimmed[firstNonHash] == " " {
+                    // This is a valid markdown header
+                    // Split here: everything before = user content, from here onward = preserved sections
+                    let userContentLines = Array(lines[..<index])
+                    let preservedLines = Array(lines[index...])
+
+                    let userContent = userContentLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let preserved = preservedLines.joined(separator: "\n")
+
+                    return (userContent, preserved.isEmpty ? nil : preserved)
+                }
+            }
+        }
+
+        // No header found - all content is user content
+        return (content, nil)
     }
 }

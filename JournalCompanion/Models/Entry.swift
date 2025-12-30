@@ -41,6 +41,7 @@ struct Entry: Identifiable, Codable, Sendable {
     var placeCallout: String?  // Place callout type (e.g., "cafe", "park", "home")
     var location: String?  // GPS coordinates in "latitude,longitude" format
     var content: String
+    var preservedSections: String?  // Content from first markdown header onward (preserved for external editing)
 
     // Optional weather data
     var temperature: Int?
@@ -117,7 +118,15 @@ struct Entry: Identifiable, Codable, Sendable {
         }
 
         yaml += "---\n\n"
-        return yaml + content + "\n"
+
+        // Combine user content with preserved sections
+        var fullContent = content
+        if let preserved = preservedSections, !preserved.isEmpty {
+            // Ensure proper spacing between user content and preserved sections
+            fullContent += "\n\n" + preserved
+        }
+
+        return yaml + fullContent + "\n"
     }
 
     private nonisolated func isKnownField(_ key: String) -> Bool {
@@ -269,6 +278,7 @@ struct Entry: Identifiable, Codable, Sendable {
             placeCallout: nil,
             location: location,
             content: content,
+            preservedSections: nil,
             temperature: nil,
             condition: nil,
             aqi: nil,

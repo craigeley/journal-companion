@@ -204,6 +204,7 @@ class QuickEntryViewModel: ObservableObject {
                 placeCallout: selectedPlace?.callout,
                 location: locationString,
                 content: combinedContent,
+                preservedSections: nil,
                 temperature: nil,
                 condition: nil,
                 aqi: nil,

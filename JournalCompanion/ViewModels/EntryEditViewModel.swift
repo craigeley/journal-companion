@@ -42,8 +42,8 @@ class EntryEditViewModel: ObservableObject {
     private var unknownFields: [String: YAMLValue]
     private var unknownFieldsOrder: [String]
 
-    // Media embed preservation (hidden from user editing)
-    private var preservedEmbeds: [String] = []
+    // Preserved sections (markdown headers and beyond - hidden from user editing)
+    private var preservedSections: String?
 
     private var pendingEntry: Entry?
     private let originalEntry: Entry
@@ -56,10 +56,9 @@ class EntryEditViewModel: ObservableObject {
         self.vaultManager = vaultManager
         self.locationService = locationService
 
-        // Extract and preserve media embeds, show only editable content
-        let (editableContent, embeds) = Self.extractEmbeds(from: entry.content)
-        self.entryText = editableContent
-        self.preservedEmbeds = embeds
+        // Use content directly (preserved sections are handled separately)
+        self.entryText = entry.content
+        self.preservedSections = entry.preservedSections
 
         self.timestamp = entry.dateCreated
         self.tags = entry.tags
@@ -113,60 +112,6 @@ class EntryEditViewModel: ObservableObject {
         return placeWasAdded || placeWasChanged
     }
 
-    /// Extract Obsidian media embeds from content and return editable text separately
-    /// Embeds like ![[audio/file.m4a]] and ![[photos/file.jpg]] are preserved for reinsertion on save
-    private static func extractEmbeds(from content: String) -> (editableContent: String, embeds: [String]) {
-        var embeds: [String] = []
-        var cleaned = content
-
-        // Pattern matches ![[path/to/file.ext]] - media embeds in _attachments subfolders
-        let embedPattern = #"!\[\[(audio|photos|routes|maps)/[^\]]+\]\]"#
-
-        if let regex = try? NSRegularExpression(pattern: embedPattern, options: []) {
-            let range = NSRange(content.startIndex..., in: content)
-            let matches = regex.matches(in: content, options: [], range: range)
-
-            // Extract embeds in reverse order to preserve indices
-            for match in matches.reversed() {
-                if let swiftRange = Range(match.range, in: content) {
-                    let embed = String(content[swiftRange])
-                    embeds.insert(embed, at: 0) // Maintain original order
-                }
-            }
-
-            // Remove embeds from content
-            cleaned = regex.stringByReplacingMatches(
-                in: content,
-                options: [],
-                range: range,
-                withTemplate: ""
-            )
-        }
-
-        // Clean up extra whitespace left behind
-        cleaned = cleaned.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
-        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        return (cleaned, embeds)
-    }
-
-    /// Reconstruct full content by prepending preserved embeds to editable text
-    private func reconstructContent() -> String {
-        guard !preservedEmbeds.isEmpty else {
-            return entryText
-        }
-
-        // Prepend embeds at the beginning, each on its own line
-        let embedSection = preservedEmbeds.joined(separator: "\n\n")
-        let trimmedText = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmedText.isEmpty {
-            return embedSection
-        } else {
-            return embedSection + "\n\n" + trimmedText
-        }
-    }
-
     /// Save changes to the entry
     func saveChanges() async -> Bool {
         guard vaultManager.vaultURL != nil else {
@@ -196,9 +141,6 @@ class EntryEditViewModel: ObservableObject {
             cleanedOrder.removeAll { $0 == "aqi" }
         }
 
-        // Reconstruct full content with preserved embeds
-        let fullContent = reconstructContent()
-
         // Determine if coordinates should be cleared when place changes
         // Clear if place was ADDED or CHANGED (not removed)
         let shouldClearCoordinates = {
@@ -221,7 +163,8 @@ class EntryEditViewModel: ObservableObject {
             people: [], // Deprecated - people now parsed from wiki-links in content
             placeCallout: selectedPlace?.callout,
             location: finalLocation,
-            content: fullContent,
+            content: entryText,
+            preservedSections: preservedSections,
             temperature: temperature,
             condition: condition,
             aqi: aqi,
@@ -313,9 +256,8 @@ class EntryEditViewModel: ObservableObject {
 
     /// Check if entry has unsaved changes
     var hasChanges: Bool {
-        // Compare editable text against original editable content (without embeds)
-        let (originalEditable, _) = Self.extractEmbeds(from: originalEntry.content)
-        return entryText != originalEditable ||
+        // Compare content directly (preserved sections are handled separately)
+        return entryText != originalEntry.content ||
         timestamp != originalEntry.dateCreated ||
         selectedPlace?.name != originalEntry.place ||
         tags != originalEntry.tags ||

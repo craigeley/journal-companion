@@ -306,6 +306,7 @@ class PhotoEntryViewModel: ObservableObject {
                 placeCallout: selectedPlace?.callout,
                 location: locationString,
                 content: content,
+                preservedSections: nil,
                 temperature: nil,
                 condition: nil,
                 aqi: nil,

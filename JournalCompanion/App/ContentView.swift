@@ -114,7 +114,7 @@ struct ContentView: View {
                             Button {
                                 showLocationSearchForNewPlace = true
                             } label: {
-                                Image(systemName: "mappin.circle")
+                                Image(systemName: "mappin.circle.badge.plus")
                                     .font(.title2)
                                     .foregroundStyle(.white)
                                     .frame(width: 56, height: 56)

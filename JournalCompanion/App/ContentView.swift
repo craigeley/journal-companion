@@ -114,7 +114,7 @@ struct ContentView: View {
                             Button {
                                 showLocationSearchForNewPlace = true
                             } label: {
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: "rectangle.stack.fill.badge.plus")
                                     .font(.title2)
                                     .foregroundStyle(.white)
                                     .frame(width: 56, height: 56)

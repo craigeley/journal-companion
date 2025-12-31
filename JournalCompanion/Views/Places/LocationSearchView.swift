@@ -13,6 +13,7 @@ struct LocationSearchView: View {
     @StateObject private var searchCompleter = LocationSearchCompleter()
     @Environment(\.dismiss) var dismiss
     @State private var searchText = ""
+    @State private var isSearchPresented = true  // Auto-focus search on appear
 
     // Bindings to pass results back
     @Binding var selectedLocationName: String?
@@ -59,7 +60,7 @@ struct LocationSearchView: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search for a place")
+            .searchable(text: $searchText, isPresented: $isSearchPresented, prompt: "Search for a place")
             .navigationTitle("Location Search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

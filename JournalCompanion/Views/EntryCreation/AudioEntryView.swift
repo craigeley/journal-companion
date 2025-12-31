@@ -18,7 +18,7 @@ struct AudioEntryView: View {
 
     // Place creation flow state
     @State private var showLocationSearchForNewPlace = false
-    @State private var showPlaceCreationFromPicker = false
+    @State private var placeCreationViewModel: PlaceEditViewModel?
     @State private var pendingLocationName: String?
     @State private var pendingAddress: String?
     @State private var pendingCoordinates: CLLocationCoordinate2D?
@@ -69,10 +69,27 @@ struct AudioEntryView: View {
         .onChange(of: showLocationSearchForNewPlace) { _, isShowing in
             handleLocationSearchDismiss(isShowing)
         }
-        .sheet(isPresented: $showPlaceCreationFromPicker, onDismiss: {
-            handlePlaceCreationDismiss()
-        }) {
-            placeCreationSheet
+        .sheet(item: $placeCreationViewModel) { viewModel in
+            PlaceEditView(viewModel: viewModel)
+                .environmentObject(templateManager)
+        }
+        .onChange(of: placeCreationViewModel?.createdPlace) { oldValue, newValue in
+            if let newPlace = newValue {
+                // Auto-select the newly created place
+                viewModel.selectedPlace = newPlace
+
+                // Clear pending state
+                pendingLocationName = nil
+                pendingAddress = nil
+                pendingCoordinates = nil
+                pendingURL = nil
+                pendingPOICategory = nil
+                createPlaceRequested = false
+                searchNearbyRequested = false
+
+                // Dismiss sheet
+                placeCreationViewModel = nil
+            }
         }
         .sheet(isPresented: $viewModel.showStateOfMindPicker) {
             stateOfMindPickerSheet
@@ -163,22 +180,6 @@ struct AudioEntryView: View {
         )
     }
 
-    private var placeCreationSheet: some View {
-        let placeViewModel = PlaceEditViewModel(
-            place: nil,
-            vaultManager: viewModel.vaultManager,
-            locationService: locationService,
-            templateManager: templateManager,
-            initialLocationName: pendingLocationName,
-            initialAddress: pendingAddress,
-            initialCoordinates: pendingCoordinates,
-            initialURL: pendingURL,
-            initialPOICategory: pendingPOICategory
-        )
-        return PlaceEditView(viewModel: placeViewModel)
-            .environmentObject(templateManager)
-    }
-
     private var stateOfMindPickerSheet: some View {
         StateOfMindPickerView(
             selectedValence: $viewModel.tempMoodValence,
@@ -194,39 +195,19 @@ struct AudioEntryView: View {
 
     private func handleLocationSearchDismiss(_ isShowing: Bool) {
         if !isShowing && pendingLocationName != nil {
-            // Location selected, show place creation
-            createPlaceRequested = true
-            showPlaceCreationFromPicker = true
-            searchNearbyRequested = false
+            // Location selected, create and show PlaceEditView
+            placeCreationViewModel = PlaceEditViewModel(
+                place: nil,
+                vaultManager: viewModel.vaultManager,
+                locationService: locationService,
+                templateManager: templateManager,
+                initialLocationName: pendingLocationName,
+                initialAddress: pendingAddress,
+                initialCoordinates: pendingCoordinates,
+                initialURL: pendingURL,
+                initialPOICategory: pendingPOICategory
+            )
         }
-    }
-
-    private func handlePlaceCreationDismiss() {
-        // Reload places and auto-select newly created place
-        Task {
-            do {
-                _ = try await viewModel.vaultManager.loadPlaces()
-
-                // Find newly created place by sanitized name
-                if let placeName = pendingLocationName {
-                    let sanitizedId = Place.sanitizeFilename(placeName)
-                    if let newPlace = viewModel.vaultManager.places.first(where: { $0.id == sanitizedId }) {
-                        viewModel.selectedPlace = newPlace
-                    }
-                }
-            } catch {
-                print("❌ Failed to reload places: \(error)")
-            }
-        }
-
-        // Clear pending state
-        pendingLocationName = nil
-        pendingAddress = nil
-        pendingCoordinates = nil
-        pendingURL = nil
-        pendingPOICategory = nil
-        createPlaceRequested = false
-        searchNearbyRequested = false
     }
 
     // MARK: - Section Views

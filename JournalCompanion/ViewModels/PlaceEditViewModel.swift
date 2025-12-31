@@ -12,7 +12,7 @@ import Combine
 import MapKit
 
 @MainActor
-class PlaceEditViewModel: ObservableObject {
+class PlaceEditViewModel: ObservableObject, Identifiable {
     // Creation-specific fields
     @Published var placeName: String = ""
     @Published var selectedLocationName: String?
@@ -37,6 +37,9 @@ class PlaceEditViewModel: ObservableObject {
     @Published var isSaving = false
     @Published var saveError: String?
     @Published var nameError: String?
+
+    // Newly created place (set after successful creation)
+    @Published var createdPlace: Place?
 
     private let originalPlace: Place?
     let vaultManager: VaultManager
@@ -221,6 +224,9 @@ class PlaceEditViewModel: ObservableObject {
                 )
 
                 try await writer.write(place: newPlace)
+
+                // Set createdPlace so parent views can auto-select it
+                createdPlace = newPlace
             } else {
                 // EDIT MODE - update existing place
                 let updatedPlace = Place(

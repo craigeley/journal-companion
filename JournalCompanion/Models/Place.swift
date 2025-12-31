@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-struct Place: Identifiable, Codable, Sendable {
+struct Place: Identifiable, Codable, Sendable, Equatable {
     let id: String  // Sanitized filename (without .md extension)
     var name: String
     var location: CLLocationCoordinate2D?
@@ -309,6 +309,24 @@ struct Place: Identifiable, Codable, Sendable {
 
         // Return as String
         return cleaned
+    }
+}
+
+// MARK: - Place Equatable
+extension Place {
+    static func == (lhs: Place, rhs: Place) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.name == rhs.name &&
+        lhs.location?.latitude == rhs.location?.latitude &&
+        lhs.location?.longitude == rhs.location?.longitude &&
+        lhs.address == rhs.address &&
+        lhs.tags == rhs.tags &&
+        lhs.callout == rhs.callout &&
+        lhs.pin == rhs.pin &&
+        lhs.color == rhs.color &&
+        lhs.url == rhs.url &&
+        lhs.aliases == rhs.aliases &&
+        lhs.content == rhs.content
     }
 }
 

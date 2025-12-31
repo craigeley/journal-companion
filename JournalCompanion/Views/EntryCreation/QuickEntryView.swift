@@ -18,7 +18,7 @@ struct QuickEntryView: View {
 
     // Place creation flow state
     @State private var showLocationSearchForNewPlace = false
-    @State private var showPlaceCreationFromPicker = false
+    @State private var placeCreationViewModel: PlaceEditViewModel?
     @State private var pendingLocationName: String?
     @State private var pendingAddress: String?
     @State private var pendingCoordinates: CLLocationCoordinate2D?
@@ -321,8 +321,18 @@ struct QuickEntryView: View {
                 if !newValue {
                     // LocationSearchView dismissed
                     if pendingLocationName != nil {
-                        // Location was selected, show PlaceEditView
-                        showPlaceCreationFromPicker = true
+                        // Location was selected, create and show PlaceEditView
+                        placeCreationViewModel = PlaceEditViewModel(
+                            place: nil,
+                            vaultManager: viewModel.vaultManager,
+                            locationService: LocationService(),
+                            templateManager: TemplateManager(),
+                            initialLocationName: pendingLocationName,
+                            initialAddress: pendingAddress,
+                            initialCoordinates: pendingCoordinates,
+                            initialURL: pendingURL,
+                            initialPOICategory: pendingPOICategory
+                        )
                     } else {
                         // User cancelled, reset flags
                         createPlaceRequested = false
@@ -330,46 +340,27 @@ struct QuickEntryView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showPlaceCreationFromPicker, onDismiss: {
-                // Reload places and auto-select newly created place
-                Task {
-                    do {
-                        _ = try await viewModel.vaultManager.loadPlaces()
-
-                        // Find newly created place by sanitized name
-                        if let placeName = pendingLocationName {
-                            let sanitizedId = Place.sanitizeFilename(placeName)
-                            if let newPlace = viewModel.vaultManager.places.first(where: { $0.id == sanitizedId }) {
-                                viewModel.selectedPlace = newPlace
-                            }
-                        }
-                    } catch {
-                        print("❌ Failed to reload places: \(error)")
-                    }
-                }
-
-                // Clear pending state
-                pendingLocationName = nil
-                pendingAddress = nil
-                pendingCoordinates = nil
-                pendingURL = nil
-                pendingPOICategory = nil
-                createPlaceRequested = false
-                searchNearbyRequested = false
-            }) {
-                let placeViewModel = PlaceEditViewModel(
-                    place: nil,
-                    vaultManager: viewModel.vaultManager,
-                    locationService: LocationService(),
-                    templateManager: TemplateManager(),
-                    initialLocationName: pendingLocationName,
-                    initialAddress: pendingAddress,
-                    initialCoordinates: pendingCoordinates,
-                    initialURL: pendingURL,
-                    initialPOICategory: pendingPOICategory
-                )
-                PlaceEditView(viewModel: placeViewModel)
+            .sheet(item: $placeCreationViewModel) { viewModel in
+                PlaceEditView(viewModel: viewModel)
                     .environmentObject(TemplateManager())
+            }
+            .onChange(of: placeCreationViewModel?.createdPlace) { oldValue, newValue in
+                if let newPlace = newValue {
+                    // Auto-select the newly created place
+                    viewModel.selectedPlace = newPlace
+
+                    // Clear pending state
+                    pendingLocationName = nil
+                    pendingAddress = nil
+                    pendingCoordinates = nil
+                    pendingURL = nil
+                    pendingPOICategory = nil
+                    createPlaceRequested = false
+                    searchNearbyRequested = false
+
+                    // Dismiss sheet
+                    placeCreationViewModel = nil
+                }
             }
             .sheet(isPresented: $viewModel.showStateOfMindPicker) {
                 StateOfMindPickerView(

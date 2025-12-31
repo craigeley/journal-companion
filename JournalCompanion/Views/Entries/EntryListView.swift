@@ -173,6 +173,12 @@ struct EntryRowView: View {
                     .frame(width: 60, height: 60)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
+            // Map thumbnail (if workout entry with route)
+            else if entry.isWorkoutEntry, let vaultURL, let mapFilename = entry.mapAttachment {
+                MapThumbnailView(vaultURL: vaultURL, filename: mapFilename)
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 // Header with time, place, and entry type indicators
@@ -365,6 +371,72 @@ struct PhotoThumbnailView: View {
             }
 
             // Create thumbnail for performance
+            let maxSize: CGFloat = 120
+            let scale = min(maxSize / uiImage.size.width, maxSize / uiImage.size.height)
+            let newSize = CGSize(
+                width: uiImage.size.width * scale,
+                height: uiImage.size.height * scale
+            )
+
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            return renderer.image { _ in
+                uiImage.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+        }.value
+
+        await MainActor.run {
+            self.image = loadedImage
+        }
+    }
+}
+
+// MARK: - Map Thumbnail View
+
+struct MapThumbnailView: View {
+    let vaultURL: URL
+    let filename: String
+
+    @State private var image: UIImage?
+
+    private var mapURL: URL {
+        vaultURL
+            .appendingPathComponent("_attachments")
+            .appendingPathComponent("maps")
+            .appendingPathComponent(filename)
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay {
+                        Image(systemName: "map")
+                            .foregroundStyle(.gray)
+                    }
+            }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+
+    private func loadThumbnail() async {
+        let url = mapURL
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+
+        // Load image on background thread
+        let loadedImage = await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url),
+                  let uiImage = UIImage(data: data) else {
+                return nil as UIImage?
+            }
+
+            // Create thumbnail for performance (map PNGs are 800x600)
             let maxSize: CGFloat = 120
             let scale = min(maxSize / uiImage.size.width, maxSize / uiImage.size.height)
             let newSize = CGSize(

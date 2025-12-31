@@ -377,6 +377,13 @@ extension Entry {
         }
     }
 
+    /// Map attachment filename (derived from entry ID)
+    var mapAttachment: String? {
+        // Only workout entries with route files have map attachments
+        guard isWorkoutEntry, routeFile != nil else { return nil }
+        return "\(id)-map.png"
+    }
+
     /// Running distance in miles (from unknownFields)
     nonisolated var distance: Double? {
         guard let value = unknownFields["distance"] else { return nil }

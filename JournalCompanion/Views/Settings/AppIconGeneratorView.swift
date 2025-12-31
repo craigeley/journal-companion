@@ -71,6 +71,65 @@ struct AppIconGeneratorView: View {
                 }
                 .padding(.horizontal)
 
+                Divider()
+                    .padding(.vertical, 10)
+
+                Text("Dark Mode Variants")
+                    .font(.title3)
+                    .bold()
+                    .padding(.top, 10)
+
+                Text("Optimized for Liquid Glass dark appearance")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                // Purple Dark Mode
+                VStack(spacing: 12) {
+                    AppIconView(style: .purpleDark)
+                        .frame(width: 200, height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 40))
+                        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+
+                    Text("Purple Dark")
+                        .font(.headline)
+
+                    Button {
+                        generateAndShare(style: .purpleDark)
+                    } label: {
+                        Label("Share Purple Dark", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+
+                Divider()
+                    .padding(.vertical, 10)
+
+                // Dark Gray Dark Mode
+                VStack(spacing: 12) {
+                    AppIconView(style: .darkGrayDark)
+                        .frame(width: 200, height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 40))
+                        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+
+                    Text("Dark Gray Dark")
+                        .font(.headline)
+
+                    Button {
+                        generateAndShare(style: .darkGrayDark)
+                    } label: {
+                        Label("Share Dark Gray Dark", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.gray)
+                    .controlSize(.large)
+                }
+                .padding(.horizontal)
+
                 Text("1024 × 1024 px")
                     .font(.caption)
                     .foregroundStyle(.secondary)

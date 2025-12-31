@@ -4,6 +4,8 @@ import UIKit
 enum AppIconStyle {
     case purple
     case darkGray
+    case purpleDark      // Dark mode variant
+    case darkGrayDark    // Dark mode variant
 }
 
 struct AppIconView: View {
@@ -42,6 +44,24 @@ struct AppIconView: View {
                     colors: [
                         Color(red: 0.25, green: 0.25, blue: 0.28), // Lighter gray
                         Color(red: 0.15, green: 0.15, blue: 0.18)  // Darker gray
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            case .purpleDark:
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.35, green: 0.20, blue: 0.55), // Deeper, muted purple
+                        Color(red: 0.25, green: 0.12, blue: 0.45)  // Even darker purple
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            case .darkGrayDark:
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.18, green: 0.18, blue: 0.20), // Darker gray (not pure black)
+                        Color(red: 0.10, green: 0.10, blue: 0.12)  // Very dark but still visible
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing

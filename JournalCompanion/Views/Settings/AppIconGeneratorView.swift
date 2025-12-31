@@ -3,16 +3,23 @@ import UIKit
 
 struct ActivityViewController: UIViewControllerRepresentable {
     let activityItems: [Any]
+    @Environment(\.dismiss) var dismiss
 
     func makeUIViewController(context: Context) -> UIViewController {
-        // Return an empty view controller that will present the activity controller
-        let viewController = UIViewController()
-        return viewController
+        UIViewController()
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        // Present activity controller if not already presented
-        if uiViewController.presentedViewController == nil {
+        // Use coordinator to ensure we only present once
+        guard !context.coordinator.didPresent else { return }
+
+        // Small delay to ensure view is in window hierarchy
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard !context.coordinator.didPresent,
+                  uiViewController.view.window != nil else { return }
+
+            context.coordinator.didPresent = true
+
             let activityViewController = UIActivityViewController(
                 activityItems: activityItems,
                 applicationActivities: nil
@@ -27,7 +34,25 @@ struct ActivityViewController: UIViewControllerRepresentable {
                 popover.permittedArrowDirections = []
             }
 
+            // Dismiss the sheet when activity controller is dismissed
+            activityViewController.completionWithItemsHandler = { _, _, _, _ in
+                context.coordinator.dismiss()
+            }
+
             uiViewController.present(activityViewController, animated: true)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(dismiss: dismiss)
+    }
+
+    class Coordinator {
+        var didPresent = false
+        let dismiss: DismissAction
+
+        init(dismiss: DismissAction) {
+            self.dismiss = dismiss
         }
     }
 }

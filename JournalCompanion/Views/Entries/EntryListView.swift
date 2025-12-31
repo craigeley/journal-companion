@@ -166,96 +166,99 @@ struct EntryRowView: View {
     var vaultURL: URL?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Photo thumbnail (if photo entry)
-            if isPhotoEntry, let vaultURL, let photoFilename = entry.photoAttachment {
-                PhotoThumbnailView(vaultURL: vaultURL, filename: photoFilename)
-                    .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            // Map thumbnail (if workout entry with route)
-            else if entry.isWorkoutEntry, let vaultURL, let mapFilename = entry.mapAttachment {
-                MapThumbnailView(vaultURL: vaultURL, filename: mapFilename)
-                    .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            // Header with time, place, and entry type indicators (always at top)
+            HStack {
+                Text(entry.dateCreated, style: .time)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                // Header with time, place, and entry type indicators
-                HStack {
-                    Text(entry.dateCreated, style: .time)
+                // Photo indicator for photo entries
+                if isPhotoEntry {
+                    Image(systemName: "photo.fill")
+                        .foregroundStyle(.blue)
+                        .font(.caption)
+                        .imageScale(.small)
+                }
+
+                // Audio indicator for audio entries
+                if isAudioEntry {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                        .imageScale(.small)
+                }
+
+                // Running indicator for running entries
+                if entry.isRunningEntry {
+                    Image(systemName: "figure.run")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                        .imageScale(.small)
+                }
+
+                // Place indicator
+                if let place = entry.place {
+                    Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
+                        .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
+                        .font(.caption)
+                        .imageScale(.small)
+                    Text(place)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
 
-                    // Photo indicator for photo entries
-                    if isPhotoEntry {
-                        Image(systemName: "photo.fill")
-                            .foregroundStyle(.blue)
-                            .font(.caption)
-                            .imageScale(.small)
-                    }
+                Spacer()
 
-                    // Audio indicator for audio entries
-                    if isAudioEntry {
-                        Image(systemName: "waveform")
-                            .foregroundStyle(.red)
+                // Weather indicator
+                if let temp = entry.temperature, let condition = entry.condition {
+                    HStack(spacing: 4) {
+                        Text(weatherEmoji(for: condition))
                             .font(.caption)
-                            .imageScale(.small)
-                    }
-
-                    // Running indicator for running entries
-                    if entry.isRunningEntry {
-                        Image(systemName: "figure.run")
-                            .foregroundStyle(.orange)
-                            .font(.caption)
-                            .imageScale(.small)
-                    }
-
-                    // Place indicator (only for non-special entries)
-                    if let place = entry.place, !isAudioEntry && !entry.isRunningEntry && !isPhotoEntry {
-                        Image(systemName: PlaceIcon.systemName(for: placeCallout ?? ""))
-                            .foregroundStyle(PlaceIcon.color(for: placeCallout ?? ""))
-                            .font(.caption)
-                            .imageScale(.small)
-                        Text(place)
+                        Text("\(temp)°")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
 
-                    Spacer()
-
-                    // Weather indicator
-                    if let temp = entry.temperature, let condition = entry.condition {
-                        HStack(spacing: 4) {
-                            Text(weatherEmoji(for: condition))
-                                .font(.caption)
-                            Text("\(temp)°")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+            // Thumbnail and content section
+            HStack(alignment: .top, spacing: 12) {
+                // Photo thumbnail (if photo entry)
+                if isPhotoEntry, let vaultURL, let photoFilename = entry.photoAttachment {
+                    PhotoThumbnailView(vaultURL: vaultURL, filename: photoFilename)
+                        .frame(width: 60, height: 60)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                // Map thumbnail (if workout entry with route)
+                else if entry.isWorkoutEntry, let vaultURL, let mapFilename = entry.mapAttachment {
+                    MapThumbnailView(vaultURL: vaultURL, filename: mapFilename)
+                        .frame(width: 60, height: 60)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
-                // Content preview (with markdown + wiki-links, embeds removed)
-                MarkdownWikiText(
-                    text: contentWithoutEmbeds,
-                    places: places,
-                    people: people,
-                    lineLimit: 3,
-                    font: .body
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    // Content preview (with markdown + wiki-links, embeds removed)
+                    MarkdownWikiText(
+                        text: contentWithoutEmbeds,
+                        places: places,
+                        people: people,
+                        lineLimit: 3,
+                        font: .body
+                    )
 
-                // Tags
-                if !entry.tags.isEmpty {
-                    FlowLayout(spacing: 4) {
-                        ForEach(entry.tags.filter { $0 != "entry" && $0 != "iPhone" }, id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.gray.opacity(0.1))
-                                .clipShape(Capsule())
+                    // Tags
+                    if !entry.tags.isEmpty {
+                        FlowLayout(spacing: 4) {
+                            ForEach(entry.tags.filter { $0 != "entry" && $0 != "iPhone" }, id: \.self) { tag in
+                                Text("#\(tag)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.gray.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
                         }
                     }
                 }

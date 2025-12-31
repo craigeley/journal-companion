@@ -1,20 +1,41 @@
 import SwiftUI
+import UIKit
 
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
+struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        return controller
+    func makeUIViewController(context: Context) -> UIViewController {
+        // Return an empty view controller that will present the activity controller
+        let viewController = UIViewController()
+        return viewController
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        // Present activity controller if not already presented
+        if uiViewController.presentedViewController == nil {
+            let activityViewController = UIActivityViewController(
+                activityItems: activityItems,
+                applicationActivities: nil
+            )
+
+            // For iPad support
+            if let popover = activityViewController.popoverPresentationController {
+                popover.sourceView = uiViewController.view
+                popover.sourceRect = CGRect(x: uiViewController.view.bounds.midX,
+                                           y: uiViewController.view.bounds.midY,
+                                           width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+
+            uiViewController.present(activityViewController, animated: true)
+        }
+    }
 }
 
 struct AppIconGeneratorView: View {
     @Environment(\.dismiss) var dismiss
     @State private var showShareSheet = false
-    @State private var iconImage: UIImage?
+    @State private var shareURL: URL?
     @State private var showError = false
     @State private var errorMessage = ""
 
@@ -140,8 +161,9 @@ struct AppIconGeneratorView: View {
         .navigationTitle("App Icon Generator")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showShareSheet) {
-            if let image = iconImage {
-                ShareSheet(items: [image])
+            if let url = shareURL {
+                ActivityViewController(activityItems: [url])
+                    .ignoresSafeArea()
             }
         }
         .alert("Error", isPresented: $showError) {
@@ -152,14 +174,26 @@ struct AppIconGeneratorView: View {
     }
 
     private func generateAndShare(style: AppIconStyle) {
-        guard let image = AppIconGenerator.generateIcon(style: style) else {
+        guard let image = AppIconGenerator.generateIcon(style: style),
+              let data = image.pngData() else {
             errorMessage = "Failed to generate icon image"
             showError = true
             return
         }
 
-        iconImage = image
-        showShareSheet = true
+        // Save to temporary file
+        let tempDir = FileManager.default.temporaryDirectory
+        let filename = "AppIcon-\(style).png"
+        let fileURL = tempDir.appendingPathComponent(filename)
+
+        do {
+            try data.write(to: fileURL)
+            shareURL = fileURL
+            showShareSheet = true
+        } catch {
+            errorMessage = "Failed to save icon: \(error.localizedDescription)"
+            showError = true
+        }
     }
 }
 

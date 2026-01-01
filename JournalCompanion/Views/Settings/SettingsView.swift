@@ -101,6 +101,16 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // Daily Notes Section
+                Section("Daily Notes") {
+                    NavigationLink {
+                        DailyNoteSettingsView()
+                            .environmentObject(vaultManager)
+                    } label: {
+                        Label("Weather Metadata", systemImage: "cloud.sun")
+                    }
+                }
+
                 // Templates Section
                 Section("Templates") {
                     NavigationLink {

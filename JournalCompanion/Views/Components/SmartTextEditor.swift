@@ -66,8 +66,8 @@ struct SmartTextEditor: View {
         @State private var text = "Met [[Alice Smith]] at [[Central Park]]. Try typing [[ or @"
 
         private let places = [
-            Place(id: "central-park", name: "Central Park", location: nil, address: "New York, NY", tags: [], callout: "park", pin: nil, color: nil, url: nil, aliases: [], content: ""),
-            Place(id: "blue-bottle", name: "Blue Bottle Coffee", location: nil, address: "123 Main St", tags: [], callout: "cafe", pin: nil, color: nil, url: nil, aliases: ["BB Coffee"], content: "")
+            Place(id: "central-park", name: "Central Park", location: nil, address: "New York, NY", tags: [], callout: .park, pin: nil, color: nil, url: nil, aliases: [], content: ""),
+            Place(id: "blue-bottle", name: "Blue Bottle Coffee", location: nil, address: "123 Main St", tags: [], callout: .cafe, pin: nil, color: nil, url: nil, aliases: ["BB Coffee"], content: "")
         ]
 
         private let people = [

@@ -214,7 +214,7 @@ struct PlaceRowWithDistance: View {
     PlacePickerView(
         places: [
             Place(id: "test", name: "Test Place", location: nil, address: "123 Main St",
-                  tags: ["place", "cafe"], callout: "cafe", pin: nil, color: nil,
+                  tags: ["place", "cafe"], callout: .cafe, pin: nil, color: nil,
                   url: nil, aliases: [], content: "")
         ],
         currentLocation: nil,

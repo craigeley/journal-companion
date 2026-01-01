@@ -112,14 +112,9 @@ class SearchCoordinator: ObservableObject {
 
     // MARK: - Public Properties
 
-    /// All available callout types (matches PlaceIcon.allCalloutTypes)
+    /// All available callout types (from PlaceCallout enum)
     var allCalloutTypes: [String] {
-        [
-            "place", "cafe", "restaurant", "park", "school",
-            "home", "shop", "grocery", "bar", "medical",
-            "airport", "hotel", "library", "zoo", "museum",
-            "workout", "concert", "movie", "entertainment", "service"
-        ]
+        PlaceCallout.allCases.map { $0.rawValue }
     }
 
     /// Available tags (extracted from places)

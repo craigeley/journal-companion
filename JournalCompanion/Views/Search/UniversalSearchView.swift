@@ -70,8 +70,7 @@ struct UniversalSearchView: View {
     }
 
     private var activeFilterCount: Int {
-        let allCalloutTypes = 20
-        let calloutFilters = allCalloutTypes - coordinator.selectedCalloutTypes.count
+        let calloutFilters = PlaceCallout.allCases.count - coordinator.selectedCalloutTypes.count
         let tagFilters = coordinator.selectedTags.count
         return calloutFilters + (tagFilters > 0 ? tagFilters : 0)
     }

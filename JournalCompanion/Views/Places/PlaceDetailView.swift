@@ -43,7 +43,7 @@ struct PlaceDetailView: View {
                                 .font(.title2)
                                 .bold()
 
-                            Text(currentPlace.callout.capitalized)
+                            Text(currentPlace.callout.rawValue.capitalized)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -258,7 +258,7 @@ struct PlaceDetailView: View {
         location: nil,
         address: "123 Main Street, San Francisco, CA",
         tags: ["coffee", "wifi", "cafe"],
-        callout: "cafe",
+        callout: .cafe,
         pin: "mappin.circle.fill",
         color: "orange",
         url: "https://example.com",

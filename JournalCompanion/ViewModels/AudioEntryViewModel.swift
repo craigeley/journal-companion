@@ -217,7 +217,7 @@ class AudioEntryViewModel: ObservableObject {
                 tags: tags,
                 place: selectedPlace?.name,
                 people: [],
-                placeCallout: selectedPlace?.callout,
+                placeCallout: selectedPlace?.callout.rawValue,
                 location: locationString,
                 content: combinedContent,
                 preservedSections: nil,

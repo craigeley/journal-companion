@@ -1,8 +1,8 @@
 //
-//  TextEditorWithAutocomplete.swift
+//  AutocompleteManager.swift
 //  JournalCompanion
 //
-//  TextEditor with autocomplete support for wiki-links and mentions
+//  Manages autocomplete state and suggestions for wiki-links and mentions
 //
 
 import SwiftUI
@@ -186,88 +186,4 @@ final class AutocompleteManager: ObservableObject {
 
         return (newText, cursorPosition)
     }
-}
-
-struct TextEditorWithAutocomplete: View {
-    @Binding var text: String
-    @ObservedObject var autocompleteManager: AutocompleteManager
-    let placeholder: String
-    let minHeight: CGFloat
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                // Placeholder
-                if text.isEmpty {
-                    Text(placeholder)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 8)
-                }
-
-                // Text editor
-                TextEditor(text: $text)
-                    .frame(minHeight: minHeight)
-                    .onChange(of: text) { _, newValue in
-                        autocompleteManager.updateState(text: newValue)
-                    }
-            }
-
-            // Autocomplete suggestions
-            if autocompleteManager.state.isActive && !autocompleteManager.suggestions.isEmpty {
-                AutocompleteSuggestionView(suggestions: autocompleteManager.suggestions) { suggestion in
-                    // Insert suggestion
-                    let (newText, _) = autocompleteManager.insertSuggestion(suggestion, into: text)
-                    text = newText
-                    autocompleteManager.updateState(text: text)
-                }
-                .padding(.top, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: autocompleteManager.state.isActive)
-    }
-}
-
-// MARK: - Preview
-#Preview {
-    struct PreviewWrapper: View {
-        @State private var text = ""
-        @StateObject private var manager: AutocompleteManager
-
-        private let places = [
-            Place(id: "central-park", name: "Central Park", location: nil, address: "New York, NY", tags: [], callout: "park", pin: nil, color: nil, url: nil, aliases: [], content: ""),
-            Place(id: "blue-bottle", name: "Blue Bottle Coffee", location: nil, address: "123 Main St", tags: [], callout: "cafe", pin: nil, color: nil, url: nil, aliases: ["BB"], content: "")
-        ]
-
-        private let people = [
-            Person(id: "alice", name: "Alice Smith", pronouns: "she/her", relationshipType: .friend, tags: [], email: nil, phone: nil, address: nil, birthday: nil, metDate: nil, color: nil, photoFilename: nil, aliases: [], content: "")
-        ]
-
-        init() {
-            _manager = StateObject(wrappedValue: AutocompleteManager(places: [], people: []))
-        }
-
-        var body: some View {
-            VStack {
-                TextEditorWithAutocomplete(
-                    text: $text,
-                    autocompleteManager: manager,
-                    placeholder: "Type [[ or @ to autocomplete...",
-                    minHeight: 120
-                )
-                .padding()
-
-                Text("Current text: \(text)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .onAppear {
-                // Update manager with actual data after init
-                manager.updateState(text: "")
-            }
-        }
-    }
-
-    return PreviewWrapper()
 }

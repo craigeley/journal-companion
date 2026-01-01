@@ -40,7 +40,7 @@ struct PlaceMapPin: View {
         location: nil,
         address: nil,
         tags: [],
-        callout: "cafe",
+        callout: .cafe,
         pin: nil,
         color: nil,
         url: nil,

@@ -88,7 +88,7 @@ struct PlaceEditView: View {
                             HStack {
                                 Image(systemName: PlaceIcon.systemName(for: callout))
                                     .foregroundStyle(PlaceIcon.color(for: callout))
-                                Text(callout.capitalized)
+                                Text(callout.rawValue.capitalized)
                             }
                             .tag(callout)
                         }
@@ -283,7 +283,7 @@ struct PlaceEditView: View {
         location: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         address: "123 Main Street, San Francisco, CA",
         tags: ["coffee", "wifi", "cafe"],
-        callout: "cafe",
+        callout: .cafe,
         pin: "mappin.circle.fill",
         color: "rgb(205,145,95)",
         url: "https://example.com",

@@ -123,7 +123,7 @@ class EntryListViewModel: ObservableObject {
     /// Look up place callout by place name
     func callout(for placeName: String?) -> String? {
         guard let placeName = placeName else { return nil }
-        return places.first { $0.name == placeName }?.callout
+        return places.first { $0.name == placeName }?.callout.rawValue
     }
 
     /// Delete an entry

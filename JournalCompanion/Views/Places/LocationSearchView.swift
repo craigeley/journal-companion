@@ -14,6 +14,8 @@ struct LocationSearchView: View {
     @Environment(\.dismiss) var dismiss
     @State private var searchText = ""
     @State private var isSearchPresented = true  // Auto-focus search on appear
+    @State private var errorMessage: String?
+    @State private var showErrorAlert = false
 
     // Bindings to pass results back
     @Binding var selectedLocationName: String?
@@ -73,6 +75,13 @@ struct LocationSearchView: View {
             .onChange(of: searchText) { oldValue, newValue in
                 searchCompleter.updateQuery(newValue)
             }
+            .alert("Location Search Error", isPresented: $showErrorAlert) {
+                Button("OK") {
+                    showErrorAlert = false
+                }
+            } message: {
+                Text(errorMessage ?? "An unknown error occurred while searching for the location.")
+            }
         }
     }
 
@@ -96,9 +105,15 @@ struct LocationSearchView: View {
                 selectedPOICategory = mapItem.pointOfInterestCategory
 
                 dismiss()
+            } else {
+                // No results found
+                errorMessage = "No location details found for '\(completion.title)'. Please try a different search."
+                showErrorAlert = true
             }
         } catch {
-            print("Error fetching location details: \(error)")
+            // Network or MapKit error
+            errorMessage = "Could not fetch location details: \(error.localizedDescription)"
+            showErrorAlert = true
         }
     }
 }

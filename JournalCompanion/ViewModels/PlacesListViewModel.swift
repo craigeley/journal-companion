@@ -112,7 +112,7 @@ class PlacesListViewModel: ObservableObject {
     private func applyFilters(callouts: Set<String>, tags: Set<String>) {
         filteredPlaces = places.filter { place in
             // Match callout type (if any callouts selected)
-            let matchesCallout = callouts.isEmpty || callouts.contains(place.callout)
+            let matchesCallout = callouts.isEmpty || callouts.contains(place.callout.rawValue)
 
             // Match tags (if any tags selected, place must have at least one matching tag)
             let matchesTags = tags.isEmpty || place.tags.contains { tags.contains($0) }
@@ -124,7 +124,7 @@ class PlacesListViewModel: ObservableObject {
     /// Update grouped places whenever filteredPlaces changes
     private func updateGroupedPlaces(_ places: [Place]) {
         let grouped = Dictionary(grouping: places) { place in
-            place.callout
+            place.callout.rawValue
         }
 
         placesByCallout = grouped.map { (callout: $0.key, places: $0.value) }

@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 struct DocumentPicker: UIViewControllerRepresentable {
     @Binding var selectedURL: URL?
+    @Binding var errorMessage: String?
     let onDismiss: () -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
@@ -36,14 +37,21 @@ struct DocumentPicker: UIViewControllerRepresentable {
         }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            guard let url = urls.first else { return }
-
-            // Start accessing security-scoped resource
-            guard url.startAccessingSecurityScopedResource() else {
-                print("Failed to access security-scoped resource")
+            guard let url = urls.first else {
+                parent.errorMessage = "No folder was selected. Please try again."
+                parent.onDismiss()
                 return
             }
 
+            // Start accessing security-scoped resource
+            guard url.startAccessingSecurityScopedResource() else {
+                parent.errorMessage = "Unable to access the selected folder. Please check app permissions and try again."
+                parent.onDismiss()
+                return
+            }
+
+            // Success - clear any previous errors and set the URL
+            parent.errorMessage = nil
             parent.selectedURL = url
             parent.onDismiss()
         }

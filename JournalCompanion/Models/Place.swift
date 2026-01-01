@@ -8,6 +8,30 @@
 import Foundation
 import CoreLocation
 
+/// Type-safe enum for place callout types
+enum PlaceCallout: String, Codable, Sendable, Equatable, Hashable, CaseIterable {
+    case place
+    case cafe
+    case restaurant
+    case park
+    case school
+    case home
+    case shop
+    case grocery
+    case bar
+    case medical
+    case airport
+    case hotel
+    case library
+    case zoo
+    case museum
+    case workout
+    case concert
+    case movie
+    case entertainment
+    case service
+}
+
 struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
     // Hashable conformance based on id
     func hash(into hasher: inout Hasher) {
@@ -19,7 +43,7 @@ struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
     var location: CLLocationCoordinate2D?
     var address: String?
     var tags: [String]
-    var callout: String  // school, park, cafe, restaurant, etc.
+    var callout: PlaceCallout
     var pin: String?  // SF Symbol name
     var color: String?  // RGB format: rgb(72,133,237)
     var url: String?
@@ -83,7 +107,7 @@ struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
                 }
 
             case "callout":
-                yaml += "callout: \(callout)\n"
+                yaml += "callout: \(callout.rawValue)\n"
 
             case "pin":
                 if let pin = pin {
@@ -201,7 +225,7 @@ struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
             location: location,
             address: frontmatter["addr"] as? String,
             tags: tags,
-            callout: frontmatter["callout"] as? String ?? "place",
+            callout: PlaceCallout(rawValue: frontmatter["callout"] as? String ?? "place") ?? .place,
             pin: frontmatter["pin"] as? String,
             color: frontmatter["color"] as? String,
             url: frontmatter["url"] as? String,

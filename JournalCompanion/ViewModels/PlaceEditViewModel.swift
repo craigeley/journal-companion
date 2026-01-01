@@ -23,7 +23,7 @@ class PlaceEditViewModel: ObservableObject, Identifiable {
 
     // Editable fields (both modes)
     @Published var bodyText: String = ""
-    @Published var callout: String = "place"
+    @Published var callout: PlaceCallout = .place
     @Published var tags: [String] = []
     @Published var aliases: [String] = []
     @Published var url: String = ""
@@ -46,29 +46,8 @@ class PlaceEditViewModel: ObservableObject, Identifiable {
     private let locationService: LocationService
     let templateManager: TemplateManager
 
-    // Available callout types (matches PlaceIcon supported types)
-    static let calloutTypes = [
-        "place",      // Default
-        "cafe",
-        "restaurant",
-        "park",
-        "school",
-        "home",
-        "shop",
-        "grocery",
-        "bar",
-        "medical",
-        "airport",
-        "hotel",
-        "library",
-        "zoo",
-        "museum",
-        "workout",
-        "concert",
-        "movie",
-        "entertainment",
-        "service"
-    ]
+    // Available callout types (from PlaceCallout enum)
+    static let calloutTypes = PlaceCallout.allCases
 
     var isCreating: Bool { originalPlace == nil }
 
@@ -131,12 +110,13 @@ class PlaceEditViewModel: ObservableObject, Identifiable {
             // Use MapKit-derived callout (highest priority)
             callout = mappedCallout
         } else if let defaultCallout = template.defaultValue(for: "callout"),
-                  case .callout(let calloutType) = defaultCallout {
+                  case .callout(let calloutType) = defaultCallout,
+                  let parsedCallout = PlaceCallout(rawValue: calloutType) {
             // Use template default (medium priority)
-            callout = calloutType
+            callout = parsedCallout
         } else {
             // Hardcoded fallback (lowest priority)
-            callout = "place"
+            callout = .place
         }
 
         // Apply default tags (unchanged)

@@ -303,7 +303,7 @@ class PhotoEntryViewModel: ObservableObject {
                 tags: tags,
                 place: selectedPlace?.name,
                 people: [],
-                placeCallout: selectedPlace?.callout,
+                placeCallout: selectedPlace?.callout.rawValue,
                 location: locationString,
                 content: content,
                 preservedSections: nil,
@@ -340,26 +340,26 @@ class PhotoEntryViewModel: ObservableObject {
             // Add camera metadata to unknown fields (preserved in YAML)
             if let exif = photoEXIF {
                 if let camera = exif.cameraModel {
-                    entry.unknownFields["camera_model"] = .string(camera)
+                    entry.unknownFields["camera_model"] = YAMLValue.string(camera)
                     entry.unknownFieldsOrder.append("camera_model")
                 }
                 if let lens = exif.lensModel {
-                    entry.unknownFields["lens_model"] = .string(lens)
+                    entry.unknownFields["lens_model"] = YAMLValue.string(lens)
                     entry.unknownFieldsOrder.append("lens_model")
                 }
                 if let focal = exif.focalLength {
                     // Store as integer mm (industry standard)
-                    entry.unknownFields["focal_length"] = .int(Int(focal.rounded()))
+                    entry.unknownFields["focal_length"] = YAMLValue.int(Int(focal.rounded()))
                     entry.unknownFieldsOrder.append("focal_length")
                 }
                 if let aperture = exif.aperture {
                     // Round to 1 decimal place (industry standard for f-stops)
                     let roundedAperture = (aperture * 10).rounded() / 10
-                    entry.unknownFields["aperture"] = .double(roundedAperture)
+                    entry.unknownFields["aperture"] = YAMLValue.double(roundedAperture)
                     entry.unknownFieldsOrder.append("aperture")
                 }
                 if let iso = exif.iso {
-                    entry.unknownFields["iso"] = .int(iso)
+                    entry.unknownFields["iso"] = YAMLValue.int(iso)
                     entry.unknownFieldsOrder.append("iso")
                 }
             }
@@ -373,7 +373,7 @@ class PhotoEntryViewModel: ObservableObject {
             )
 
             // Add photo attachment to unknown fields
-            entry.unknownFields["photo_attachment"] = .string(filename)
+            entry.unknownFields["photo_attachment"] = YAMLValue.string(filename)
             entry.unknownFieldsOrder.insert("photo_attachment", at: 0)
 
             // Replace placeholder with actual filename

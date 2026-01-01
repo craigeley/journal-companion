@@ -149,7 +149,7 @@ private extension UIFont {
         @State private var text = "Met [[Alice Smith]] at [[Central Park]] today. Had coffee with [[Bob]] (invalid)."
 
         private let places = [
-            Place(id: "central-park", name: "Central Park", location: nil, address: "New York, NY", tags: [], callout: "park", pin: nil, color: nil, url: nil, aliases: [], content: "")
+            Place(id: "central-park", name: "Central Park", location: nil, address: "New York, NY", tags: [], callout: .park, pin: nil, color: nil, url: nil, aliases: [], content: "")
         ]
 
         private let people = [

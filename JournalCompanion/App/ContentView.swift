@@ -563,7 +563,7 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .padding()
             .sheet(isPresented: $showDocumentPicker) {
-                DocumentPicker(selectedURL: $selectedVaultURL) {
+                DocumentPicker(selectedURL: $selectedVaultURL, errorMessage: $vaultError) {
                     showDocumentPicker = false
                 }
             }

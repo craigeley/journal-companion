@@ -26,12 +26,7 @@ class MapViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     // All available callout types
-    let allCalloutTypes: [String] = [
-        "place", "cafe", "restaurant", "park", "school", "home",
-        "shop", "grocery", "bar", "medical", "airport", "hotel",
-        "library", "zoo", "museum", "workout", "concert", "movie",
-        "entertainment", "service"
-    ]
+    let allCalloutTypes: [String] = PlaceCallout.allCases.map { $0.rawValue }
 
     init(vaultManager: VaultManager) {
         self.vaultManager = vaultManager
@@ -137,7 +132,7 @@ class MapViewModel: ObservableObject {
     private func applyFilters() {
         filteredPlaces = placesWithCoordinates.filter { place in
             // Filter by callout type
-            let matchesCallout = selectedCalloutTypes.contains(place.callout)
+            let matchesCallout = selectedCalloutTypes.contains(place.callout.rawValue)
 
             // Filter by tags (ANY matching - place needs at least one selected tag)
             let matchesTags: Bool = {

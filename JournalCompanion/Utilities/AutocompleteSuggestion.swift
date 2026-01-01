@@ -61,7 +61,7 @@ enum AutocompleteSuggestion: Identifiable {
 
     var iconColor: String {
         switch self {
-        case .place(let place, _): return place.callout
+        case .place(let place, _): return place.callout.rawValue
         case .person: return "purple"
         }
     }

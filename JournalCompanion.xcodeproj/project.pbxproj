@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		B6FF4B2C2EF060190004FE81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;

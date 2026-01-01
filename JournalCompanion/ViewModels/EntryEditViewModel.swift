@@ -161,7 +161,7 @@ class EntryEditViewModel: ObservableObject {
             tags: tags,
             place: selectedPlace?.name,
             people: [], // Deprecated - people now parsed from wiki-links in content
-            placeCallout: selectedPlace?.callout,
+            placeCallout: selectedPlace?.callout.rawValue,
             location: finalLocation,
             content: entryText,
             preservedSections: preservedSections,

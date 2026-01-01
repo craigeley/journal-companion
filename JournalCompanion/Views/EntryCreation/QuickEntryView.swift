@@ -6,7 +6,9 @@
 //
 
 import SwiftUI
+#if canImport(JournalingSuggestions)
 import JournalingSuggestions
+#endif
 import MapKit
 import CoreLocation
 
@@ -64,6 +66,7 @@ struct QuickEntryView: View {
                     }
                 }
 
+                #if canImport(JournalingSuggestions)
                 // Suggestions Section
                 Section {
                     Button {
@@ -85,6 +88,7 @@ struct QuickEntryView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                #endif
 
                 // Weather Section
                 if let weather = viewModel.weatherData {
@@ -398,6 +402,7 @@ struct QuickEntryView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            #if canImport(JournalingSuggestions)
             .journalingSuggestionsPicker(
                 isPresented: $viewModel.showSuggestionsPicker,
                 onCompletion: { suggestion in
@@ -407,6 +412,7 @@ struct QuickEntryView: View {
                     }
                 }
             )
+            #endif
         }
     }
 }

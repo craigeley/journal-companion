@@ -9,16 +9,17 @@ import SwiftUI
 
 struct EntryListView: View {
     @StateObject var viewModel: EntryListViewModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var selectedEntry: Entry?
-    @State private var showDetailView = false
     @State private var entryToDelete: Entry?
     @State private var showDeleteConfirmation = false
     @State private var showAttachmentDeleteConfirmation = false
     @State private var showSettings = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
-        NavigationStack {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             Group {
                 if viewModel.isLoading {
                     ProgressView("Loading entries...")
@@ -53,92 +54,102 @@ struct EntryListView: View {
             .refreshable {
                 await viewModel.loadEntries()
             }
-            .sheet(isPresented: $showDetailView) {
-                if let entry = selectedEntry {
-                    EntryDetailView(entry: entry)
-                        .environmentObject(viewModel.vaultManager)
-                }
-            }
-            .onChange(of: showDetailView) { _, isShowing in
-                if !isShowing {
-                    // Refresh entries when edit view closes
-                    Task {
-                        await viewModel.loadEntries()
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
+        } detail: {
+            if let entry = selectedEntry {
+                EntryDetailView(entry: entry)
                     .environmentObject(viewModel.vaultManager)
+                    .id(entry.id) // Force refresh when entry changes
+            } else {
+                ContentUnavailableView {
+                    Label("Select an Entry", systemImage: "doc.text")
+                } description: {
+                    Text("Choose an entry from the list to view its details")
+                }
             }
-            .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) {
-                    entryToDelete = nil
-                }
-                Button("Delete", role: .destructive) {
-                    if let entry = entryToDelete, entry.hasAttachments {
-                        // Show second confirmation for attachments
-                        showAttachmentDeleteConfirmation = true
-                    } else if let entry = entryToDelete {
-                        // No attachments, delete immediately
-                        Task {
-                            do {
-                                try await viewModel.deleteEntry(entry, deleteAttachments: false)
-                                entryToDelete = nil
-                            } catch {
-                                print("❌ Failed to delete entry: \(error)")
-                            }
-                        }
-                    }
-                }
-            } message: {
-                Text("This will permanently delete the entry and cannot be undone.")
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of: selectedEntry) { _, _ in
+            // Refresh entries when selection changes (entry may have been edited)
+            Task {
+                await viewModel.loadEntries()
             }
-            .alert("Also Delete Attachments?", isPresented: $showAttachmentDeleteConfirmation) {
-                Button("Keep Attachments") {
-                    if let entry = entryToDelete {
-                        Task {
-                            do {
-                                try await viewModel.deleteEntry(entry, deleteAttachments: false)
-                                entryToDelete = nil
-                            } catch {
-                                print("❌ Failed to delete entry: \(error)")
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(viewModel.vaultManager)
+        }
+        .alert("Delete Entry?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                entryToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let entry = entryToDelete, entry.hasAttachments {
+                    // Show second confirmation for attachments
+                    showAttachmentDeleteConfirmation = true
+                } else if let entry = entryToDelete {
+                    // No attachments, delete immediately
+                    Task {
+                        do {
+                            try await viewModel.deleteEntry(entry, deleteAttachments: false)
+                            if selectedEntry?.id == entry.id {
+                                selectedEntry = nil
                             }
+                            entryToDelete = nil
+                        } catch {
+                            print("❌ Failed to delete entry: \(error)")
                         }
                     }
                 }
-                Button("Delete Attachments", role: .destructive) {
-                    if let entry = entryToDelete {
-                        Task {
-                            do {
-                                try await viewModel.deleteEntry(entry, deleteAttachments: true)
-                                entryToDelete = nil
-                            } catch {
-                                print("❌ Failed to delete entry: \(error)")
-                            }
-                        }
-                    }
-                }
-            } message: {
+            }
+        } message: {
+            Text("This will permanently delete the entry and cannot be undone.")
+        }
+        .alert("Also Delete Attachments?", isPresented: $showAttachmentDeleteConfirmation) {
+            Button("Keep Attachments") {
                 if let entry = entryToDelete {
-                    let attachmentList = entry.attachmentTypes.joined(separator: ", ")
-                    Text("This entry has \(attachmentList). Do you want to delete them as well?")
+                    Task {
+                        do {
+                            try await viewModel.deleteEntry(entry, deleteAttachments: false)
+                            if selectedEntry?.id == entry.id {
+                                selectedEntry = nil
+                            }
+                            entryToDelete = nil
+                        } catch {
+                            print("❌ Failed to delete entry: \(error)")
+                        }
+                    }
                 }
+            }
+            Button("Delete Attachments", role: .destructive) {
+                if let entry = entryToDelete {
+                    Task {
+                        do {
+                            try await viewModel.deleteEntry(entry, deleteAttachments: true)
+                            if selectedEntry?.id == entry.id {
+                                selectedEntry = nil
+                            }
+                            entryToDelete = nil
+                        } catch {
+                            print("❌ Failed to delete entry: \(error)")
+                        }
+                    }
+                }
+            }
+        } message: {
+            if let entry = entryToDelete {
+                let attachmentList = entry.attachmentTypes.joined(separator: ", ")
+                Text("This entry has \(attachmentList). Do you want to delete them as well?")
             }
         }
     }
 
     private var entriesList: some View {
-        List {
+        List(selection: $selectedEntry) {
             ForEach(viewModel.entriesByDate(), id: \.date) { section in
                 Section {
                     ForEach(section.entries) { entry in
                         EntryRowView(entry: entry, placeCallout: viewModel.callout(for: entry.place), places: viewModel.places, people: viewModel.people, vaultURL: viewModel.vaultManager.vaultURL)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedEntry = entry
-                                showDetailView = true
-                            }
+                            .tag(entry)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     entryToDelete = entry

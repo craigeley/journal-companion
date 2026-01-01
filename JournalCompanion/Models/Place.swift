@@ -8,7 +8,12 @@
 import Foundation
 import CoreLocation
 
-struct Place: Identifiable, Codable, Sendable, Equatable {
+struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
+    // Hashable conformance based on id
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
     let id: String  // Sanitized filename (without .md extension)
     var name: String
     var location: CLLocationCoordinate2D?

@@ -7,7 +7,16 @@
 
 import Foundation
 
-struct Person: Identifiable, Codable, Sendable {
+struct Person: Identifiable, Codable, Sendable, Hashable {
+    // Hashable conformance based on id
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: Person, rhs: Person) -> Bool {
+        lhs.id == rhs.id
+    }
+
     let id: String  // Sanitized filename (without .md extension)
     var name: String
     var pronouns: String?

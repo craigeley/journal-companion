@@ -13,9 +13,11 @@ struct PlacesListView: View {
     @EnvironmentObject var templateManager: TemplateManager
     @State private var selectedPlace: Place?
     @State private var showSettings = false
+    @State private var showMapView = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
-        NavigationStack {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             Group {
                 if viewModel.isLoading {
                     ProgressView("Loading places...")
@@ -48,28 +50,40 @@ struct PlacesListView: View {
             .refreshable {
                 await viewModel.reloadPlaces()
             }
-            .sheet(item: $selectedPlace) { place in
+        } detail: {
+            if showMapView {
+                let mapViewModel = MapViewModel(vaultManager: viewModel.vaultManager)
+                MapView(viewModel: mapViewModel)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
+            } else if let place = selectedPlace {
                 PlaceDetailView(place: place)
                     .environmentObject(viewModel.vaultManager)
                     .environmentObject(locationService)
                     .environmentObject(templateManager)
+                    .id(place.id)
+            } else {
+                ContentUnavailableView {
+                    Label("Select a Place", systemImage: "mappin.circle")
+                } description: {
+                    Text("Choose a place from the list to view its details")
+                }
             }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .environmentObject(viewModel.vaultManager)
-            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(viewModel.vaultManager)
         }
     }
 
     private var placesList: some View {
-        List {
+        List(selection: $selectedPlace) {
             // View on Map navigation section
             Section {
-                NavigationLink {
-                    let mapViewModel = MapViewModel(vaultManager: viewModel.vaultManager)
-                    MapView(viewModel: mapViewModel)
-                        .environmentObject(locationService)
-                        .environmentObject(templateManager)
+                Button {
+                    selectedPlace = nil
+                    showMapView = true
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "map.fill")
@@ -77,9 +91,14 @@ struct PlacesListView: View {
                             .frame(width: 32)
                         Text("View on Map")
                             .font(.body)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
                     }
                     .padding(.vertical, 4)
                 }
+                .foregroundStyle(.primary)
             }
 
             // Existing place sections
@@ -87,10 +106,7 @@ struct PlacesListView: View {
                 Section {
                     ForEach(section.places) { place in
                         PlaceRow(place: place)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedPlace = place
-                            }
+                            .tag(place)
                     }
                 } header: {
                     Text(section.callout.capitalized)
@@ -98,6 +114,12 @@ struct PlacesListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .onChange(of: selectedPlace) { _, newValue in
+            // Clear map view when a place is selected
+            if newValue != nil {
+                showMapView = false
+            }
+        }
     }
 }
 

@@ -12,9 +12,10 @@ struct PeopleListView: View {
     @EnvironmentObject var vaultManager: VaultManager
     @State private var selectedPerson: Person?
     @State private var showSettings = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
-        NavigationStack {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             Group {
                 if viewModel.isLoading {
                     ProgressView("Loading people...")
@@ -47,25 +48,31 @@ struct PeopleListView: View {
             .refreshable {
                 await viewModel.reloadPeople()
             }
-            .sheet(item: $selectedPerson) { person in
+        } detail: {
+            if let person = selectedPerson {
                 PersonDetailView(person: person)
                     .environmentObject(vaultManager)
+                    .id(person.id)
+            } else {
+                ContentUnavailableView {
+                    Label("Select a Person", systemImage: "person.circle")
+                } description: {
+                    Text("Choose a person from the list to view their details")
+                }
             }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .environmentObject(vaultManager)
-            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(vaultManager)
         }
     }
 
     private var peopleList: some View {
-        List {
+        List(selection: $selectedPerson) {
             ForEach(viewModel.filteredPeople) { person in
                 PersonRow(person: person)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedPerson = person
-                    }
+                    .tag(person)
             }
         }
         .listStyle(.insetGrouped)

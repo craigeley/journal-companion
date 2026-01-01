@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */; };
+		B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6FF4C412EF107AB0004FE81 /* JournalingSuggestions.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,7 +70,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B6FF4C422EF107AB0004FE81 /* JournalingSuggestions.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

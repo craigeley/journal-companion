@@ -8,7 +8,9 @@
 import Foundation
 import CoreLocation
 import Combine
+#if canImport(JournalingSuggestions)
 import JournalingSuggestions
+#endif
 import HealthKit
 
 @MainActor
@@ -24,7 +26,9 @@ class QuickEntryViewModel: ObservableObject {
     @Published var weatherData: WeatherData?
     @Published var isFetchingWeather: Bool = false
     @Published var showSuggestionsPicker: Bool = false
+    #if canImport(JournalingSuggestions)
     @Published var selectedSuggestion: JournalingSuggestion?
+    #endif
 
     // State of Mind properties
     @Published var moodData: StateOfMindData?
@@ -352,6 +356,7 @@ class QuickEntryViewModel: ObservableObject {
         tags.removeAll { $0 == tag }
     }
 
+    #if canImport(JournalingSuggestions)
     /// Request journaling suggestions from iOS
     func requestJournalingSuggestions() {
         showSuggestionsPicker = true
@@ -386,6 +391,7 @@ class QuickEntryViewModel: ObservableObject {
             entryText = suggestedText + "\n\n"
         }
     }
+    #endif
 
     /// Find a matching Place based on location proximity
     private func findMatchingPlace(for location: CLLocation) -> Place? {

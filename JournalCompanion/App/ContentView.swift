@@ -289,6 +289,8 @@ struct ContentView: View {
         }
     }
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     private var floatingActionButtons: some View {
         Group {
             if vaultManager.isVaultAccessible && selectedTab != 3 {
@@ -298,9 +300,9 @@ struct ContentView: View {
                         Spacer()
                         fabButton
                     }
-                    .padding(.trailing, 20)
+                    .padding(.trailing, horizontalSizeClass == .regular ? 40 : 20)
                 }
-                .padding(.bottom, 70)
+                .padding(.bottom, horizontalSizeClass == .regular ? 40 : 70)
             }
         }
     }
@@ -485,6 +487,7 @@ struct ContentView: View {
                 Label("Search", systemImage: "magnifyingglass")
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
         .tabBarMinimizeBehavior(.onScrollDown)
         .onChange(of: selectedTab) { oldValue, newValue in
@@ -497,15 +500,6 @@ struct ContentView: View {
         Group {
             if let viewModel = entryViewModel {
                 EntryListView(viewModel: viewModel)
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                showSettings = true
-                            } label: {
-                                Image(systemName: "gear")
-                            }
-                        }
-                    }
             } else {
                 ProgressView("Loading...")
             }

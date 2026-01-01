@@ -32,7 +32,16 @@ enum YAMLValue: Sendable, Codable, Equatable {
 
 // MARK: - Entry Model
 
-struct Entry: Identifiable, Codable, Sendable {
+struct Entry: Identifiable, Codable, Sendable, Hashable {
+    // Hashable conformance based on id
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: Entry, rhs: Entry) -> Bool {
+        lhs.id == rhs.id
+    }
+
     let id: String
     var dateCreated: Date
     var tags: [String]

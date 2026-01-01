@@ -16,6 +16,7 @@ struct ContentView: View {
     @EnvironmentObject var templateManager: TemplateManager
     @EnvironmentObject var visitTracker: SignificantLocationTracker
     @EnvironmentObject var searchCoordinator: SearchCoordinator
+    @EnvironmentObject var visitNotificationCoordinator: VisitNotificationCoordinator
     @State private var showQuickEntry = false
     @State private var showAudioEntry = false
     @State private var showPhotoEntry = false
@@ -44,99 +45,13 @@ struct ContentView: View {
     @State private var placesViewModel: PlacesListViewModel?
 
     var body: some View {
-        ZStack {
-            if vaultManager.isRestoringVault {
-                vaultLoading
-            } else if vaultManager.isVaultAccessible {
-                tabContent
-            } else {
-                vaultSetup
-            }
-
-            // Floating buttons (hide on search tab)
-            if vaultManager.isVaultAccessible && selectedTab != 3 {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-
-                        if selectedTab == 0 {
-                            // Entries tab - menu FAB
-                            Menu {
-                                Button {
-                                    showQuickEntry = true
-                                } label: {
-                                    Label("Text Entry", systemImage: "square.and.pencil")
-                                }
-
-                                Button {
-                                    showAudioEntry = true
-                                } label: {
-                                    Label("Audio Entry", systemImage: "waveform")
-                                }
-
-                                Button {
-                                    showPhotoPicker = true
-                                } label: {
-                                    Label("Photo Entry", systemImage: "photo")
-                                }
-
-                                Button {
-                                    showWorkoutSync = true
-                                } label: {
-                                    Label("Sync Workouts", systemImage: "figure.run")
-                                }
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.title2)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 4)
-                            }
-                            .menuOrder(.fixed)
-                        } else if selectedTab == 1 {
-                            // People tab - single FAB
-                            Button {
-                                showPersonCreation = true
-                            } label: {
-                                Image(systemName: "person.crop.circle.badge.plus")
-                                    .font(.title2)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 4)
-                            }
-                        } else if selectedTab == 2 {
-                            // Places tab - single FAB
-                            Button {
-                                showLocationSearchForNewPlace = true
-                            } label: {
-                                Image(systemName: "rectangle.stack.fill.badge.plus")
-                                    .font(.title2)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 4)
-                            }
-                        }
-                    }
-                    .padding(.trailing, 20)
-                }
-                .padding(.bottom, 70) // Extra padding to float above tab bar
-            }
-
-        }
+        mainContent
         .sheet(isPresented: $showQuickEntry) {
-            let viewModel = QuickEntryViewModel(vaultManager: vaultManager, locationService: locationService)
-            QuickEntryView(viewModel: viewModel)
+            quickEntrySheet
         }
         .onChange(of: showQuickEntry) { _, isShowing in
             if !isShowing {
-                // Refresh entries when quick entry view closes
+                visitNotificationCoordinator.clearPendingVisit()
                 Task {
                     do {
                         _ = try await vaultManager.loadEntries()
@@ -144,6 +59,11 @@ struct ContentView: View {
                         print("❌ Failed to reload entries: \(error)")
                     }
                 }
+            }
+        }
+        .onChange(of: visitNotificationCoordinator.shouldShowQuickEntry) { _, shouldShow in
+            if shouldShow {
+                showQuickEntry = true
             }
         }
         .sheet(isPresented: $showAudioEntry) {
@@ -306,29 +226,7 @@ struct ContentView: View {
                 }
         }
         .onAppear {
-            // Initialize shared ViewModels once
-            if entryViewModel == nil {
-                entryViewModel = EntryListViewModel(
-                    vaultManager: vaultManager,
-                    locationService: locationService,
-                    searchCoordinator: searchCoordinator
-                )
-            }
-            if peopleViewModel == nil {
-                peopleViewModel = PeopleListViewModel(
-                    vaultManager: vaultManager,
-                    searchCoordinator: searchCoordinator
-                )
-            }
-            if placesViewModel == nil {
-                placesViewModel = PlacesListViewModel(
-                    vaultManager: vaultManager,
-                    searchCoordinator: searchCoordinator
-                )
-            }
-
-            // Show HealthKit authorization on first launch
-            print("🏁 ContentView appeared. hasRequestedHealthKitAuth: \(hasRequestedHealthKitAuth), vaultAccessible: \(vaultManager.isVaultAccessible)")
+            setupViewModels()
             checkAndShowHealthKitAuth()
         }
         .onChange(of: vaultManager.isVaultAccessible) { oldValue, newValue in
@@ -341,6 +239,10 @@ struct ContentView: View {
         .onChange(of: selectedTab) { _, _ in
             // Clear search when switching tabs
             searchCoordinator.searchText = ""
+        }
+        .onChange(of: vaultManager.places) { _, newPlaces in
+            // Keep visit tracker's places in sync for location matching
+            visitTracker.places = newPlaces
         }
         .sheet(item: $searchCoordinator.selectedEntry) { entry in
             // Entry detail from search
@@ -368,10 +270,142 @@ struct ContentView: View {
         }
     }
 
+    private var mainContent: some View {
+        ZStack {
+            contentSelector
+            floatingActionButtons
+        }
+    }
+
+    private var contentSelector: some View {
+        Group {
+            if vaultManager.isRestoringVault {
+                vaultLoading
+            } else if vaultManager.isVaultAccessible {
+                tabContent
+            } else {
+                vaultSetup
+            }
+        }
+    }
+
+    private var floatingActionButtons: some View {
+        Group {
+            if vaultManager.isVaultAccessible && selectedTab != 3 {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        fabButton
+                    }
+                    .padding(.trailing, 20)
+                }
+                .padding(.bottom, 70)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var fabButton: some View {
+        if selectedTab == 0 {
+            entriesFAB
+        } else if selectedTab == 1 {
+            peopleFAB
+        } else if selectedTab == 2 {
+            placesFAB
+        }
+    }
+
+    private var entriesFAB: some View {
+        Menu {
+            Button {
+                showQuickEntry = true
+            } label: {
+                Label("Text Entry", systemImage: "square.and.pencil")
+            }
+
+            Button {
+                showAudioEntry = true
+            } label: {
+                Label("Audio Entry", systemImage: "waveform")
+            }
+
+            Button {
+                showPhotoPicker = true
+            } label: {
+                Label("Photo Entry", systemImage: "photo")
+            }
+
+            Button {
+                showWorkoutSync = true
+            } label: {
+                Label("Sync Workouts", systemImage: "figure.run")
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.blue)
+                .clipShape(Circle())
+                .shadow(radius: 4)
+        }
+        .menuOrder(.fixed)
+    }
+
+    private var peopleFAB: some View {
+        Button {
+            showPersonCreation = true
+        } label: {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.blue)
+                .clipShape(Circle())
+                .shadow(radius: 4)
+        }
+    }
+
+    private var placesFAB: some View {
+        Button {
+            showLocationSearchForNewPlace = true
+        } label: {
+            Image(systemName: "rectangle.stack.fill.badge.plus")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.blue)
+                .clipShape(Circle())
+                .shadow(radius: 4)
+        }
+    }
+
+    private func setupViewModels() {
+        if entryViewModel == nil {
+            entryViewModel = EntryListViewModel(
+                vaultManager: vaultManager,
+                locationService: locationService,
+                searchCoordinator: searchCoordinator
+            )
+        }
+        if peopleViewModel == nil {
+            peopleViewModel = PeopleListViewModel(
+                vaultManager: vaultManager,
+                searchCoordinator: searchCoordinator
+            )
+        }
+        if placesViewModel == nil {
+            placesViewModel = PlacesListViewModel(
+                vaultManager: vaultManager,
+                searchCoordinator: searchCoordinator
+            )
+        }
+    }
+
     private func checkAndShowHealthKitAuth() {
         if !hasRequestedHealthKitAuth && vaultManager.isVaultAccessible {
             print("💡 Will show HealthKit auth in 0.5 seconds...")
-            // Delay slightly to allow app to settle
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 print("📱 Showing HealthKit authorization view")
                 showHealthKitAuth = true
@@ -381,6 +415,30 @@ struct ContentView: View {
         } else {
             print("⏭️ Vault not accessible yet, waiting...")
         }
+    }
+
+    private func findPlaceFromVisitData(_ visitData: VisitNotificationData?) -> Place? {
+        guard let data = visitData,
+              let placeName = data.placeName,
+              !placeName.isEmpty else {
+            return nil
+        }
+        return vaultManager.places.first { $0.name == placeName }
+    }
+
+    private var quickEntrySheet: some View {
+        let visitData = visitNotificationCoordinator.pendingVisitData
+        let initialPlace = findPlaceFromVisitData(visitData)
+
+        let viewModel = QuickEntryViewModel(
+            vaultManager: vaultManager,
+            locationService: locationService,
+            initialTimestamp: visitData?.arrivalDate,
+            initialCoordinates: visitData?.coordinate,
+            initialPlace: initialPlace
+        )
+
+        return QuickEntryView(viewModel: viewModel)
     }
 
     private var tabContent: some View {

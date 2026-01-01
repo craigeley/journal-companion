@@ -62,9 +62,37 @@ class QuickEntryViewModel: ObservableObject {
         return AudioFileManager(vaultURL: vaultURL)
     }
 
-    init(vaultManager: VaultManager, locationService: LocationService) {
+    init(
+        vaultManager: VaultManager,
+        locationService: LocationService,
+        initialTimestamp: Date? = nil,
+        initialCoordinates: CLLocationCoordinate2D? = nil,
+        initialPlace: Place? = nil
+    ) {
         self.vaultManager = vaultManager
         self.locationService = locationService
+
+        // Pre-populate with initial values if provided
+        if let timestamp = initialTimestamp {
+            self.timestamp = timestamp
+        }
+
+        if let coordinates = initialCoordinates {
+            let location = CLLocation(
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude
+            )
+            self.currentLocation = location
+
+            // Fetch weather for initial location
+            Task {
+                await fetchWeather(for: location)
+            }
+        }
+
+        if let place = initialPlace {
+            self.selectedPlace = place
+        }
     }
 
     /// Detect current location and fetch weather

@@ -18,6 +18,9 @@ class SignificantLocationTracker: NSObject, ObservableObject {
     private let placeMatcher = PlaceMatcher()
     private var continuation: CheckedContinuation<Void, Never>?
 
+    /// Places array for matching visits (updated from VaultManager)
+    var places: [Place] = []
+
     override init() {
         super.init()
         locationManager.delegate = self
@@ -122,9 +125,20 @@ extension SignificantLocationTracker: CLLocationManagerDelegate {
             }
 
             // Try to match to a known place
-            // For now, we'll just send a notification
-            // Later we can pass in the places list to match against
-            sendVisitNotification(for: visit, matchedPlace: nil)
+            let visitLocation = CLLocation(
+                latitude: visit.coordinate.latitude,
+                longitude: visit.coordinate.longitude
+            )
+
+            let matchedPlace = placeMatcher.findClosestPlace(to: visitLocation, in: places)?.place
+
+            if let place = matchedPlace {
+                print("✓ Matched visit to place: \(place.name)")
+            } else {
+                print("ℹ️ No matching place found for visit")
+            }
+
+            sendVisitNotification(for: visit, matchedPlace: matchedPlace)
         }
     }
 

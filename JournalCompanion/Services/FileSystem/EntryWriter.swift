@@ -344,16 +344,18 @@ actor EntryWriter {
                 content += "\n\n### Entries\n\n" + calloutBlock
             }
         } else {
-            // Create minimal day file
+            // Create new day file with weather metadata if location is set
             try fileManager.createDirectory(
                 at: dayDir,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
 
+            // Try to fetch weather metadata
+            let yamlHeader = await fetchWeatherMetadata(for: entry.dateCreated)
+
             content = """
-            ---
-            ---
+            \(yamlHeader)
 
             ### Entries
 
@@ -423,6 +425,40 @@ actor EntryWriter {
         // Write updated day file atomically
         try content.write(to: dayFileURL, atomically: true, encoding: .utf8)
         print("✓ Removed entry from day file: \(dayFilename)")
+    }
+
+    /// Fetch weather metadata for a day file
+    /// Returns YAML frontmatter with weather data if available, or minimal YAML as fallback
+    private func fetchWeatherMetadata(for date: Date) async -> String {
+        // Read weather location from UserDefaults
+        let weatherLat = UserDefaults.standard.double(forKey: "dailyNoteWeatherLatitude")
+        let weatherLon = UserDefaults.standard.double(forKey: "dailyNoteWeatherLongitude")
+
+        // If no location set (both are 0.0), return minimal YAML
+        guard weatherLat != 0.0 && weatherLon != 0.0 else {
+            return "---\n---"
+        }
+
+        // Try to fetch weather data
+        do {
+            let weatherService = DailyWeatherService()
+            let location = CLLocation(latitude: weatherLat, longitude: weatherLon)
+            let forecast = try await weatherService.fetchDailyForecast(for: date, location: location)
+
+            // Return YAML with weather metadata
+            return """
+            ---
+            low_temp: \(forecast.lowTemp)
+            high_temp: \(forecast.highTemp)
+            sunrise: \(forecast.sunrise)
+            sunset: \(forecast.sunset)
+            ---
+            """
+        } catch {
+            // If weather fetch fails, fall back to minimal YAML
+            print("⚠️ Weather fetch failed (non-fatal): \(error)")
+            return "---\n---"
+        }
     }
 
     /// Determine callout type based on entry tags and place

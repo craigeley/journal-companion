@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - YAML Value Types
 
@@ -661,5 +662,41 @@ extension Entry {
         }
 
         return types
+    }
+}
+
+// MARK: - Entry Type Classification
+extension Entry {
+    enum EntryType: String, CaseIterable, Sendable {
+        case photo = "Photo"
+        case audio = "Audio"
+        case workout = "Workout"  // Includes running
+        case text = "Text"
+
+        var systemImage: String {
+            switch self {
+            case .photo: return "photo.fill"
+            case .audio: return "waveform"
+            case .workout: return "figure.run"
+            case .text: return "doc.text"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .photo: return .blue
+            case .audio: return .red
+            case .workout: return .orange
+            case .text: return .primary
+            }
+        }
+    }
+
+    /// Classify entry by type (priority: photo > audio > workout > text)
+    var entryType: EntryType {
+        if isPhotoEntry { return .photo }
+        if audioAttachments != nil && !(audioAttachments?.isEmpty ?? true) { return .audio }
+        if isWorkoutEntry { return .workout }
+        return .text
     }
 }

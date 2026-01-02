@@ -16,33 +16,80 @@ struct EntryListView: View {
     @State private var showDeleteConfirmation = false
     @State private var showAttachmentDeleteConfirmation = false
     @State private var showSettings = false
+    @State private var showFilterSheet = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            Group {
-                if viewModel.isLoading {
-                    ProgressView("Loading entries...")
-                } else if viewModel.filteredEntries.isEmpty && viewModel.searchText.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Entries", systemImage: "doc.text")
-                    } description: {
-                        Text("Create your first entry using the + button")
+            VStack(spacing: 0) {
+                // Filter chips (if active)
+                if viewModel.hasActiveFilters {
+                    EntryFilterChipsView(
+                        chips: viewModel.activeFilterChips,
+                        onClearAll: {
+                            viewModel.resetAllFilters()
+                        }
+                    )
+                }
+
+                // Main content
+                Group {
+                    if viewModel.isLoading {
+                        ProgressView("Loading entries...")
+                    } else if viewModel.filteredEntries.isEmpty && !viewModel.hasActiveFilters && viewModel.searchText.isEmpty {
+                        // No entries at all
+                        ContentUnavailableView {
+                            Label("No Entries", systemImage: "doc.text")
+                        } description: {
+                            Text("Create your first entry using the + button")
+                        }
+                    } else if viewModel.filteredEntries.isEmpty && viewModel.hasActiveFilters {
+                        // Empty due to filters
+                        ContentUnavailableView {
+                            Label("No Matching Entries", systemImage: "line.3.horizontal.decrease.circle")
+                        } description: {
+                            Text("No entries match your current filters. Try adjusting your filter settings.")
+                        } actions: {
+                            Button("Reset Filters") {
+                                viewModel.resetAllFilters()
+                            }
+                        }
+                    } else if viewModel.filteredEntries.isEmpty {
+                        // Empty due to search
+                        ContentUnavailableView.search
+                    } else {
+                        entriesList
                     }
-                } else if viewModel.filteredEntries.isEmpty {
-                    ContentUnavailableView.search
-                } else {
-                    entriesList
                 }
             }
             .navigationTitle("Entries")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
+                    HStack(spacing: 16) {
+                        // Filter button
+                        Button {
+                            showFilterSheet = true
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+
+                                // Badge indicator when filters are active
+                                if viewModel.hasActiveFilters {
+                                    Circle()
+                                        .fill(.red)
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: 4, y: -4)
+                                }
+                            }
+                        }
+
+                        // Settings button
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gear")
+                        }
                     }
                 }
             }
@@ -53,6 +100,9 @@ struct EntryListView: View {
             }
             .refreshable {
                 await viewModel.loadEntries()
+            }
+            .sheet(isPresented: $showFilterSheet) {
+                EntryFilterView(viewModel: viewModel)
             }
         } detail: {
             if let entry = selectedEntry {

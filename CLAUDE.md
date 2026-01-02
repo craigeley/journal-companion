@@ -19,10 +19,11 @@ xcodebuild -scheme JournalCompanion -destination 'platform=iOS Simulator,name=iP
 xcodebuild -scheme JournalCompanion -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
-**Known Build Warning:**
-- Simulator builds will always show: `error: Unable to find module dependency: 'JournalingSuggestions'`
-- **IGNORE THIS ERROR** - JournalingSuggestions only works on physical devices, not simulators
-- The app builds and runs correctly despite this error
+**JournalingSuggestions Framework:**
+- JournalingSuggestions is only available on physical iOS devices (not simulators)
+- Use `#if canImport(JournalingSuggestions)` to conditionally compile features that use this framework
+- Pattern used in QuickEntryViewModel and QuickEntryView for suggestion functionality
+- The app builds cleanly on both simulators and devices with this approach
 
 ## Architecture
 

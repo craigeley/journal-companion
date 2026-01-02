@@ -50,15 +50,6 @@ struct RunningDetailView: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.blue, lineWidth: 2)
                         )
-                        .overlay(alignment: .topTrailing) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.caption)
-                                .foregroundStyle(.white)
-                                .padding(8)
-                                .background(.blue)
-                                .clipShape(Circle())
-                                .padding(8)
-                        }
                 }
                 .buttonStyle(.plain)
             } else if let image = mapImage {

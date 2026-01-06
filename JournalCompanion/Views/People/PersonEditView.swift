@@ -25,6 +25,34 @@ struct PersonEditView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // CREATION MODE: Get from Contacts button at the top
+                if viewModel.isCreating {
+                    Section {
+                        Button {
+                            showContactPicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle.badge.plus")
+                                    .foregroundStyle(viewModel.linkedContact != nil ? .green : .blue)
+                                if let contact = viewModel.linkedContact {
+                                    Text("\(contact.givenName) \(contact.familyName)")
+                                        .foregroundStyle(.primary)
+                                } else {
+                                    Text("Get from Contacts")
+                                        .foregroundStyle(.blue)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.caption)
+                            }
+                        }
+                    } footer: {
+                        Text("Import contact information to auto-fill fields below")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 // CREATION MODE: Name Section (Required)
                 if viewModel.isCreating {
                     Section {
@@ -68,22 +96,23 @@ struct PersonEditView: View {
 
                 // Contact Information Section
                 Section("Contact Information") {
-                    // Link to Contact button - show if ANY contact field is enabled
-                    if templateManager.personTemplate.isEnabled("email")
+                    // EDIT MODE ONLY: Get from Contacts button
+                    if !viewModel.isCreating,
+                       templateManager.personTemplate.isEnabled("email")
                         || templateManager.personTemplate.isEnabled("phone")
                         || templateManager.personTemplate.isEnabled("address") {
                         Button {
                             showContactPicker = true
                         } label: {
                             HStack {
-                                Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle")
+                                Image(systemName: viewModel.linkedContact != nil ? "checkmark.circle.fill" : "person.crop.circle.badge.plus")
                                     .foregroundStyle(viewModel.linkedContact != nil ? .green : .blue)
                                 if let contact = viewModel.linkedContact {
                                     Text("\(contact.givenName) \(contact.familyName)")
                                         .foregroundStyle(.primary)
                                 } else {
-                                    Text("Link to Contact")
-                                        .foregroundStyle(.secondary)
+                                    Text("Get from Contacts")
+                                        .foregroundStyle(.blue)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")

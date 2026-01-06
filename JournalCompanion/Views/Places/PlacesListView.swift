@@ -12,7 +12,6 @@ struct PlacesListView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var templateManager: TemplateManager
     @State private var selectedPlace: Place?
-    @State private var showSettings = false
     @State private var showMapView = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
@@ -21,14 +20,14 @@ struct PlacesListView: View {
             Group {
                 if viewModel.isLoading {
                     ProgressView("Loading places...")
-                } else if viewModel.filteredPlaces.isEmpty && viewModel.searchText.isEmpty {
+                } else if viewModel.places.isEmpty {
                     ContentUnavailableView {
                         Label("No Places", systemImage: "mappin.slash")
                     } description: {
                         Text("Places will appear here after loading from your vault")
                     }
                 } else if viewModel.filteredPlaces.isEmpty {
-                    ContentUnavailableView.search
+                    ContentUnavailableView("No Results", systemImage: "line.3.horizontal.decrease.circle", description: Text("No places match your filter"))
                 } else {
                     placesList
                 }
@@ -37,11 +36,7 @@ struct PlacesListView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
+                    filterMenu
                 }
             }
             .task {
@@ -71,10 +66,6 @@ struct PlacesListView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .environmentObject(viewModel.vaultManager)
-        }
     }
 
     private var placesList: some View {
@@ -109,7 +100,11 @@ struct PlacesListView: View {
                             .tag(place)
                     }
                 } header: {
-                    Text(section.callout.capitalized)
+                    HStack(spacing: 6) {
+                        Image(systemName: PlaceIcon.systemName(for: section.callout))
+                            .foregroundStyle(PlaceIcon.color(for: section.callout))
+                        Text(section.callout.rawValue.capitalized)
+                    }
                 }
             }
         }
@@ -119,6 +114,34 @@ struct PlacesListView: View {
             if newValue != nil {
                 showMapView = false
             }
+        }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Section("Filter by Type") {
+                ForEach(PlaceCallout.allCases, id: \.self) { callout in
+                    Button {
+                        viewModel.toggleCalloutType(callout)
+                    } label: {
+                        Label {
+                            Text(callout.rawValue.capitalized)
+                        } icon: {
+                            Image(systemName: viewModel.isCalloutTypeSelected(callout) ? "checkmark.circle.fill" : "circle")
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.selectedCalloutTypes.isEmpty {
+                Divider()
+
+                Button("Clear Filters") {
+                    viewModel.clearCalloutTypeFilters()
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.selectedCalloutTypes.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
     }
 }

@@ -39,10 +39,17 @@ struct ContentView: View {
     @State private var hasRequestedHealthKitAuth = UserDefaults.standard.bool(forKey: "hasRequestedHealthKitAuth")
     @State private var showHealthKitAuth = false
 
+    // Media entry states
+    @State private var showMediaSearch = false
+    @State private var showMediaEdit = false
+    @State private var pendingMediaResult: iTunesSearchItem?
+    @State private var pendingMediaType: MediaType?
+
     // Shared ViewModels for tabs and search
     @State private var entryViewModel: EntryListViewModel?
     @State private var peopleViewModel: PeopleListViewModel?
     @State private var placesViewModel: PlacesListViewModel?
+    @State private var mediaViewModel: MediaListViewModel?
 
     var body: some View {
         mainContent
@@ -225,6 +232,46 @@ struct ContentView: View {
                     hasRequestedHealthKitAuth = true
                 }
         }
+        .sheet(isPresented: $showMediaSearch) {
+            MediaSearchView { result, mediaType in
+                pendingMediaResult = result
+                pendingMediaType = mediaType
+            }
+        }
+        .onChange(of: showMediaSearch) { _, newValue in
+            // When media search dismisses
+            if !newValue {
+                // If result was selected, show edit form
+                if pendingMediaResult != nil {
+                    showMediaEdit = true
+                }
+            }
+        }
+        .sheet(isPresented: $showMediaEdit, onDismiss: {
+            // Clear pending media data
+            pendingMediaResult = nil
+            pendingMediaType = nil
+        }) {
+            if let result = pendingMediaResult, let type = pendingMediaType {
+                MediaEditView(viewModel: MediaEditViewModel(
+                    vaultManager: vaultManager,
+                    searchResult: result,
+                    mediaType: type
+                ))
+            }
+        }
+        .onChange(of: showMediaEdit) { _, isShowing in
+            if !isShowing {
+                // Refresh media when edit view closes
+                Task {
+                    do {
+                        _ = try await vaultManager.loadMedia()
+                    } catch {
+                        print("❌ Failed to reload media: \(error)")
+                    }
+                }
+            }
+        }
         .onAppear {
             setupViewModels()
             checkAndShowHealthKitAuth()
@@ -293,7 +340,7 @@ struct ContentView: View {
 
     private var floatingActionButtons: some View {
         Group {
-            if vaultManager.isVaultAccessible && selectedTab != 3 {
+            if vaultManager.isVaultAccessible && selectedTab != 4 {
                 VStack {
                     Spacer()
                     HStack {
@@ -315,6 +362,8 @@ struct ContentView: View {
             peopleFAB
         } else if selectedTab == 2 {
             placesFAB
+        } else if selectedTab == 3 {
+            mediaFAB
         }
     }
 
@@ -383,6 +432,20 @@ struct ContentView: View {
         }
     }
 
+    private var mediaFAB: some View {
+        Button {
+            showMediaSearch = true
+        } label: {
+            Image(systemName: "plus.rectangle.on.rectangle")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.blue)
+                .clipShape(Circle())
+                .shadow(radius: 4)
+        }
+    }
+
     private func setupViewModels() {
         if entryViewModel == nil {
             entryViewModel = EntryListViewModel(
@@ -402,6 +465,9 @@ struct ContentView: View {
                 vaultManager: vaultManager,
                 searchCoordinator: searchCoordinator
             )
+        }
+        if mediaViewModel == nil {
+            mediaViewModel = MediaListViewModel(vaultManager: vaultManager)
         }
     }
 
@@ -463,7 +529,13 @@ struct ContentView: View {
                 Label("Places", systemImage: "mappin.circle")
             }
 
-            Tab(value: 3, role: .search) {
+            Tab(value: 3) {
+                mediaTab
+            } label: {
+                Label("Media", systemImage: "play.rectangle.on.rectangle")
+            }
+
+            Tab(value: 4, role: .search) {
                 NavigationStack {
                     if let entryVM = entryViewModel,
                        let peopleVM = peopleViewModel,
@@ -526,6 +598,15 @@ struct ContentView: View {
         }
     }
 
+    private var mediaTab: some View {
+        Group {
+            if let viewModel = mediaViewModel {
+                MediaListView(viewModel: viewModel)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
+    }
 
     private var vaultLoading: some View {
         VStack(spacing: 20) {

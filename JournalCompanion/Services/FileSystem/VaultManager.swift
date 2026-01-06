@@ -18,6 +18,8 @@ class VaultManager: ObservableObject {
     @Published var isLoadingPeople = false
     @Published var entries: [Entry] = []
     @Published var isLoadingEntries = false
+    @Published var media: [Media] = []
+    @Published var isLoadingMedia = false
 
     private let userDefaults = UserDefaults.standard
     private static let vaultBookmarkKey = "vaultSecurityBookmark"
@@ -35,7 +37,7 @@ class VaultManager: ObservableObject {
                 _ = try await restoreVault()
                 _ = try await loadPlaces()
                 _ = try await loadPeople()
-                // Note: Entries are loaded by EntryListView.task to avoid duplicate loads
+                // Note: Entries and Media are loaded by their respective views to avoid duplicate loads
             } catch {
                 // No saved vault or failed to restore - user will need to select one
                 print("No saved vault found")
@@ -219,6 +221,27 @@ class VaultManager: ObservableObject {
         return entries
     }
 
+    /// Load all media from the vault
+    func loadMedia() async throws -> [Media] {
+        guard let vaultURL = vaultURL else {
+            throw VaultError.noVault
+        }
+
+        await MainActor.run {
+            self.isLoadingMedia = true
+        }
+
+        let reader = MediaReader(vaultURL: vaultURL)
+        let media = try await reader.loadMedia()
+
+        await MainActor.run {
+            self.media = media
+            self.isLoadingMedia = false
+        }
+
+        return media
+    }
+
     /// Get URL for a specific directory in the vault
     func getDirectoryURL(_ path: String) -> URL? {
         guard let vaultURL = vaultURL else { return nil }
@@ -234,6 +257,7 @@ class VaultManager: ObservableObject {
         places = []
         people = []
         entries = []
+        media = []
     }
 }
 

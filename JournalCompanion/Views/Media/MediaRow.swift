@@ -37,7 +37,7 @@ struct MediaRow: View {
                     }
 
                     if let year = media.releaseYear {
-                        Text("(\(year))")
+                        Text("(\(String(year)))")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }

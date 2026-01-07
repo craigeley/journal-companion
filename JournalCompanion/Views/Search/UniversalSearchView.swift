@@ -107,7 +107,7 @@ struct UniversalSearchView: View {
             if let placesViewModel = placesViewModel {
                 placesResultsView(placesViewModel)
             }
-        case 3:
+        case 4:
             // Search tab - show ALL results
             VStack(spacing: 0) {
                 if let entryViewModel = entryViewModel, !entryViewModel.filteredEntries.isEmpty {

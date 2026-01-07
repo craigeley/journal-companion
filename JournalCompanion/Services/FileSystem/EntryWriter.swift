@@ -325,19 +325,36 @@ actor EntryWriter {
             }
 
             // Find ### Entries section or append
-            if content.contains("### Entries\n") {
-                // Append at the end of the file (chronological order)
-                // Ensure proper spacing before new callout (need blank line separator)
-                if content.hasSuffix("\n\n") {
-                    // Already has blank line, just append
-                    content.append(calloutBlock)
-                } else if content.hasSuffix("\n") {
-                    // Has one newline, add one more to create blank line
-                    content.append("\n" + calloutBlock)
+            if let entriesRange = content.range(of: "### Entries\n") {
+                // Find where to insert: before the next markdown header (if any)
+                let afterEntries = content[entriesRange.upperBound...]
+
+                // Look for the next header line (starts with #)
+                let insertionIndex: String.Index
+                if let nextHeaderRange = afterEntries.range(of: "\n#", options: []) {
+                    // Insert before the newline that precedes the next header
+                    insertionIndex = nextHeaderRange.lowerBound
                 } else {
-                    // No newline, add two newlines then callout
-                    content.append("\n\n" + calloutBlock)
+                    // No more headers, insert at end of file
+                    insertionIndex = content.endIndex
                 }
+
+                // Build the insertion with proper spacing
+                var insertion = calloutBlock
+                let textBeforeInsertion = content[..<insertionIndex]
+
+                // Ensure blank line before the callout
+                if textBeforeInsertion.hasSuffix("\n\n") {
+                    // Already has blank line, just insert
+                } else if textBeforeInsertion.hasSuffix("\n") {
+                    // Has one newline, add one more
+                    insertion = "\n" + insertion
+                } else {
+                    // No newline, add two
+                    insertion = "\n\n" + insertion
+                }
+
+                content.insert(contentsOf: insertion, at: insertionIndex)
             } else {
                 // Add Entries section at the end
                 content = content.trimmingCharacters(in: .whitespacesAndNewlines)

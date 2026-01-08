@@ -429,7 +429,7 @@ actor EntryWriter {
         // Pattern: Match from "> [!..." through the embed line and trailing newlines
         let pattern = "> \\[!.*?\\n> !\\[\\[\(NSRegularExpression.escapedPattern(for: entryFilename))\\]\\]\\n*"
 
-        if let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) {
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
             let range = NSRange(content.startIndex..., in: content)
             content = regex.stringByReplacingMatches(
                 in: content,

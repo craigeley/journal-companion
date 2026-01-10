@@ -12,7 +12,6 @@ struct PlacesListView: View {
     @EnvironmentObject var locationService: LocationService
     @EnvironmentObject var templateManager: TemplateManager
     @State private var selectedPlace: Place?
-    @State private var showMapView = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
@@ -46,12 +45,7 @@ struct PlacesListView: View {
                 await viewModel.reloadPlaces()
             }
         } detail: {
-            if showMapView {
-                let mapViewModel = MapViewModel(vaultManager: viewModel.vaultManager)
-                MapView(viewModel: mapViewModel)
-                    .environmentObject(locationService)
-                    .environmentObject(templateManager)
-            } else if let place = selectedPlace {
+            if let place = selectedPlace {
                 PlaceDetailView(place: place)
                     .environmentObject(viewModel.vaultManager)
                     .environmentObject(locationService)
@@ -72,9 +66,10 @@ struct PlacesListView: View {
         List(selection: $selectedPlace) {
             // View on Map navigation section
             Section {
-                Button {
-                    selectedPlace = nil
-                    showMapView = true
+                NavigationLink {
+                    MapContentView(viewModel: MapViewModel(vaultManager: viewModel.vaultManager))
+                        .environmentObject(locationService)
+                        .environmentObject(templateManager)
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "map.fill")
@@ -83,13 +78,9 @@ struct PlacesListView: View {
                         Text("View on Map")
                             .font(.body)
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(.tertiary)
-                            .font(.caption)
                     }
                     .padding(.vertical, 4)
                 }
-                .foregroundStyle(.primary)
             }
 
             // Existing place sections
@@ -109,12 +100,6 @@ struct PlacesListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .onChange(of: selectedPlace) { _, newValue in
-            // Clear map view when a place is selected
-            if newValue != nil {
-                showMapView = false
-            }
-        }
     }
 
     private var filterMenu: some View {

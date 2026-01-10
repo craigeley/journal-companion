@@ -8,15 +8,17 @@
 import Foundation
 import Combine
 import CoreLocation
-import UserNotifications
 
 class SignificantLocationTracker: NSObject, ObservableObject {
-    @Published var recentVisits: [CLVisit] = []
+    @Published var recentVisits: [PersistedVisit] = []
     @Published var isMonitoring: Bool = false
 
     private let locationManager = CLLocationManager()
     private let placeMatcher = PlaceMatcher()
     private var continuation: CheckedContinuation<Void, Never>?
+
+    private let visitsKey = "recentPersistedVisits"
+    private let maxVisits = 25
 
     /// Places array for matching visits (updated from VaultManager)
     var places: [Place] = []
@@ -24,6 +26,36 @@ class SignificantLocationTracker: NSObject, ObservableObject {
     override init() {
         super.init()
         locationManager.delegate = self
+        loadPersistedVisits()
+    }
+
+    // MARK: - Persistence
+
+    private func loadPersistedVisits() {
+        guard let data = UserDefaults.standard.data(forKey: visitsKey),
+              let visits = try? JSONDecoder().decode([PersistedVisit].self, from: data) else {
+            return
+        }
+        recentVisits = visits
+        print("✓ Loaded \(visits.count) persisted visits")
+    }
+
+    private func persistVisits() {
+        guard let data = try? JSONEncoder().encode(recentVisits) else { return }
+        UserDefaults.standard.set(data, forKey: visitsKey)
+    }
+
+    private func addVisit(_ visit: CLVisit, matchedPlace: Place?) {
+        let persisted = PersistedVisit(from: visit, matchedPlaceName: matchedPlace?.name)
+        recentVisits.append(persisted)
+
+        // Trim to max visits
+        if recentVisits.count > maxVisits {
+            recentVisits.removeFirst(recentVisits.count - maxVisits)
+        }
+
+        persistVisits()
+        print("✓ Persisted visit (total: \(recentVisits.count))")
     }
 
     /// Request "Always" authorization for background tracking
@@ -51,58 +83,6 @@ class SignificantLocationTracker: NSObject, ObservableObject {
         isMonitoring = false
         print("✓ Stopped monitoring visits")
     }
-
-    /// Request notification permission
-    func requestNotificationPermission() async -> Bool {
-        let center = UNUserNotificationCenter.current()
-        do {
-            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            return granted
-        } catch {
-            print("❌ Notification permission error: \(error)")
-            return false
-        }
-    }
-
-    /// Send notification for visit departure
-    private func sendVisitNotification(for visit: CLVisit, matchedPlace: Place?) {
-        let content = UNMutableNotificationContent()
-
-        if let place = matchedPlace {
-            content.title = "Visit to \(place.name)"
-            content.body = "Would you like to log this visit?"
-        } else {
-            content.title = "Location Visit"
-            content.body = "Would you like to log your recent visit?"
-        }
-
-        content.sound = .default
-        content.categoryIdentifier = "VISIT_CATEGORY"
-
-        // Store visit data for later use
-        content.userInfo = [
-            "visitLatitude": visit.coordinate.latitude,
-            "visitLongitude": visit.coordinate.longitude,
-            "visitArrivalDate": visit.arrivalDate.timeIntervalSince1970,
-            "visitDepartureDate": visit.departureDate.timeIntervalSince1970,
-            "placeName": matchedPlace?.name ?? ""
-        ]
-
-        // Send immediately
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: nil
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Failed to send notification: \(error)")
-            } else {
-                print("✓ Sent visit notification")
-            }
-        }
-    }
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -118,12 +98,6 @@ extension SignificantLocationTracker: CLLocationManagerDelegate {
             print("📍 Visit ended at \(visit.coordinate.latitude), \(visit.coordinate.longitude)")
             print("   Duration: \(visit.arrivalDate) to \(visit.departureDate)")
 
-            // Store visit
-            recentVisits.append(visit)
-            if recentVisits.count > 10 {
-                recentVisits.removeFirst()
-            }
-
             // Try to match to a known place
             let visitLocation = CLLocation(
                 latitude: visit.coordinate.latitude,
@@ -138,7 +112,8 @@ extension SignificantLocationTracker: CLLocationManagerDelegate {
                 print("ℹ️ No matching place found for visit")
             }
 
-            sendVisitNotification(for: visit, matchedPlace: matchedPlace)
+            // Store visit (silently, no notification)
+            addVisit(visit, matchedPlace: matchedPlace)
         }
     }
 

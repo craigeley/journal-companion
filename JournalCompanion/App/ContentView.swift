@@ -32,6 +32,8 @@ struct ContentView: View {
     @State private var pendingPOICategory: MKPointOfInterestCategory?
     @State private var showSettings = false
     @State private var showWorkoutSync = false
+    @State private var showRecentVisits = false
+    @State private var pendingVisitForEntry: PersistedVisit?
     @State private var selectedTab = 0
     @State private var vaultError: String?
     @State private var showDocumentPicker = false
@@ -53,268 +55,69 @@ struct ContentView: View {
 
     var body: some View {
         mainContent
-        .sheet(isPresented: $showQuickEntry) {
-            quickEntrySheet
-        }
-        .onChange(of: showQuickEntry) { _, isShowing in
-            if !isShowing {
-                visitNotificationCoordinator.clearPendingVisit()
-                Task {
-                    do {
-                        _ = try await vaultManager.loadEntries()
-                    } catch {
-                        print("❌ Failed to reload entries: \(error)")
-                    }
-                }
-            }
-        }
-        .onChange(of: visitNotificationCoordinator.shouldShowQuickEntry) { _, shouldShow in
-            if shouldShow {
-                showQuickEntry = true
-            }
-        }
-        .sheet(isPresented: $showAudioEntry) {
-            let viewModel = AudioEntryViewModel(vaultManager: vaultManager, locationService: locationService)
-            AudioEntryView(viewModel: viewModel)
-                .environmentObject(locationService)
-                .environmentObject(templateManager)
-        }
-        .onChange(of: showAudioEntry) { _, isShowing in
-            if !isShowing {
-                // Refresh entries when audio entry view closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadEntries()
-                    } catch {
-                        print("❌ Failed to reload entries: \(error)")
-                    }
-                }
-            }
-        }
-        .photosPicker(
-            isPresented: $showPhotoPicker,
-            selection: $selectedPhotoItem,
-            matching: .images
-        )
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            if newItem != nil {
-                // Photo selected - show PhotoEntryView with pre-loaded photo
-                showPhotoEntry = true
-            }
-        }
-        .sheet(isPresented: $showPhotoEntry, onDismiss: {
-            // Clear photo selection when sheet dismisses
-            selectedPhotoItem = nil
-        }) {
-            let viewModel = PhotoEntryViewModel(
-                vaultManager: vaultManager,
-                locationService: locationService,
-                initialPhotoItem: selectedPhotoItem
-            )
-            PhotoEntryView(viewModel: viewModel)
-                .environmentObject(locationService)
-                .environmentObject(templateManager)
-        }
-        .onChange(of: showPhotoEntry) { _, isShowing in
-            if !isShowing {
-                // Refresh entries when photo entry view closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadEntries()
-                    } catch {
-                        print("❌ Failed to reload entries: \(error)")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showPersonCreation) {
-            let viewModel = PersonEditViewModel(
-                person: nil,  // nil = creation mode
-                vaultManager: vaultManager,
-                templateManager: templateManager
-            )
-            PersonEditView(viewModel: viewModel)
-                .environmentObject(templateManager)
-        }
-        .onChange(of: showPersonCreation) { _, isShowing in
-            if !isShowing {
-                // Refresh people when creation view closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadPeople()
-                    } catch {
-                        print("❌ Failed to reload people: \(error)")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showLocationSearchForNewPlace) {
-            LocationSearchView(
-                selectedLocationName: $pendingLocationName,
-                selectedAddress: $pendingAddress,
-                selectedCoordinates: $pendingCoordinates,
-                selectedURL: $pendingURL,
-                selectedPOICategory: $pendingPOICategory
-            )
-        }
-        .onChange(of: showLocationSearchForNewPlace) { oldValue, newValue in
-            // When location search dismisses
-            if !newValue {
-                // If location was selected, show creation form
-                if pendingLocationName != nil {
-                    showPlaceCreation = true
-                }
-                // If cancelled without selection, flow ends
-            }
-        }
-        .sheet(isPresented: $showPlaceCreation, onDismiss: {
-            // Clear pending location data
-            pendingLocationName = nil
-            pendingAddress = nil
-            pendingCoordinates = nil
-            pendingURL = nil
-            pendingPOICategory = nil
-        }) {
-            let viewModel = PlaceEditViewModel(
-                place: nil,  // nil = creation mode
+            .modifier(EntrySheetModifiers(
+                showQuickEntry: $showQuickEntry,
+                showAudioEntry: $showAudioEntry,
+                showPhotoEntry: $showPhotoEntry,
+                showPhotoPicker: $showPhotoPicker,
+                selectedPhotoItem: $selectedPhotoItem,
+                pendingVisitForEntry: $pendingVisitForEntry,
                 vaultManager: vaultManager,
                 locationService: locationService,
                 templateManager: templateManager,
-                initialLocationName: pendingLocationName,
-                initialAddress: pendingAddress,
-                initialCoordinates: pendingCoordinates,
-                initialURL: pendingURL,
-                initialPOICategory: pendingPOICategory
-            )
-            PlaceEditView(viewModel: viewModel)
-                .environmentObject(templateManager)
-        }
-        .onChange(of: showPlaceCreation) { _, isShowing in
-            if !isShowing {
-                // Refresh places when creation view closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadPlaces()
-                    } catch {
-                        print("❌ Failed to reload places: \(error)")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .environmentObject(vaultManager)
-                .environmentObject(locationService)
-                .environmentObject(visitTracker)
-                .environmentObject(templateManager)
-        }
-        .sheet(isPresented: $showWorkoutSync) {
-            WorkoutSyncView(
-                viewModel: WorkoutSyncViewModel(vaultManager: vaultManager)
-            )
-        }
-        .onChange(of: showWorkoutSync) { _, isShowing in
-            if !isShowing {
-                // Refresh entries when workout sync closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadEntries()
-                    } catch {
-                        print("❌ Failed to reload entries: \(error)")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showHealthKitAuth) {
-            HealthKitAuthView()
-                .onDisappear {
-                    UserDefaults.standard.set(true, forKey: "hasRequestedHealthKitAuth")
-                    hasRequestedHealthKitAuth = true
-                }
-        }
-        .sheet(isPresented: $showMediaSearch) {
-            MediaSearchView { result, mediaType in
-                pendingMediaResult = result
-                pendingMediaType = mediaType
-            }
-        }
-        .onChange(of: showMediaSearch) { _, newValue in
-            // When media search dismisses
-            if !newValue {
-                // If result was selected, show edit form
-                if pendingMediaResult != nil {
-                    showMediaEdit = true
-                }
-            }
-        }
-        .sheet(isPresented: $showMediaEdit, onDismiss: {
-            // Clear pending media data
-            pendingMediaResult = nil
-            pendingMediaType = nil
-        }) {
-            if let result = pendingMediaResult, let type = pendingMediaType {
-                MediaEditView(viewModel: MediaEditViewModel(
-                    vaultManager: vaultManager,
-                    searchResult: result,
-                    mediaType: type
-                ))
-            }
-        }
-        .onChange(of: showMediaEdit) { _, isShowing in
-            if !isShowing {
-                // Refresh media when edit view closes
-                Task {
-                    do {
-                        _ = try await vaultManager.loadMedia()
-                    } catch {
-                        print("❌ Failed to reload media: \(error)")
-                    }
-                }
-            }
-        }
-        .onAppear {
-            setupViewModels()
-            checkAndShowHealthKitAuth()
-        }
-        .onChange(of: vaultManager.isVaultAccessible) { oldValue, newValue in
-            // When vault becomes accessible, show HealthKit auth if not requested yet
-            print("📦 Vault accessibility changed: \(oldValue) -> \(newValue)")
-            if newValue {
-                checkAndShowHealthKitAuth()
-            }
-        }
-        .onChange(of: selectedTab) { _, _ in
-            // Clear search when switching tabs
-            searchCoordinator.searchText = ""
-        }
-        .onChange(of: vaultManager.places) { _, newPlaces in
-            // Keep visit tracker's places in sync for location matching
-            visitTracker.places = newPlaces
-        }
-        .sheet(item: $searchCoordinator.selectedEntry) { entry in
-            // Entry detail from search
-            EntryDetailView(entry: entry)
-                .environmentObject(vaultManager)
-                .environmentObject(locationService)
-                .environmentObject(templateManager)
-        }
-        .sheet(item: $searchCoordinator.selectedPerson) { person in
-            // Person detail from search
-            let viewModel = PersonEditViewModel(
-                person: person,
+                visitNotificationCoordinator: visitNotificationCoordinator,
+                quickEntrySheet: { quickEntrySheet }
+            ))
+            .modifier(PlaceAndPersonSheetModifiers(
+                showPersonCreation: $showPersonCreation,
+                showLocationSearchForNewPlace: $showLocationSearchForNewPlace,
+                showPlaceCreation: $showPlaceCreation,
+                pendingLocationName: $pendingLocationName,
+                pendingAddress: $pendingAddress,
+                pendingCoordinates: $pendingCoordinates,
+                pendingURL: $pendingURL,
+                pendingPOICategory: $pendingPOICategory,
                 vaultManager: vaultManager,
+                locationService: locationService,
                 templateManager: templateManager
-            )
-            PersonEditView(viewModel: viewModel)
-                .environmentObject(templateManager)
-        }
-        .sheet(item: $searchCoordinator.selectedPlace) { place in
-            // Place detail from search
-            PlaceDetailView(place: place)
-                .environmentObject(vaultManager)
-                .environmentObject(locationService)
-                .environmentObject(templateManager)
-        }
+            ))
+            .modifier(UtilitySheetModifiers(
+                showSettings: $showSettings,
+                showWorkoutSync: $showWorkoutSync,
+                showRecentVisits: $showRecentVisits,
+                showHealthKitAuth: $showHealthKitAuth,
+                hasRequestedHealthKitAuth: $hasRequestedHealthKitAuth,
+                pendingVisitForEntry: $pendingVisitForEntry,
+                showQuickEntry: $showQuickEntry,
+                vaultManager: vaultManager,
+                locationService: locationService,
+                visitTracker: visitTracker,
+                templateManager: templateManager,
+                recentVisitsSheet: { recentVisitsSheet }
+            ))
+            .modifier(MediaSheetModifiers(
+                showMediaSearch: $showMediaSearch,
+                showMediaEdit: $showMediaEdit,
+                pendingMediaResult: $pendingMediaResult,
+                pendingMediaType: $pendingMediaType,
+                vaultManager: vaultManager
+            ))
+            .modifier(SearchSheetModifiers(
+                selectedEntry: $searchCoordinator.selectedEntry,
+                selectedPerson: $searchCoordinator.selectedPerson,
+                selectedPlace: $searchCoordinator.selectedPlace,
+                vaultManager: vaultManager,
+                locationService: locationService,
+                templateManager: templateManager
+            ))
+            .modifier(LifecycleModifiers(
+                selectedTab: $selectedTab,
+                vaultManager: vaultManager,
+                visitTracker: visitTracker,
+                searchCoordinator: searchCoordinator,
+                setupViewModels: setupViewModels,
+                checkAndShowHealthKitAuth: checkAndShowHealthKitAuth
+            ))
     }
 
     private var mainContent: some View {
@@ -385,6 +188,12 @@ struct ContentView: View {
                 showPhotoPicker = true
             } label: {
                 Label("Photo Entry", systemImage: "photo")
+            }
+
+            Button {
+                showRecentVisits = true
+            } label: {
+                Label("Recent Visits", systemImage: "mappin.and.ellipse")
             }
 
             Button {
@@ -485,24 +294,34 @@ struct ContentView: View {
         }
     }
 
-    private func findPlaceFromVisitData(_ visitData: VisitNotificationData?) -> Place? {
-        guard let data = visitData,
-              let placeName = data.placeName,
-              !placeName.isEmpty else {
+    private func findPlaceByName(_ placeName: String?) -> Place? {
+        guard let name = placeName, !name.isEmpty else {
             return nil
         }
-        return vaultManager.places.first { $0.name == placeName }
+        return vaultManager.places.first { $0.name == name }
+    }
+
+    private var recentVisitsSheet: some View {
+        let viewModel = RecentVisitsViewModel(visitTracker: visitTracker)
+        return RecentVisitsView(viewModel: viewModel) { selectedVisit in
+            pendingVisitForEntry = selectedVisit
+        }
     }
 
     private var quickEntrySheet: some View {
+        // Prefer pendingVisitForEntry (from Recent Visits), otherwise use notification data
+        let pendingVisit = pendingVisitForEntry
         let visitData = visitNotificationCoordinator.pendingVisitData
-        let initialPlace = findPlaceFromVisitData(visitData)
+
+        let initialTimestamp = pendingVisit?.arrivalDate ?? visitData?.arrivalDate
+        let initialCoordinates = pendingVisit?.coordinate ?? visitData?.coordinate
+        let initialPlace = findPlaceByName(pendingVisit?.matchedPlaceName ?? visitData?.placeName)
 
         let viewModel = QuickEntryViewModel(
             vaultManager: vaultManager,
             locationService: locationService,
-            initialTimestamp: visitData?.arrivalDate,
-            initialCoordinates: visitData?.coordinate,
+            initialTimestamp: initialTimestamp,
+            initialCoordinates: initialCoordinates,
             initialPlace: initialPlace
         )
 
@@ -671,6 +490,351 @@ struct ContentView: View {
             }
         }
         .padding()
+    }
+}
+
+// MARK: - Sheet Modifiers
+
+private struct EntrySheetModifiers<QuickEntry: View>: ViewModifier {
+    @Binding var showQuickEntry: Bool
+    @Binding var showAudioEntry: Bool
+    @Binding var showPhotoEntry: Bool
+    @Binding var showPhotoPicker: Bool
+    @Binding var selectedPhotoItem: PhotosPickerItem?
+    @Binding var pendingVisitForEntry: PersistedVisit?
+    let vaultManager: VaultManager
+    let locationService: LocationService
+    let templateManager: TemplateManager
+    let visitNotificationCoordinator: VisitNotificationCoordinator
+    @ViewBuilder let quickEntrySheet: () -> QuickEntry
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showQuickEntry) {
+                quickEntrySheet()
+            }
+            .onChange(of: showQuickEntry) { _, isShowing in
+                if !isShowing {
+                    pendingVisitForEntry = nil
+                    visitNotificationCoordinator.clearPendingVisit()
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadEntries()
+                        } catch {
+                            print("❌ Failed to reload entries: \(error)")
+                        }
+                    }
+                }
+            }
+            .onChange(of: visitNotificationCoordinator.shouldShowQuickEntry) { _, shouldShow in
+                if shouldShow {
+                    showQuickEntry = true
+                }
+            }
+            .sheet(isPresented: $showAudioEntry) {
+                let viewModel = AudioEntryViewModel(vaultManager: vaultManager, locationService: locationService)
+                AudioEntryView(viewModel: viewModel)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
+            }
+            .onChange(of: showAudioEntry) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadEntries()
+                        } catch {
+                            print("❌ Failed to reload entries: \(error)")
+                        }
+                    }
+                }
+            }
+            .photosPicker(
+                isPresented: $showPhotoPicker,
+                selection: $selectedPhotoItem,
+                matching: .images
+            )
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                if newItem != nil {
+                    showPhotoEntry = true
+                }
+            }
+            .sheet(isPresented: $showPhotoEntry, onDismiss: {
+                selectedPhotoItem = nil
+            }) {
+                let viewModel = PhotoEntryViewModel(
+                    vaultManager: vaultManager,
+                    locationService: locationService,
+                    initialPhotoItem: selectedPhotoItem
+                )
+                PhotoEntryView(viewModel: viewModel)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
+            }
+            .onChange(of: showPhotoEntry) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadEntries()
+                        } catch {
+                            print("❌ Failed to reload entries: \(error)")
+                        }
+                    }
+                }
+            }
+    }
+}
+
+private struct PlaceAndPersonSheetModifiers: ViewModifier {
+    @Binding var showPersonCreation: Bool
+    @Binding var showLocationSearchForNewPlace: Bool
+    @Binding var showPlaceCreation: Bool
+    @Binding var pendingLocationName: String?
+    @Binding var pendingAddress: String?
+    @Binding var pendingCoordinates: CLLocationCoordinate2D?
+    @Binding var pendingURL: String?
+    @Binding var pendingPOICategory: MKPointOfInterestCategory?
+    let vaultManager: VaultManager
+    let locationService: LocationService
+    let templateManager: TemplateManager
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showPersonCreation) {
+                let viewModel = PersonEditViewModel(
+                    person: nil,
+                    vaultManager: vaultManager,
+                    templateManager: templateManager
+                )
+                PersonEditView(viewModel: viewModel)
+                    .environmentObject(templateManager)
+            }
+            .onChange(of: showPersonCreation) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadPeople()
+                        } catch {
+                            print("❌ Failed to reload people: \(error)")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showLocationSearchForNewPlace) {
+                LocationSearchView(
+                    selectedLocationName: $pendingLocationName,
+                    selectedAddress: $pendingAddress,
+                    selectedCoordinates: $pendingCoordinates,
+                    selectedURL: $pendingURL,
+                    selectedPOICategory: $pendingPOICategory
+                )
+            }
+            .onChange(of: showLocationSearchForNewPlace) { _, newValue in
+                if !newValue {
+                    if pendingLocationName != nil {
+                        showPlaceCreation = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showPlaceCreation, onDismiss: {
+                pendingLocationName = nil
+                pendingAddress = nil
+                pendingCoordinates = nil
+                pendingURL = nil
+                pendingPOICategory = nil
+            }) {
+                let viewModel = PlaceEditViewModel(
+                    place: nil,
+                    vaultManager: vaultManager,
+                    locationService: locationService,
+                    templateManager: templateManager,
+                    initialLocationName: pendingLocationName,
+                    initialAddress: pendingAddress,
+                    initialCoordinates: pendingCoordinates,
+                    initialURL: pendingURL,
+                    initialPOICategory: pendingPOICategory
+                )
+                PlaceEditView(viewModel: viewModel)
+                    .environmentObject(templateManager)
+            }
+            .onChange(of: showPlaceCreation) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadPlaces()
+                        } catch {
+                            print("❌ Failed to reload places: \(error)")
+                        }
+                    }
+                }
+            }
+    }
+}
+
+private struct UtilitySheetModifiers<RecentVisits: View>: ViewModifier {
+    @Binding var showSettings: Bool
+    @Binding var showWorkoutSync: Bool
+    @Binding var showRecentVisits: Bool
+    @Binding var showHealthKitAuth: Bool
+    @Binding var hasRequestedHealthKitAuth: Bool
+    @Binding var pendingVisitForEntry: PersistedVisit?
+    @Binding var showQuickEntry: Bool
+    let vaultManager: VaultManager
+    let locationService: LocationService
+    let visitTracker: SignificantLocationTracker
+    let templateManager: TemplateManager
+    @ViewBuilder let recentVisitsSheet: () -> RecentVisits
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environmentObject(vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(visitTracker)
+                    .environmentObject(templateManager)
+            }
+            .sheet(isPresented: $showWorkoutSync) {
+                WorkoutSyncView(
+                    viewModel: WorkoutSyncViewModel(vaultManager: vaultManager)
+                )
+            }
+            .onChange(of: showWorkoutSync) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadEntries()
+                        } catch {
+                            print("❌ Failed to reload entries: \(error)")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showRecentVisits) {
+                recentVisitsSheet()
+            }
+            .onChange(of: showRecentVisits) { _, isShowing in
+                if !isShowing && pendingVisitForEntry != nil {
+                    showQuickEntry = true
+                }
+            }
+            .sheet(isPresented: $showHealthKitAuth) {
+                HealthKitAuthView()
+                    .onDisappear {
+                        UserDefaults.standard.set(true, forKey: "hasRequestedHealthKitAuth")
+                        hasRequestedHealthKitAuth = true
+                    }
+            }
+    }
+}
+
+private struct MediaSheetModifiers: ViewModifier {
+    @Binding var showMediaSearch: Bool
+    @Binding var showMediaEdit: Bool
+    @Binding var pendingMediaResult: iTunesSearchItem?
+    @Binding var pendingMediaType: MediaType?
+    let vaultManager: VaultManager
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showMediaSearch) {
+                MediaSearchView { result, mediaType in
+                    pendingMediaResult = result
+                    pendingMediaType = mediaType
+                }
+            }
+            .onChange(of: showMediaSearch) { _, newValue in
+                if !newValue {
+                    if pendingMediaResult != nil {
+                        showMediaEdit = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showMediaEdit, onDismiss: {
+                pendingMediaResult = nil
+                pendingMediaType = nil
+            }) {
+                if let result = pendingMediaResult, let type = pendingMediaType {
+                    MediaEditView(viewModel: MediaEditViewModel(
+                        vaultManager: vaultManager,
+                        searchResult: result,
+                        mediaType: type
+                    ))
+                }
+            }
+            .onChange(of: showMediaEdit) { _, isShowing in
+                if !isShowing {
+                    Task {
+                        do {
+                            _ = try await vaultManager.loadMedia()
+                        } catch {
+                            print("❌ Failed to reload media: \(error)")
+                        }
+                    }
+                }
+            }
+    }
+}
+
+private struct SearchSheetModifiers: ViewModifier {
+    @Binding var selectedEntry: Entry?
+    @Binding var selectedPerson: Person?
+    @Binding var selectedPlace: Place?
+    let vaultManager: VaultManager
+    let locationService: LocationService
+    let templateManager: TemplateManager
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: $selectedEntry) { entry in
+                EntryDetailView(entry: entry)
+                    .environmentObject(vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
+            }
+            .sheet(item: $selectedPerson) { person in
+                let viewModel = PersonEditViewModel(
+                    person: person,
+                    vaultManager: vaultManager,
+                    templateManager: templateManager
+                )
+                PersonEditView(viewModel: viewModel)
+                    .environmentObject(templateManager)
+            }
+            .sheet(item: $selectedPlace) { place in
+                PlaceDetailView(place: place)
+                    .environmentObject(vaultManager)
+                    .environmentObject(locationService)
+                    .environmentObject(templateManager)
+            }
+    }
+}
+
+private struct LifecycleModifiers: ViewModifier {
+    @Binding var selectedTab: Int
+    let vaultManager: VaultManager
+    let visitTracker: SignificantLocationTracker
+    let searchCoordinator: SearchCoordinator
+    let setupViewModels: () -> Void
+    let checkAndShowHealthKitAuth: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                setupViewModels()
+                checkAndShowHealthKitAuth()
+            }
+            .onChange(of: vaultManager.isVaultAccessible) { oldValue, newValue in
+                print("📦 Vault accessibility changed: \(oldValue) -> \(newValue)")
+                if newValue {
+                    checkAndShowHealthKitAuth()
+                }
+            }
+            .onChange(of: selectedTab) { _, _ in
+                searchCoordinator.searchText = ""
+            }
+            .onChange(of: vaultManager.places) { _, newPlaces in
+                visitTracker.places = newPlaces
+            }
     }
 }
 

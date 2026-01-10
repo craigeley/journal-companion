@@ -39,18 +39,12 @@ struct SettingsView: View {
                 Section("Visit Tracking") {
                     if !locationService.hasAlwaysAuthorization {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Enable automatic visit tracking to get notified when you visit places.")
+                            Text("Enable visit tracking to record locations you spend time at. View recent visits from the Entries tab.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
                             Button {
-                                Task {
-                                    locationService.requestAlwaysAuthorization()
-                                    let granted = await visitTracker.requestNotificationPermission()
-                                    if granted {
-                                        print("Notification permission granted")
-                                    }
-                                }
+                                locationService.requestAlwaysAuthorization()
                             } label: {
                                 Label("Enable Visit Tracking", systemImage: "location.circle")
                             }

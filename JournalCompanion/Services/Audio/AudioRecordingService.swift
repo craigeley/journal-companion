@@ -39,26 +39,26 @@ actor AudioRecordingService {
 
         // Create audio file for recording
         let fileSettings = createAudioSettings(for: format, recordingFormat: recordingFormat)
-        audioFile = try AVAudioFile(
+        let file = try AVAudioFile(
             forWriting: tempURL,
             settings: fileSettings
         )
+        audioFile = file
 
-        // Create format for the output file
-        guard let fileFormat = AVAudioFormat(settings: fileSettings) else {
-            throw AudioRecordingError.fileCreationFailed
-        }
+        // Use the file's processingFormat - this is the PCM format the file expects for input
+        // (AVAudioFile handles encoding to AAC/etc internally)
+        let fileProcessingFormat = file.processingFormat
 
         // Create converter only if conversion is actually needed
-        let needsConversion = recordingFormat.sampleRate != fileFormat.sampleRate ||
-                              recordingFormat.channelCount != fileFormat.channelCount ||
-                              recordingFormat.commonFormat != fileFormat.commonFormat
+        let needsConversion = recordingFormat.sampleRate != fileProcessingFormat.sampleRate ||
+                              recordingFormat.channelCount != fileProcessingFormat.channelCount ||
+                              recordingFormat.commonFormat != fileProcessingFormat.commonFormat
 
         if needsConversion {
-            audioConverter = AVAudioConverter(from: recordingFormat, to: fileFormat)
-            print("⚙️ Using audio converter: \(recordingFormat.sampleRate)Hz → \(fileFormat.sampleRate)Hz")
+            audioConverter = AVAudioConverter(from: recordingFormat, to: fileProcessingFormat)
+            print("⚙️ Using audio converter: \(recordingFormat.sampleRate)Hz → \(fileProcessingFormat.sampleRate)Hz")
             print("   Input format: \(recordingFormat.commonFormat.rawValue) (channels: \(recordingFormat.channelCount))")
-            print("   Output format: \(fileFormat.commonFormat.rawValue) (channels: \(fileFormat.channelCount))")
+            print("   Output format: \(fileProcessingFormat.commonFormat.rawValue) (channels: \(fileProcessingFormat.channelCount))")
         } else {
             audioConverter = nil
             print("✓ No conversion needed, formats match: \(recordingFormat.sampleRate)Hz")
@@ -67,8 +67,10 @@ actor AudioRecordingService {
         // Install tap on input node
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
             guard let self else { return }
+            // Copy buffer synchronously - the original is only valid during this callback
+            guard let bufferCopy = Self.copyBuffer(buffer) else { return }
             Task {
-                await self.writeBuffer(buffer)
+                await self.writeBuffer(bufferCopy)
             }
         }
 
@@ -161,6 +163,34 @@ actor AudioRecordingService {
 
     // MARK: - Private Helpers
 
+    /// Copy an audio buffer - required because tap callback buffers are only valid during the callback
+    private static func copyBuffer(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity) else {
+            return nil
+        }
+        copy.frameLength = buffer.frameLength
+
+        let channelCount = Int(buffer.format.channelCount)
+        let frameLength = Int(buffer.frameLength)
+
+        // Copy based on the buffer's sample format
+        if let src = buffer.floatChannelData, let dst = copy.floatChannelData {
+            for channel in 0..<channelCount {
+                memcpy(dst[channel], src[channel], frameLength * MemoryLayout<Float>.size)
+            }
+        } else if let src = buffer.int16ChannelData, let dst = copy.int16ChannelData {
+            for channel in 0..<channelCount {
+                memcpy(dst[channel], src[channel], frameLength * MemoryLayout<Int16>.size)
+            }
+        } else if let src = buffer.int32ChannelData, let dst = copy.int32ChannelData {
+            for channel in 0..<channelCount {
+                memcpy(dst[channel], src[channel], frameLength * MemoryLayout<Int32>.size)
+            }
+        }
+
+        return copy
+    }
+
     private func configureAudioSession() async throws {
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
@@ -193,17 +223,29 @@ actor AudioRecordingService {
                     return
                 }
 
-                // Perform conversion
+                // Perform conversion - track whether we've provided input data
+                // nonisolated(unsafe) is safe here because convert() calls inputBlock synchronously
                 var error: NSError?
+                nonisolated(unsafe) var inputDataProvided = false
                 let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+                    if inputDataProvided {
+                        outStatus.pointee = .noDataNow
+                        return nil
+                    }
+                    inputDataProvided = true
                     outStatus.pointee = .haveData
                     return buffer
                 }
 
-                converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+                let status = converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
 
                 if let error = error {
                     print("❌ Error converting audio buffer: \(error)")
+                    return
+                }
+
+                // Only write if conversion produced data
+                guard status != .error && convertedBuffer.frameLength > 0 else {
                     return
                 }
 

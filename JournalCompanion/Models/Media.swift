@@ -112,6 +112,17 @@ struct Media: Identifiable, Codable, Sendable, Hashable {
             .trimmingCharacters(in: .whitespaces)
     }
 
+    /// Sanitize tag for valid YAML (replace special chars and spaces with underscores)
+    static func sanitizeTag(_ tag: String) -> String {
+        // Replace any character that's not alphanumeric or underscore with underscore
+        let pattern = "[^a-zA-Z0-9_]"
+        let sanitized = tag.replacingOccurrences(of: pattern, with: "_", options: .regularExpression)
+        // Collapse multiple underscores into one
+        let collapsed = sanitized.replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
+        // Trim leading/trailing underscores
+        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+    }
+
     /// Convert media to markdown format with YAML frontmatter
     func toMarkdown() -> String {
         var yaml = "---\n"

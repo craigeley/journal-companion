@@ -56,13 +56,16 @@ class MediaEditViewModel: ObservableObject, Identifiable {
         self.artworkURL = searchResult.displayArtworkURL ?? ""
         self.iTunesURL = searchResult.displayURL ?? ""
 
-        // Build tags including genres (filter out generic terms like "Books")
+        // Build tags including genres (filter out generic terms like "Books" and sanitize)
         var tags = ["media", mediaType.rawValue]
         if let genres = searchResult.genres {
-            let filteredGenres = genres.filter { genre in
+            let filteredGenres = genres.compactMap { genre -> String? in
                 let lowercased = genre.lowercased()
-                return lowercased != "books" && lowercased != "ebooks"
-            }
+                if lowercased == "books" || lowercased == "ebooks" {
+                    return nil
+                }
+                return Media.sanitizeTag(genre)
+            }.filter { !$0.isEmpty }
             tags.append(contentsOf: filteredGenres)
         }
         self.tags = tags

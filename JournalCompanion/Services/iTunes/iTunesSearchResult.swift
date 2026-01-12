@@ -203,11 +203,14 @@ struct iTunesSearchItem: Identifiable, Sendable {
         // Build tags array, including genres for books
         var tags = ["media", type.rawValue]
         if let genreList = genres {
-            // Filter out generic terms like "Books" and add the rest as tags
-            let filteredGenres = genreList.filter { genre in
+            // Filter out generic terms like "Books" and sanitize for valid YAML
+            let filteredGenres = genreList.compactMap { genre -> String? in
                 let lowercased = genre.lowercased()
-                return lowercased != "books" && lowercased != "ebooks"
-            }
+                if lowercased == "books" || lowercased == "ebooks" {
+                    return nil
+                }
+                return Media.sanitizeTag(genre)
+            }.filter { !$0.isEmpty }
             tags.append(contentsOf: filteredGenres)
         }
 

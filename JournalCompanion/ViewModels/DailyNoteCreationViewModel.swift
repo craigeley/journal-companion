@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import CoreLocation
+import Combine
 
 @MainActor
 class DailyNoteCreationViewModel: ObservableObject {

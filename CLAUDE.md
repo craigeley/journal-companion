@@ -188,6 +188,32 @@ if selectedTab == 0 {
 }
 ```
 
+### Git Branching (Gitflow)
+
+This project uses the **Gitflow** branching model. Before starting work on a major feature or significant change:
+
+1. **Check the working tree**: Run `git status` to verify the current branch and ensure a clean state
+2. **Ask about branching**: For non-trivial features, ask the user if a new feature branch should be created
+
+**Branch types:**
+- `main` — Production-ready code; all commits should be tagged releases
+- `develop` — Integration branch for completed features (upcoming release)
+- `feature/*` — New functionality (branch from `develop`)
+- `bugfix/*` — Non-critical fixes (branch from `develop`)
+- `release/*` — Release preparation; refinements only, no new features
+- `hotfix/*` — Urgent production fixes (branch from `main`)
+
+**Workflow for features:**
+```bash
+# Create a feature branch
+git checkout develop
+git checkout -b feature/descriptive-name
+
+# When complete, merge back to develop
+git checkout develop
+git merge --no-ff feature/descriptive-name
+```
+
 ### Git Commit Messages
 
 Use structured commit messages with emoji:

@@ -220,7 +220,9 @@ class QuickEntryViewModel: ObservableObject {
             }
 
             // Format current location for YAML storage
+            // Clear coordinates if a place is selected (place location takes precedence)
             let locationString: String? = {
+                if selectedPlace != nil { return nil }
                 if let loc = currentLocation {
                     return String(format: "%.5f,%.5f", loc.coordinate.latitude, loc.coordinate.longitude)
                 }

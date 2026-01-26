@@ -4,3 +4,7 @@
 # Xcode user data
 xcuserdata/
 *.xcuserstate
+
+# API tokens
+.tmdb_token
+**/TMDBConfig.swift

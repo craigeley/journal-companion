@@ -18,6 +18,7 @@ class MediaSearchViewModel: ObservableObject {
     @Published var hasSearched = false
 
     private let searchService = iTunesSearchService()
+    private let tmdbService = TMDBSearchService()
     private var searchTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
@@ -49,10 +50,12 @@ class MediaSearchViewModel: ObservableObject {
         // Cancel any existing search
         searchTask?.cancel()
 
+        // Clear stale results immediately so the UI shows a loading state
+        searchResults = []
+
         let query = searchText.trimmingCharacters(in: .whitespaces)
 
         guard !query.isEmpty else {
-            searchResults = []
             hasSearched = false
             return
         }
@@ -64,11 +67,17 @@ class MediaSearchViewModel: ObservableObject {
 
         searchTask = Task {
             do {
-                let results = try await searchService.search(
-                    term: query,
-                    mediaType: mediaType,
-                    limit: 30
-                )
+                let results: [iTunesSearchItem]
+
+                if mediaType == .movie {
+                    results = try await tmdbService.search(term: query, limit: 30)
+                } else {
+                    results = try await searchService.search(
+                        term: query,
+                        mediaType: mediaType,
+                        limit: 30
+                    )
+                }
 
                 if !Task.isCancelled {
                     searchResults = results

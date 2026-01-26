@@ -70,8 +70,7 @@ struct MediaEditView: View {
                 Section("Links") {
                     if !viewModel.iTunesURL.isEmpty {
                         Link(destination: URL(string: viewModel.iTunesURL)!) {
-                            Label(viewModel.iTunesURL.contains("themoviedb.org") ? "View on TMDB" : "View on iTunes",
-                                  systemImage: "arrow.up.right.square")
+                            Label(viewModel.linkLabel, systemImage: "arrow.up.right.square")
                         }
                     }
                 }

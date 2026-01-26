@@ -104,6 +104,12 @@ struct Media: Identifiable, Codable, Sendable, Hashable {
         id + ".md"
     }
 
+    var linkLabel: String {
+        if iTunesURL?.contains("themoviedb.org") == true { return "View on TMDB" }
+        if mediaType == .podcast { return "View on Apple Podcasts" }
+        return "View on iTunes"
+    }
+
     /// Sanitize filename using same regex as Ruby scripts: [<>:"\/\\|?*]
     static func sanitizeFilename(_ name: String) -> String {
         let pattern = "[<>:\"\\/\\\\|?*]"

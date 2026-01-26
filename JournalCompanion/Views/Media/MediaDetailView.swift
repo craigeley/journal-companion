@@ -162,7 +162,7 @@ struct MediaDetailView: View {
                 Link(destination: url) {
                     HStack {
                         Image(systemName: "arrow.up.right.square")
-                        Text(urlString.contains("themoviedb.org") ? "View on TMDB" : "View on iTunes")
+                        Text(media.linkLabel)
                         Spacer()
                         Image(systemName: "chevron.right")
                             .foregroundStyle(.tertiary)

@@ -37,6 +37,12 @@ class MediaEditViewModel: ObservableObject, Identifiable {
 
     var isCreating: Bool { originalMedia == nil }
 
+    var linkLabel: String {
+        if iTunesURL.contains("themoviedb.org") { return "View on TMDB" }
+        if mediaType == .podcast { return "View on Apple Podcasts" }
+        return "View on iTunes"
+    }
+
     /// Initialize for creating new media from iTunes search result
     init(
         vaultManager: VaultManager,

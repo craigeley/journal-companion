@@ -28,6 +28,8 @@ struct QuickEntryView: View {
     @State private var pendingPOICategory: MKPointOfInterestCategory?
     @State private var createPlaceRequested = false
     @State private var searchNearbyRequested = false
+    @State private var showAddTag = false
+    @State private var newTag = ""
 
     var body: some View {
         NavigationStack {
@@ -247,7 +249,23 @@ struct QuickEntryView: View {
                                     viewModel.removeTag(tag)
                                 }
                             }
+
+                            Button {
+                                showAddTag = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus")
+                                        .font(.caption2)
+                                    Text("Add")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.secondary.opacity(0.1))
+                                .clipShape(Capsule())
+                            }
                         }
+                        .buttonStyle(.borderless)
                     }
                 }
             }
@@ -293,6 +311,21 @@ struct QuickEntryView: View {
                 if let error = viewModel.errorMessage {
                     Text(error)
                 }
+            }
+            .alert("Add Tag", isPresented: $showAddTag) {
+                TextField("Tag", text: $newTag)
+                Button("Add") {
+                    let trimmed = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        viewModel.addTag(trimmed)
+                    }
+                    newTag = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newTag = ""
+                }
+            } message: {
+                Text("Enter a tag for this entry")
             }
             .sheet(isPresented: $showPlacePicker) {
                 PlacePickerView(

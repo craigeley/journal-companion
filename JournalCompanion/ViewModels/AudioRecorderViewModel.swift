@@ -128,6 +128,9 @@ class AudioRecorderViewModel: ObservableObject {
             isRecording = true
             errorMessage = nil
 
+            // Prevent screen from sleeping while recording
+            UIApplication.shared.isIdleTimerDisabled = true
+
             // Start duration timer
             startDurationTimer()
 
@@ -243,5 +246,8 @@ class AudioRecorderViewModel: ObservableObject {
         recordingSampleRate = nil
         recordingBitDepth = nil
         errorMessage = nil
+
+        // Re-enable screen sleep
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 }

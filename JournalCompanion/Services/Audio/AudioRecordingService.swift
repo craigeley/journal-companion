@@ -17,6 +17,7 @@ actor AudioRecordingService {
     private var recordingStartTime: Date?
     private var isPaused = false
     private var currentFormat: AudioFormat = .aac
+    private var interruptionObserver: NSObjectProtocol?
 
     // MARK: - Public Interface
 
@@ -79,6 +80,9 @@ actor AudioRecordingService {
         recordingStartTime = Date()
         isPaused = false
 
+        // Observe audio session interruptions (phone calls, Siri, etc.)
+        setupInterruptionHandling()
+
         // Get recording device name
         let deviceName = getRecordingDeviceName()
 
@@ -102,6 +106,7 @@ actor AudioRecordingService {
         // Stop engine and remove tap
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        removeInterruptionHandling()
 
         let duration = Date().timeIntervalSince(startTime)
         let url = file.url
@@ -189,6 +194,59 @@ actor AudioRecordingService {
         }
 
         return copy
+    }
+
+    private func setupInterruptionHandling() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: nil
+        ) { [weak self] notification in
+            guard let self else { return }
+            Task {
+                await self.handleInterruption(notification)
+            }
+        }
+    }
+
+    private func removeInterruptionHandling() {
+        if let observer = interruptionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            interruptionObserver = nil
+        }
+    }
+
+    private func handleInterruption(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+
+        switch type {
+        case .began:
+            // Engine is automatically paused by the system
+            print("⚠️ Audio session interrupted (phone call, Siri, etc.)")
+
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+                return
+            }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                do {
+                    try audioEngine.start()
+                    print("✓ Audio engine resumed after interruption")
+                } catch {
+                    print("❌ Failed to resume after interruption: \(error)")
+                }
+            } else {
+                print("⚠️ Interruption ended but system did not request resume")
+            }
+
+        @unknown default:
+            break
+        }
     }
 
     private func configureAudioSession() async throws {

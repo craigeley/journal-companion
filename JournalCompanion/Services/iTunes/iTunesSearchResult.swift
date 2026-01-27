@@ -78,6 +78,11 @@ struct iTunesSearchItem: Identifiable, Sendable {
     let description: String?
     let genres: [String]?
 
+    // Video game-specific (populated by RAWG, not iTunes)
+    let gamePlatforms: [String]?
+    let metacriticScore: Int?
+    let playtimeHours: Int?
+
     // MARK: - Computed Properties
 
     /// Unified title across all media types
@@ -195,6 +200,20 @@ struct iTunesSearchItem: Identifiable, Sendable {
             if let desc = description, !desc.isEmpty {
                 // Store description in content instead of unknownFields
             }
+
+        case .videoGame:
+            unknownFields["platform"] = .string("")
+            unknownFieldsOrder.append("platform")
+            if let score = metacriticScore {
+                unknownFields["metacritic"] = .int(score)
+                unknownFieldsOrder.append("metacritic")
+            }
+            if let hours = playtimeHours {
+                unknownFields["playtime_hours"] = .int(hours)
+                unknownFieldsOrder.append("playtime_hours")
+            }
+            unknownFields["date_played"] = .string("")
+            unknownFieldsOrder.append("date_played")
         }
 
         let title = displayTitle
@@ -273,6 +292,9 @@ extension iTunesSearchItem: Decodable {
         feedUrl = try container.decodeIfPresent(String.self, forKey: .feedUrl)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         genres = try container.decodeIfPresent([String].self, forKey: .genres)
+        gamePlatforms = nil
+        metacriticScore = nil
+        playtimeHours = nil
     }
 }
 

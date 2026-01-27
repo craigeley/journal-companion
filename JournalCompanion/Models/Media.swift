@@ -17,6 +17,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
     case book
     case podcast
     case album
+    case videoGame = "video_game"
 
     var displayName: String {
         switch self {
@@ -25,6 +26,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
         case .book: return "Book"
         case .podcast: return "Podcast"
         case .album: return "Album"
+        case .videoGame: return "Video Game"
         }
     }
 
@@ -35,6 +37,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
         case .book: return "book.fill"
         case .podcast: return "mic.fill"
         case .album: return "music.note.list"
+        case .videoGame: return "gamecontroller.fill"
         }
     }
 
@@ -45,6 +48,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
         case .book: return .orange
         case .podcast: return .purple
         case .album: return .pink
+        case .videoGame: return .green
         }
     }
 
@@ -56,6 +60,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
         case .book: return "ebook"
         case .podcast: return "podcast"
         case .album: return "music"
+        case .videoGame: return "software"
         }
     }
 
@@ -67,6 +72,7 @@ enum MediaType: String, Codable, CaseIterable, Sendable, Hashable {
         case .book: return "ebook"
         case .podcast: return "podcast"
         case .album: return "album"
+        case .videoGame: return "software"
         }
     }
 }
@@ -106,6 +112,7 @@ struct Media: Identifiable, Codable, Sendable, Hashable {
 
     var linkLabel: String {
         if iTunesURL?.contains("themoviedb.org") == true { return "View on TMDB" }
+        if iTunesURL?.contains("rawg.io") == true { return "View on RAWG" }
         if mediaType == .podcast { return "View on Apple Podcasts" }
         return "View on iTunes"
     }

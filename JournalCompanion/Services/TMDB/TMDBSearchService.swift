@@ -144,7 +144,10 @@ private struct TMDBMovie: Sendable {
             trackExplicitness: nil,
             feedUrl: nil,
             description: overview,
-            genres: nil
+            genres: nil,
+            gamePlatforms: nil,
+            metacriticScore: nil,
+            playtimeHours: nil
         )
     }
 }

@@ -53,6 +53,19 @@ struct MediaEditView: View {
                         .keyboardType(.numberPad)
 
                     TextField("Genre", text: $viewModel.genre)
+
+                    // Platform picker for video games
+                    if viewModel.mediaType == .videoGame {
+                        if !viewModel.availablePlatforms.isEmpty {
+                            Picker("Platform", selection: $viewModel.selectedPlatform) {
+                                ForEach(viewModel.availablePlatforms, id: \.self) { platform in
+                                    Text(platform).tag(platform)
+                                }
+                            }
+                        } else {
+                            TextField("Platform", text: $viewModel.selectedPlatform)
+                        }
+                    }
                 }
 
                 // Tags section

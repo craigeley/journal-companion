@@ -22,6 +22,8 @@ class MediaEditViewModel: ObservableObject, Identifiable {
     @Published var tags: [String] = []
     @Published var aliases: [String] = []
     @Published var content: String = ""  // Notes/review
+    @Published var selectedPlatform: String = ""
+    @Published var availablePlatforms: [String] = []
 
     // UI state
     @Published var isSaving = false
@@ -39,6 +41,7 @@ class MediaEditViewModel: ObservableObject, Identifiable {
 
     var linkLabel: String {
         if iTunesURL.contains("themoviedb.org") { return "View on TMDB" }
+        if iTunesURL.contains("rawg.io") { return "View on RAWG" }
         if mediaType == .podcast { return "View on Apple Podcasts" }
         return "View on iTunes"
     }
@@ -78,6 +81,12 @@ class MediaEditViewModel: ObservableObject, Identifiable {
 
         self.aliases = []
         self.content = ""
+
+        // Populate platform list for video games
+        if let platforms = searchResult.gamePlatforms, !platforms.isEmpty {
+            self.availablePlatforms = platforms
+            self.selectedPlatform = platforms.first ?? ""
+        }
     }
 
     /// Initialize for editing existing media
@@ -100,6 +109,12 @@ class MediaEditViewModel: ObservableObject, Identifiable {
         self.tags = media.tags
         self.aliases = media.aliases
         self.content = media.content
+
+        // Populate platform for video games
+        if media.mediaType == .videoGame,
+           case .string(let platform) = media.unknownFields["platform"] {
+            self.selectedPlatform = platform
+        }
     }
 
     /// Validation - title is required and must not conflict
@@ -174,6 +189,11 @@ class MediaEditViewModel: ObservableObject, Identifiable {
                 // Preserve unknown fields from original
                 unknownFields = original.unknownFields
                 unknownFieldsOrder = original.unknownFieldsOrder
+            }
+
+            // Override platform with user's selection for video games
+            if mediaType == .videoGame, !selectedPlatform.isEmpty {
+                unknownFields["platform"] = .string(selectedPlatform)
             }
 
             // Parse iTunes ID from search result or original

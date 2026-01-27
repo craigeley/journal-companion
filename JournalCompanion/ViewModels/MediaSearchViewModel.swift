@@ -19,6 +19,7 @@ class MediaSearchViewModel: ObservableObject {
 
     private let searchService = iTunesSearchService()
     private let tmdbService = TMDBSearchService()
+    private let rawgService = RAWGSearchService()
     private var searchTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
@@ -69,9 +70,12 @@ class MediaSearchViewModel: ObservableObject {
             do {
                 let results: [iTunesSearchItem]
 
-                if mediaType == .movie {
+                switch mediaType {
+                case .movie:
                     results = try await tmdbService.search(term: query, limit: 30)
-                } else {
+                case .videoGame:
+                    results = try await rawgService.search(term: query, limit: 30)
+                default:
                     results = try await searchService.search(
                         term: query,
                         mediaType: mediaType,

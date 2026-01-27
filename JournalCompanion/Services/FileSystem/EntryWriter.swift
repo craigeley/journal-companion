@@ -480,8 +480,8 @@ actor EntryWriter {
 
     /// Determine callout type based on entry tags and place
     private func determineCallout(for entry: Entry) -> String {
-        // Check for voice recorder entries
-        if entry.tags.contains("voice_recorder") || entry.tags.contains("audio_journal") {
+        // Check for audio entries
+        if entry.tags.contains("voice_recorder") || entry.tags.contains("audio_journal") || entry.tags.contains("audio_entry") {
             return "audio-journal"
         }
 

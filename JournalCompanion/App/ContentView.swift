@@ -33,7 +33,6 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showWorkoutSync = false
     @State private var showRecentVisits = false
-    @State private var showDailyNoteCreation = false
     @State private var pendingVisitForEntry: PersistedVisit?
     @State private var selectedTab = 0
     @State private var vaultError: String?
@@ -86,7 +85,6 @@ struct ContentView: View {
                 showSettings: $showSettings,
                 showWorkoutSync: $showWorkoutSync,
                 showRecentVisits: $showRecentVisits,
-                showDailyNoteCreation: $showDailyNoteCreation,
                 showHealthKitAuth: $showHealthKitAuth,
                 hasRequestedHealthKitAuth: $hasRequestedHealthKitAuth,
                 pendingVisitForEntry: $pendingVisitForEntry,
@@ -204,11 +202,6 @@ struct ContentView: View {
                 Label("Sync Workouts", systemImage: "figure.run")
             }
 
-            Button {
-                showDailyNoteCreation = true
-            } label: {
-                Label("Daily Note", systemImage: "calendar.badge.plus")
-            }
         } label: {
             Image(systemName: "plus")
                 .font(.title2)
@@ -682,7 +675,6 @@ private struct UtilitySheetModifiers<RecentVisits: View>: ViewModifier {
     @Binding var showSettings: Bool
     @Binding var showWorkoutSync: Bool
     @Binding var showRecentVisits: Bool
-    @Binding var showDailyNoteCreation: Bool
     @Binding var showHealthKitAuth: Bool
     @Binding var hasRequestedHealthKitAuth: Bool
     @Binding var pendingVisitForEntry: PersistedVisit?
@@ -725,11 +717,6 @@ private struct UtilitySheetModifiers<RecentVisits: View>: ViewModifier {
                 if !isShowing && pendingVisitForEntry != nil {
                     showQuickEntry = true
                 }
-            }
-            .sheet(isPresented: $showDailyNoteCreation) {
-                DailyNoteCreationView(
-                    viewModel: DailyNoteCreationViewModel(vaultManager: vaultManager)
-                )
             }
             .sheet(isPresented: $showHealthKitAuth) {
                 HealthKitAuthView()

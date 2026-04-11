@@ -9,6 +9,8 @@ import Foundation
 import CoreLocation
 
 actor EntryWriter {
+    // NOTE: Daily note writing (callouts, weather, etc.) has been removed.
+    // Daily notes are now managed by a separate process.
     private let vaultURL: URL
     private let fileManager = FileManager.default
 
@@ -38,9 +40,6 @@ actor EntryWriter {
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Created entry file: \(entry.filename).md")
-
-        // Add to day file
-        try await addToDayFile(entry: entry)
     }
 
     /// Update an existing entry
@@ -91,10 +90,6 @@ actor EntryWriter {
         try fileManager.removeItem(at: oldFileURL)
         print("✓ Removed old entry file: \(oldEntry.filename).md")
 
-        // Update day file references
-        try await removeFromDayFile(entry: oldEntry)
-        try await addToDayFile(entry: newEntry)
-
         print("✓ Migrated entry from \(oldEntry.filename) to \(newEntry.filename)")
     }
 
@@ -107,9 +102,6 @@ actor EntryWriter {
         guard fileManager.fileExists(atPath: fileURL.path) else {
             throw EntryError.fileNotFound(entry.filename)
         }
-
-        // Remove from day file first
-        try await removeFromDayFile(entry: entry)
 
         // Delete attachments if requested
         if deleteAttachments {
@@ -261,253 +253,6 @@ actor EntryWriter {
         try await write(entry: updatedEntry)
     }
 
-    /// Add entry callout to day file
-    private func addToDayFile(entry: Entry) async throws {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: entry.dateCreated)
-
-        guard let year = components.year,
-              let _ = components.month,
-              let _ = components.day else {
-            throw EntryError.invalidDate
-        }
-
-        // Generate day file path: Days/YYYY/MM-Month/YYYY-MM-DD.md
-        let monthFormatter = DateFormatter()
-        monthFormatter.dateFormat = "MM-MMMM"
-        let monthString = monthFormatter.string(from: entry.dateCreated)
-
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "yyyy-MM-dd"
-        let dayFilename = dayFormatter.string(from: entry.dateCreated) + ".md"
-
-        let dayDir = vaultURL.appendingPathComponent("Days/\(year)/\(monthString)")
-        let dayFileURL = dayDir.appendingPathComponent(dayFilename)
-
-        // Determine callout type
-        let calloutType = determineCallout(for: entry)
-
-        // Format time string
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "h:mm a"
-        let timeString = timeFormatter.string(from: entry.dateCreated)
-
-        // Determine title: workout type > place name > "Entry"
-        let title: String
-        if let workoutType = entry.workoutType {
-            title = workoutType
-        } else if let place = entry.place {
-            title = place
-        } else {
-            title = "Entry"
-        }
-
-        // Get the entry filename for embedding
-        let entryFilename = entry.filename
-
-        // Create callout block
-        let calloutBlock = """
-        > [!\(calloutType)]- \(timeString) - \(title)
-        > ![[\(entryFilename)]]
-
-        """
-
-        var content: String
-
-        if fileManager.fileExists(atPath: dayFileURL.path) {
-            // Read existing day file
-            content = try String(contentsOf: dayFileURL, encoding: .utf8)
-
-            // Check if this entry is already linked
-            if content.contains("![[\(entryFilename)]]") {
-                print("Entry already linked in day file: \(dayFilename)")
-                return
-            }
-
-            // Find ### Entries section or append
-            if let entriesRange = content.range(of: "### Entries\n") {
-                // Find where to insert: before the next markdown header (if any)
-                let afterEntries = content[entriesRange.upperBound...]
-
-                // Look for the next header line (starts with #)
-                let insertionIndex: String.Index
-                if let nextHeaderRange = afterEntries.range(of: "\n#", options: []) {
-                    // Insert before the newline that precedes the next header
-                    insertionIndex = nextHeaderRange.lowerBound
-                } else {
-                    // No more headers, insert at end of file
-                    insertionIndex = content.endIndex
-                }
-
-                // Build the insertion with proper spacing
-                var insertion = calloutBlock
-                let textBeforeInsertion = content[..<insertionIndex]
-
-                // Ensure blank line before the callout
-                if textBeforeInsertion.hasSuffix("\n\n") {
-                    // Already has blank line, just insert
-                } else if textBeforeInsertion.hasSuffix("\n") {
-                    // Has one newline, add one more
-                    insertion = "\n" + insertion
-                } else {
-                    // No newline, add two
-                    insertion = "\n\n" + insertion
-                }
-
-                content.insert(contentsOf: insertion, at: insertionIndex)
-            } else {
-                // Add Entries section at the end
-                content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                content += "\n\n### Entries\n\n" + calloutBlock
-            }
-        } else {
-            // Create new day file with weather metadata if location is set
-            try fileManager.createDirectory(
-                at: dayDir,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
-
-            // Try to fetch weather metadata
-            let yamlHeader = await fetchWeatherMetadata(for: entry.dateCreated)
-
-            content = """
-            \(yamlHeader)
-
-            ### Entries
-
-            \(calloutBlock)
-            """
-        }
-
-        // Write day file atomically
-        try content.write(to: dayFileURL, atomically: true, encoding: .utf8)
-        print("✓ Updated day file: \(dayFilename)")
-    }
-
-    /// Remove entry callout from day file
-    private func removeFromDayFile(entry: Entry) async throws {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month, .day], from: entry.dateCreated)
-
-        guard let year = components.year,
-              let _ = components.month,
-              let _ = components.day else {
-            throw EntryError.invalidDate
-        }
-
-        // Generate day file path: Days/YYYY/MM-Month/YYYY-MM-DD.md
-        let monthFormatter = DateFormatter()
-        monthFormatter.dateFormat = "MM-MMMM"
-        let monthString = monthFormatter.string(from: entry.dateCreated)
-
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "yyyy-MM-dd"
-        let dayFilename = dayFormatter.string(from: entry.dateCreated) + ".md"
-
-        let dayDir = vaultURL.appendingPathComponent("Days/\(year)/\(monthString)")
-        let dayFileURL = dayDir.appendingPathComponent(dayFilename)
-
-        // If day file doesn't exist, nothing to remove
-        guard fileManager.fileExists(atPath: dayFileURL.path) else {
-            return
-        }
-
-        // Read existing day file
-        var content = try String(contentsOf: dayFileURL, encoding: .utf8)
-
-        // Get the entry filename for matching
-        let entryFilename = entry.filename
-
-        // Check if this entry is referenced
-        guard content.contains("![[\(entryFilename)]]") else {
-            print("Entry not found in day file: \(dayFilename)")
-            return
-        }
-
-        // Remove the callout block containing this entry
-        // Pattern: Match from "> [!..." through the embed line and trailing newlines
-        let pattern = "> \\[!.*?\\n> !\\[\\[\(NSRegularExpression.escapedPattern(for: entryFilename))\\]\\]\\n*"
-
-        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-            let range = NSRange(content.startIndex..., in: content)
-            content = regex.stringByReplacingMatches(
-                in: content,
-                options: [],
-                range: range,
-                withTemplate: ""
-            )
-        }
-
-        // Write updated day file atomically
-        try content.write(to: dayFileURL, atomically: true, encoding: .utf8)
-        print("✓ Removed entry from day file: \(dayFilename)")
-    }
-
-    /// Fetch weather metadata for a day file
-    /// Returns YAML frontmatter with weather data if available, or minimal YAML as fallback
-    private func fetchWeatherMetadata(for date: Date) async -> String {
-        // Read weather location from UserDefaults
-        let weatherLat = UserDefaults.standard.double(forKey: "dailyNoteWeatherLatitude")
-        let weatherLon = UserDefaults.standard.double(forKey: "dailyNoteWeatherLongitude")
-
-        // If no location set (both are 0.0), return minimal YAML
-        guard weatherLat != 0.0 && weatherLon != 0.0 else {
-            return "---\n---"
-        }
-
-        // Try to fetch weather data
-        do {
-            let weatherService = DailyWeatherService()
-            let location = CLLocation(latitude: weatherLat, longitude: weatherLon)
-            let forecast = try await weatherService.fetchDailyForecast(for: date, location: location)
-
-            // Return YAML with weather metadata
-            return """
-            ---
-            low_temp: \(forecast.lowTemp)
-            high_temp: \(forecast.highTemp)
-            sunrise: \(forecast.sunrise)
-            sunset: \(forecast.sunset)
-            ---
-            """
-        } catch {
-            // If weather fetch fails, fall back to minimal YAML
-            print("⚠️ Weather fetch failed (non-fatal): \(error)")
-            return "---\n---"
-        }
-    }
-
-    /// Determine callout type based on entry tags and place
-    private func determineCallout(for entry: Entry) -> String {
-        // Check for audio entries
-        if entry.tags.contains("voice_recorder") || entry.tags.contains("audio_journal") || entry.tags.contains("audio_entry") {
-            return "audio-journal"
-        }
-
-        // Check for workout entries
-        if entry.tags.contains("workout") {
-            // Use specific callout for running workouts
-            if entry.tags.contains("running") {
-                return "run"
-            }
-            // Generic workout callout for other types
-            return "workout"
-        }
-
-        // If entry has a place with a callout, use it
-        if let placeCallout = entry.placeCallout, !placeCallout.isEmpty {
-            return placeCallout
-        }
-
-        // Check for visit/checkin tags
-        if entry.tags.contains("checkin") || entry.tags.contains("visit") {
-            return "place"
-        }
-
-        // Default callout type
-        return "note"
-    }
 }
 
 // MARK: - Errors
@@ -515,8 +260,6 @@ enum EntryError: LocalizedError {
     case fileAlreadyExists(String)
     case fileNotFound(String)
     case invalidEntry
-    case invalidDate
-    case dayFileUpdateFailed
 
     var errorDescription: String? {
         switch self {
@@ -526,10 +269,6 @@ enum EntryError: LocalizedError {
             return "Entry file not found: \(name)"
         case .invalidEntry:
             return "Entry data is invalid."
-        case .invalidDate:
-            return "Entry date is invalid."
-        case .dayFileUpdateFailed:
-            return "Failed to update day file."
         }
     }
 }

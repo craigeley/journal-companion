@@ -18,17 +18,39 @@ actor EntryWriter {
         self.vaultURL = vaultURL
     }
 
+    /// Resolve the canonical location for a new entry file (flat root by default).
+    private func canonicalFileURL(for entry: Entry) -> URL {
+        VaultPaths.url(for: .entries, in: vaultURL)
+            .appendingPathComponent(entry.filename + ".md")
+    }
+
+    /// Locate an existing entry file. Looks in the canonical (flat) location first,
+    /// then falls back to the legacy date-nested path for pre-migration files.
+    private func locateExistingFileURL(for entry: Entry) -> URL? {
+        let canonical = canonicalFileURL(for: entry)
+        if fileManager.fileExists(atPath: canonical.path) {
+            return canonical
+        }
+        let legacy = vaultURL
+            .appendingPathComponent(entry.legacyDirectoryPath)
+            .appendingPathComponent(entry.filename + ".md")
+        if fileManager.fileExists(atPath: legacy.path) {
+            return legacy
+        }
+        return nil
+    }
+
     /// Write entry to file system
     func write(entry: Entry) async throws {
-        let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
-        let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
+        let fileURL = canonicalFileURL(for: entry)
 
-        // Check if file already exists
-        if fileManager.fileExists(atPath: fileURL.path) {
+        // Reject if a file with this filename already exists in either layout.
+        if locateExistingFileURL(for: entry) != nil {
             throw EntryError.fileAlreadyExists(entry.filename)
         }
 
-        // Create directory if needed
+        // Create directory if needed (no-op when writing to vault root).
+        let directoryURL = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true,
@@ -44,43 +66,35 @@ actor EntryWriter {
 
     /// Update an existing entry
     func update(entry: Entry) async throws {
-        let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
-        let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
-
-        // Check that the file exists
-        guard fileManager.fileExists(atPath: fileURL.path) else {
+        guard let fileURL = locateExistingFileURL(for: entry) else {
             throw EntryError.fileNotFound(entry.filename)
         }
 
         // Generate updated markdown
         let markdown = entry.toMarkdown()
 
-        // Overwrite the existing file
+        // Overwrite the existing file in place (stays in legacy folder until migration).
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Updated entry: \(entry.filename).md")
     }
 
-    /// Update entry when date has changed (requires file migration)
+    /// Update entry when date has changed (filename and possibly folder change).
     func updateWithDateChange(oldEntry: Entry, newEntry: Entry) async throws {
-        // Validate old file exists
-        let oldDirectoryURL = vaultURL.appendingPathComponent(oldEntry.directoryPath)
-        let oldFileURL = oldDirectoryURL.appendingPathComponent(oldEntry.filename + ".md")
-
-        guard fileManager.fileExists(atPath: oldFileURL.path) else {
+        // Validate old file exists (in either layout)
+        guard let oldFileURL = locateExistingFileURL(for: oldEntry) else {
             throw EntryError.fileNotFound(oldEntry.filename)
         }
 
-        // Create new directory if needed
-        let newDirectoryURL = vaultURL.appendingPathComponent(newEntry.directoryPath)
+        // Always write the new file to the canonical (flat) location.
+        let newFileURL = canonicalFileURL(for: newEntry)
+        let newDirectoryURL = newFileURL.deletingLastPathComponent()
         try fileManager.createDirectory(
             at: newDirectoryURL,
             withIntermediateDirectories: true,
             attributes: nil
         )
 
-        // Write entry to new location
-        let newFileURL = newDirectoryURL.appendingPathComponent(newEntry.filename + ".md")
         let markdown = newEntry.toMarkdown()
         try markdown.write(to: newFileURL, atomically: true, encoding: .utf8)
 
@@ -95,11 +109,7 @@ actor EntryWriter {
 
     /// Delete an entry
     func delete(entry: Entry, deleteAttachments: Bool = false) async throws {
-        let directoryURL = vaultURL.appendingPathComponent(entry.directoryPath)
-        let fileURL = directoryURL.appendingPathComponent(entry.filename + ".md")
-
-        // Check that the file exists
-        guard fileManager.fileExists(atPath: fileURL.path) else {
+        guard let fileURL = locateExistingFileURL(for: entry) else {
             throw EntryError.fileNotFound(entry.filename)
         }
 
@@ -116,7 +126,7 @@ actor EntryWriter {
 
     /// Delete all attachments associated with an entry
     func deleteEntryAttachments(entry: Entry) async throws {
-        let attachmentsDir = vaultURL.appendingPathComponent("_attachments")
+        let attachmentsDir = VaultPaths.url(for: .attachments, in: vaultURL)
 
         // Delete audio files and their .srt sidecar files
         if let audioFiles = entry.audioAttachments {
@@ -232,12 +242,12 @@ actor EntryWriter {
                         for: entry.id
                     )
 
-                    // Add map to preserved sections (system-generated content)
+                    // Append the map embed to the entry body.
                     let mapSection = "### Map\n![[maps/\(mapFilename)]]"
-                    if let existing = updatedEntry.preservedSections {
-                        updatedEntry.preservedSections = existing + "\n\n" + mapSection
+                    if updatedEntry.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        updatedEntry.content = mapSection
                     } else {
-                        updatedEntry.preservedSections = mapSection
+                        updatedEntry.content += "\n\n" + mapSection
                     }
 
                     print("✓ Map snapshot generated successfully")

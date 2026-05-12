@@ -51,7 +51,6 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
     var placeCallout: String?  // Place callout type (e.g., "cafe", "park", "home")
     var location: String?  // GPS coordinates in "latitude,longitude" format
     var content: String
-    var preservedSections: String?  // Content from first markdown header onward (preserved for external editing)
 
     // Optional weather data
     var temperature: Int?
@@ -82,15 +81,17 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
         return formatter.string(from: dateCreated)
     }
 
-    /// Generate directory path: Entries/YYYY/MM-Month/DD
-    nonisolated var directoryPath: String {
+    /// Legacy date-nested directory path: Entries/YYYY/MM-Month/DD
+    /// Retained so the writer can still locate pre-migration files for update/delete.
+    /// New entries are written to `VaultPaths.entries` (root by default).
+    nonisolated var legacyDirectoryPath: String {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day], from: dateCreated)
 
         guard let year = components.year,
               let _ = components.month,
               let day = components.day else {
-            return "Entries"
+            return VaultPaths.legacyEntries
         }
 
         let monthFormatter = DateFormatter()
@@ -99,7 +100,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
 
         let dayString = String(format: "%02d", day)
 
-        return "Entries/\(year)/\(monthString)/\(dayString)"
+        return "\(VaultPaths.legacyEntries)/\(year)/\(monthString)/\(dayString)"
     }
 
     /// Convert entry to markdown format with YAML frontmatter
@@ -129,14 +130,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
 
         yaml += "---\n\n"
 
-        // Combine user content with preserved sections
-        var fullContent = content
-        if let preserved = preservedSections, !preserved.isEmpty {
-            // Ensure proper spacing between user content and preserved sections
-            fullContent += "\n\n" + preserved
-        }
-
-        return yaml + fullContent + "\n"
+        return yaml + content + "\n"
     }
 
     private nonisolated func isKnownField(_ key: String) -> Bool {
@@ -288,7 +282,6 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
             placeCallout: nil,
             location: location,
             content: content,
-            preservedSections: nil,
             temperature: nil,
             condition: nil,
             aqi: nil,

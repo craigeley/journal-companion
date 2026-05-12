@@ -42,9 +42,6 @@ class EntryEditViewModel: ObservableObject {
     private var unknownFields: [String: YAMLValue]
     private var unknownFieldsOrder: [String]
 
-    // Preserved sections (markdown headers and beyond - hidden from user editing)
-    private var preservedSections: String?
-
     private var pendingEntry: Entry?
     private let originalEntry: Entry
     let vaultManager: VaultManager
@@ -56,9 +53,7 @@ class EntryEditViewModel: ObservableObject {
         self.vaultManager = vaultManager
         self.locationService = locationService
 
-        // Use content directly (preserved sections are handled separately)
         self.entryText = entry.content
-        self.preservedSections = entry.preservedSections
 
         self.timestamp = entry.dateCreated
         self.tags = entry.tags
@@ -164,7 +159,6 @@ class EntryEditViewModel: ObservableObject {
             placeCallout: selectedPlace?.callout.rawValue,
             location: finalLocation,
             content: entryText,
-            preservedSections: preservedSections,
             temperature: temperature,
             condition: condition,
             aqi: aqi,

@@ -16,6 +16,10 @@ struct SettingsView: View {
 
     @AppStorage("audioFormat") private var audioFormat: AudioFormat = .aac
 
+    @State private var isMigrating = false
+    @State private var migrationReportSummary: String?
+    @State private var showingMigrationConfirm = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -138,6 +142,42 @@ struct SettingsView: View {
                         vaultManager.clearVault()
                     }
                 }
+
+                // Vault Structure Section
+                Section {
+                    Button {
+                        showingMigrationConfirm = true
+                    } label: {
+                        HStack {
+                            Label("Flatten Vault Structure", systemImage: "rectangle.compress.vertical")
+                            Spacer()
+                            if isMigrating {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(isMigrating || vaultManager.vaultURL == nil)
+
+                    if let summary = migrationReportSummary {
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Vault Structure")
+                } footer: {
+                    Text("Moves all notes from Entries/, Places/, People/, and Media/ subfolders into the vault root. Binary attachments under _attachments/ are left alone. Existing files with conflicting names at the root are skipped.")
+                }
+                .confirmationDialog(
+                    "Flatten vault structure?",
+                    isPresented: $showingMigrationConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Migrate") { runMigration() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("All markdown notes will be moved into the root of your vault. This change is on disk and will appear in any synced clients (Obsidian, iCloud, etc).")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -147,6 +187,28 @@ struct SettingsView: View {
                         dismiss()
                     }
                 }
+            }
+        }
+    }
+
+    private func runMigration() {
+        guard let vaultURL = vaultManager.vaultURL, !isMigrating else { return }
+        isMigrating = true
+        migrationReportSummary = nil
+
+        Task {
+            let migrator = VaultMigrator(vaultURL: vaultURL)
+            let report = await migrator.migrate()
+
+            // Refresh in-memory caches so the UI reflects the new locations.
+            _ = try? await vaultManager.loadPlaces()
+            _ = try? await vaultManager.loadPeople()
+            _ = try? await vaultManager.loadEntries()
+            _ = try? await vaultManager.loadMedia()
+
+            await MainActor.run {
+                migrationReportSummary = report.summary
+                isMigrating = false
             }
         }
     }

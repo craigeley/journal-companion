@@ -1,13 +1,14 @@
 //
-//  MediaReader.swift
+//  PlaceReader.swift
 //  JournalCompanion
 //
-//  Handles reading and parsing of media files from vault
+//  Handles reading and parsing of place files from the vault.
+//  Scans both the canonical (flat) location and the legacy `Places/` folder.
 //
 
 import Foundation
 
-actor MediaReader {
+actor PlaceReader {
     private let vaultURL: URL
     private let fileManager = FileManager.default
 
@@ -15,50 +16,51 @@ actor MediaReader {
         self.vaultURL = vaultURL
     }
 
-    /// Load all media from vault, scanning both the canonical (flat) location
-    /// and the legacy `Media/` folder for pre-migration files.
-    func loadMedia() async throws -> [Media] {
+    /// Load all places from the vault, deduped by filename.
+    func loadPlaces() async throws -> [Place] {
         var fileURLs: [URL] = []
 
-        let canonicalURL = VaultPaths.url(for: .media, in: vaultURL)
+        // Canonical (flat) location — vault root by default.
+        let canonicalURL = VaultPaths.url(for: .places, in: vaultURL)
         fileURLs.append(contentsOf: listMarkdownFiles(at: canonicalURL))
 
-        if let legacyURL = VaultPaths.legacyURL(for: .media, in: vaultURL),
+        // Legacy `Places/` folder, if it still exists and differs from canonical.
+        if let legacyURL = VaultPaths.legacyURL(for: .places, in: vaultURL),
            legacyURL.standardizedFileURL != canonicalURL.standardizedFileURL,
            fileManager.fileExists(atPath: legacyURL.path) {
             fileURLs.append(contentsOf: listMarkdownFiles(at: legacyURL))
         }
 
-        // Dedupe by filename
+        // Dedupe by filename (canonical wins because it was appended first).
         var seen = Set<String>()
         let uniqueURLs = fileURLs.filter { seen.insert($0.lastPathComponent).inserted }
 
-        let media = try await withThrowingTaskGroup(of: Media?.self) { group in
+        let places = try await withThrowingTaskGroup(of: Place?.self) { group in
             for fileURL in uniqueURLs {
                 group.addTask { @Sendable in
                     do {
                         let content = try String(contentsOf: fileURL, encoding: .utf8)
-                        return Media.parse(from: content, filename: fileURL.lastPathComponent)
+                        return Place.parse(from: content, filename: fileURL.lastPathComponent)
                     } catch {
-                        print("Error parsing media file \(fileURL.lastPathComponent): \(error)")
+                        print("Error parsing place file \(fileURL.lastPathComponent): \(error)")
                         return nil
                     }
                 }
             }
 
-            var result: [Media] = []
-            for try await mediaItem in group {
-                if let mediaItem = mediaItem {
-                    result.append(mediaItem)
+            var result: [Place] = []
+            for try await place in group {
+                if let place = place {
+                    result.append(place)
                 }
             }
             return result
         }
 
-        print("✓ Loaded \(media.count) media items")
-        return media.sorted { $0.title < $1.title }
+        return places.sorted { $0.name < $1.name }
     }
 
+    /// List `.md` files directly within a directory (non-recursive).
     private func listMarkdownFiles(at directoryURL: URL) -> [URL] {
         guard fileManager.fileExists(atPath: directoryURL.path) else { return [] }
         let items = (try? fileManager.contentsOfDirectory(

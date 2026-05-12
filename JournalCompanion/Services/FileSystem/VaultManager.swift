@@ -133,46 +133,11 @@ class VaultManager: ObservableObject {
             self.isLoadingPlaces = true
         }
 
-        let placesURL = vaultURL.appendingPathComponent("Places")
-
-        guard FileManager.default.fileExists(atPath: placesURL.path) else {
-            await MainActor.run {
-                self.isLoadingPlaces = false
-            }
-            return []
-        }
-
-        let files = try FileManager.default.contentsOfDirectory(
-            at: placesURL,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        )
-
-        let places = try await withThrowingTaskGroup(of: Place?.self) { group in
-            for fileURL in files where fileURL.pathExtension == "md" {
-                group.addTask { @Sendable in
-                    do {
-                        let content = try String(contentsOf: fileURL, encoding: .utf8)
-                        let filename = fileURL.lastPathComponent
-                        return Place.parse(from: content, filename: filename)
-                    } catch {
-                        print("Error parsing place file \(fileURL.lastPathComponent): \(error)")
-                        return nil
-                    }
-                }
-            }
-
-            var result: [Place] = []
-            for try await place in group {
-                if let place = place {
-                    result.append(place)
-                }
-            }
-            return result
-        }
+        let reader = PlaceReader(vaultURL: vaultURL)
+        let places = try await reader.loadPlaces()
 
         await MainActor.run {
-            self.places = places.sorted { $0.name < $1.name }
+            self.places = places
             self.isLoadingPlaces = false
         }
 

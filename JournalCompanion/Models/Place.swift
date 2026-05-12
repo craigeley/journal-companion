@@ -62,10 +62,17 @@ struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
             .trimmingCharacters(in: .whitespaces)
     }
 
+    /// YAML discriminator value used to identify Place notes in a flat vault.
+    nonisolated static let yamlTypeIdentifier = "place"
+
     /// Convert place to markdown format with YAML frontmatter
     /// Uses template configuration to determine which fields to write
     func toMarkdown(template: PlaceTemplate) -> String {
         var yaml = "---\n"
+
+        // Always write the type discriminator first so flat-vault scanning
+        // can unambiguously identify the note type.
+        yaml += "type: \(Place.yamlTypeIdentifier)\n"
 
         // Get enabled fields sorted by order
         let enabledFields = template.fields
@@ -159,6 +166,23 @@ struct Place: Identifiable, Codable, Sendable, Equatable, Hashable {
     nonisolated static func parse(from content: String, filename: String) -> Place? {
         guard let frontmatter = extractFrontmatter(from: content) else {
             return nil
+        }
+
+        // Type discrimination: in a flat vault, every reader sees every file.
+        // Accept this file as a Place only if:
+        //   - it has `type: place` (new format), OR
+        //   - it has no `type:` but does have a valid `callout:` value (legacy format).
+        // Reject files that explicitly declare a different type (person, media, etc).
+        let typeField = (frontmatter["type"] as? String)?.lowercased()
+        if let typeField = typeField, typeField != yamlTypeIdentifier {
+            return nil
+        }
+        if typeField == nil {
+            // Legacy file: require a valid callout value to claim it as a Place.
+            let calloutString = frontmatter["callout"] as? String ?? ""
+            guard PlaceCallout(rawValue: calloutString) != nil else {
+                return nil
+            }
         }
 
         let name = String(filename.dropLast(3))  // Remove .md extension

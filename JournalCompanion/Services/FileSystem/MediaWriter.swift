@@ -15,30 +15,47 @@ actor MediaWriter {
         self.vaultURL = vaultURL
     }
 
+    private func canonicalFileURL(filename: String) -> URL {
+        VaultPaths.url(for: .media, in: vaultURL).appendingPathComponent(filename)
+    }
+
+    /// Locate an existing media file. Looks in the canonical (flat) location first,
+    /// then falls back to the legacy `Media/` folder for pre-migration files.
+    private func locateExistingFileURL(filename: String) -> URL? {
+        let canonical = canonicalFileURL(filename: filename)
+        if fileManager.fileExists(atPath: canonical.path) {
+            return canonical
+        }
+        if let legacyDir = VaultPaths.legacyURL(for: .media, in: vaultURL) {
+            let legacy = legacyDir.appendingPathComponent(filename)
+            if fileManager.fileExists(atPath: legacy.path) {
+                return legacy
+            }
+        }
+        return nil
+    }
+
     /// Create a new media file
     func write(media: Media) async throws {
         // Access properties once at the start
         let filename = await MainActor.run { media.filename }
         let markdown = await MainActor.run { media.toMarkdown() }
 
-        let mediaDirectory = vaultURL.appendingPathComponent("Media")
-        let fileURL = mediaDirectory.appendingPathComponent(filename)
-
-        // Check if file already exists
-        if fileManager.fileExists(atPath: fileURL.path) {
+        if locateExistingFileURL(filename: filename) != nil {
             throw MediaError.fileAlreadyExists(filename)
         }
 
-        // Create Media directory if needed
-        if !fileManager.fileExists(atPath: mediaDirectory.path) {
+        let fileURL = canonicalFileURL(filename: filename)
+        let directoryURL = fileURL.deletingLastPathComponent()
+
+        if !fileManager.fileExists(atPath: directoryURL.path) {
             try fileManager.createDirectory(
-                at: mediaDirectory,
+                at: directoryURL,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
         }
 
-        // Write file atomically
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Created media file: \(filename)")
@@ -50,15 +67,10 @@ actor MediaWriter {
         let filename = await MainActor.run { media.filename }
         let markdown = await MainActor.run { media.toMarkdown() }
 
-        let mediaDirectory = vaultURL.appendingPathComponent("Media")
-        let fileURL = mediaDirectory.appendingPathComponent(filename)
-
-        // Verify file exists
-        guard fileManager.fileExists(atPath: fileURL.path) else {
+        guard let fileURL = locateExistingFileURL(filename: filename) else {
             throw MediaError.fileNotFound(filename)
         }
 
-        // Write atomically
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Updated media: \(filename)")
@@ -68,11 +80,7 @@ actor MediaWriter {
     func delete(media: Media) async throws {
         let filename = await MainActor.run { media.filename }
 
-        let mediaDirectory = vaultURL.appendingPathComponent("Media")
-        let fileURL = mediaDirectory.appendingPathComponent(filename)
-
-        // Verify file exists
-        guard fileManager.fileExists(atPath: fileURL.path) else {
+        guard let fileURL = locateExistingFileURL(filename: filename) else {
             throw MediaError.fileNotFound(filename)
         }
 

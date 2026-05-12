@@ -17,6 +17,26 @@ actor PersonWriter {
         self.templateManager = templateManager
     }
 
+    private func canonicalFileURL(filename: String) -> URL {
+        VaultPaths.url(for: .people, in: vaultURL).appendingPathComponent(filename)
+    }
+
+    /// Locate an existing person file. Looks in the canonical (flat) location first,
+    /// then falls back to the legacy `People/` folder for pre-migration files.
+    private func locateExistingFileURL(filename: String) -> URL? {
+        let canonical = canonicalFileURL(filename: filename)
+        if fileManager.fileExists(atPath: canonical.path) {
+            return canonical
+        }
+        if let legacyDir = VaultPaths.legacyURL(for: .people, in: vaultURL) {
+            let legacy = legacyDir.appendingPathComponent(filename)
+            if fileManager.fileExists(atPath: legacy.path) {
+                return legacy
+            }
+        }
+        return nil
+    }
+
     /// Update an existing person
     func update(person: Person) async throws {
         // Access MainActor properties once at the start
@@ -24,15 +44,10 @@ actor PersonWriter {
         let template = await MainActor.run { templateManager.personTemplate }
         let markdown = await MainActor.run { person.toMarkdown(template: template) }
 
-        let peopleDirectory = vaultURL.appendingPathComponent("People")
-        let fileURL = peopleDirectory.appendingPathComponent(filename)
-
-        // Verify file exists
-        guard fileManager.fileExists(atPath: fileURL.path) else {
+        guard let fileURL = locateExistingFileURL(filename: filename) else {
             throw PersonError.fileNotFound(filename)
         }
 
-        // Write atomically
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Updated person: \(filename)")
@@ -45,24 +60,21 @@ actor PersonWriter {
         let template = await MainActor.run { templateManager.personTemplate }
         let markdown = await MainActor.run { person.toMarkdown(template: template) }
 
-        let peopleDirectory = vaultURL.appendingPathComponent("People")
-        let fileURL = peopleDirectory.appendingPathComponent(filename)
-
-        // Check if file already exists
-        if fileManager.fileExists(atPath: fileURL.path) {
+        if locateExistingFileURL(filename: filename) != nil {
             throw PersonError.fileAlreadyExists(filename)
         }
 
-        // Create People directory if needed
-        if !fileManager.fileExists(atPath: peopleDirectory.path) {
+        let fileURL = canonicalFileURL(filename: filename)
+        let directoryURL = fileURL.deletingLastPathComponent()
+
+        if !fileManager.fileExists(atPath: directoryURL.path) {
             try fileManager.createDirectory(
-                at: peopleDirectory,
+                at: directoryURL,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
         }
 
-        // Write file atomically
         try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
 
         print("✓ Created person file: \(filename)")

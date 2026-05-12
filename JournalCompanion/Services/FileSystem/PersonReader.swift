@@ -15,28 +15,30 @@ actor PersonReader {
         self.vaultURL = vaultURL
     }
 
-    /// Load all people from vault
+    /// Load all people from vault, scanning both the canonical (flat) location
+    /// and the legacy `People/` folder for pre-migration files.
     func loadPeople() async throws -> [Person] {
-        let peopleURL = vaultURL.appendingPathComponent("People")
+        var fileURLs: [URL] = []
 
-        guard fileManager.fileExists(atPath: peopleURL.path) else {
-            print("⚠️ People directory not found")
-            return []
+        let canonicalURL = VaultPaths.url(for: .people, in: vaultURL)
+        fileURLs.append(contentsOf: listMarkdownFiles(at: canonicalURL))
+
+        if let legacyURL = VaultPaths.legacyURL(for: .people, in: vaultURL),
+           legacyURL.standardizedFileURL != canonicalURL.standardizedFileURL,
+           fileManager.fileExists(atPath: legacyURL.path) {
+            fileURLs.append(contentsOf: listMarkdownFiles(at: legacyURL))
         }
 
-        let files = try fileManager.contentsOfDirectory(
-            at: peopleURL,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        )
+        // Dedupe by filename
+        var seen = Set<String>()
+        let uniqueURLs = fileURLs.filter { seen.insert($0.lastPathComponent).inserted }
 
         let people = try await withThrowingTaskGroup(of: Person?.self) { group in
-            for fileURL in files where fileURL.pathExtension == "md" {
+            for fileURL in uniqueURLs {
                 group.addTask { @Sendable in
                     do {
                         let content = try String(contentsOf: fileURL, encoding: .utf8)
-                        let filename = fileURL.lastPathComponent
-                        return Person.parse(from: content, filename: filename)
+                        return Person.parse(from: content, filename: fileURL.lastPathComponent)
                     } catch {
                         print("Error parsing person file \(fileURL.lastPathComponent): \(error)")
                         return nil
@@ -55,5 +57,15 @@ actor PersonReader {
 
         print("✓ Loaded \(people.count) people")
         return people.sorted { $0.name < $1.name }
+    }
+
+    private func listMarkdownFiles(at directoryURL: URL) -> [URL] {
+        guard fileManager.fileExists(atPath: directoryURL.path) else { return [] }
+        let items = (try? fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        return items.filter { $0.pathExtension == "md" }
     }
 }

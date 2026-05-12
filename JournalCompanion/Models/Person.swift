@@ -53,10 +53,17 @@ struct Person: Identifiable, Codable, Sendable, Hashable {
         return collapsed.trimmingCharacters(in: .whitespaces)
     }
 
+    /// YAML discriminator value used to identify Person notes in a flat vault.
+    nonisolated static let yamlTypeIdentifier = "person"
+
     /// Convert person to markdown format with YAML frontmatter
     /// Uses template configuration to determine which fields to write
     func toMarkdown(template: PersonTemplate) -> String {
         var yaml = "---\n"
+
+        // Always write the type discriminator first so flat-vault scanning
+        // can unambiguously identify the note type.
+        yaml += "type: \(Person.yamlTypeIdentifier)\n"
 
         // Get enabled fields sorted by order
         let enabledFields = template.fields
@@ -178,6 +185,23 @@ struct Person: Identifiable, Codable, Sendable, Hashable {
     nonisolated static func parse(from content: String, filename: String) -> Person? {
         guard let frontmatter = extractFrontmatter(from: content) else {
             return nil
+        }
+
+        // Type discrimination: in a flat vault, every reader sees every file.
+        // Accept this file as a Person only if:
+        //   - it has `type: person` (new format), OR
+        //   - it has no `type:` but does have a valid `relationship:` value (legacy format).
+        // Reject files that explicitly declare a different type (place, media, etc).
+        let typeField = (frontmatter["type"] as? String)?.lowercased()
+        if let typeField = typeField, typeField != yamlTypeIdentifier {
+            return nil
+        }
+        if typeField == nil {
+            // Legacy file: require a valid relationship value to claim it as a Person.
+            let relString = frontmatter["relationship"] as? String ?? ""
+            guard RelationshipType(rawValue: relString) != nil else {
+                return nil
+            }
         }
 
         let name = String(filename.dropLast(3))  // Remove .md extension

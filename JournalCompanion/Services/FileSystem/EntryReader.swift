@@ -17,27 +17,27 @@ actor EntryReader {
 
     /// Load all entries from the vault
     func loadEntries(limit: Int? = nil) async throws -> [Entry] {
-        let entriesURL = vaultURL.appendingPathComponent("Entries")
-
-        guard fileManager.fileExists(atPath: entriesURL.path) else {
-            print("⚠️ Entries directory not found")
-            return []
-        }
-
-        // First, collect all file URLs synchronously
         var fileURLs: [URL] = []
-        if let enumerator = fileManager.enumerator(
-            at: entriesURL,
-            includingPropertiesForKeys: [.creationDateKey, .isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) {
-            let allItems = enumerator.allObjects as? [URL] ?? []
-            fileURLs = allItems.filter { $0.pathExtension == "md" }
+
+        // 1. Scan the canonical entries location (vault root by default).
+        let canonicalURL = VaultPaths.url(for: .entries, in: vaultURL)
+        fileURLs.append(contentsOf: enumerateMarkdownFiles(at: canonicalURL, recursive: false))
+
+        // 2. Scan the legacy date-nested `Entries/` folder (pre-migration files).
+        //    Skip if it would duplicate the canonical scan (e.g. if VaultPaths.entries == "Entries").
+        if let legacyURL = VaultPaths.legacyURL(for: .entries, in: vaultURL),
+           legacyURL.standardizedFileURL != canonicalURL.standardizedFileURL,
+           fileManager.fileExists(atPath: legacyURL.path) {
+            fileURLs.append(contentsOf: enumerateMarkdownFiles(at: legacyURL, recursive: true))
         }
 
-        // Then parse entries asynchronously
+        // Dedupe by filename (entries are uniquely identified by YYYYMMDDHHmm.md)
+        var seen = Set<String>()
+        let uniqueURLs = fileURLs.filter { seen.insert($0.lastPathComponent).inserted }
+
+        // Parse entries asynchronously
         var entries: [Entry] = []
-        for fileURL in fileURLs {
+        for fileURL in uniqueURLs {
             if let entry = try? await parseEntry(from: fileURL) {
                 entries.append(entry)
             }
@@ -55,6 +55,34 @@ actor EntryReader {
         return entries
     }
 
+    /// Enumerate `.md` files at a directory URL.
+    /// - When recursive is true, walks all subdirectories (used for the legacy date-nested layout).
+    /// - When recursive is false, only lists direct children (used for the flat layout).
+    private func enumerateMarkdownFiles(at directoryURL: URL, recursive: Bool) -> [URL] {
+        guard fileManager.fileExists(atPath: directoryURL.path) else {
+            return []
+        }
+
+        if recursive {
+            guard let enumerator = fileManager.enumerator(
+                at: directoryURL,
+                includingPropertiesForKeys: [.creationDateKey, .isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            ) else {
+                return []
+            }
+            let allItems = enumerator.allObjects as? [URL] ?? []
+            return allItems.filter { $0.pathExtension == "md" }
+        } else {
+            let items = (try? fileManager.contentsOfDirectory(
+                at: directoryURL,
+                includingPropertiesForKeys: [.creationDateKey, .isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            return items.filter { $0.pathExtension == "md" }
+        }
+    }
+
     /// Parse an entry from a markdown file
     private func parseEntry(from fileURL: URL) async throws -> Entry? {
         let content = try String(contentsOf: fileURL, encoding: .utf8)
@@ -68,10 +96,6 @@ actor EntryReader {
 
         let frontmatter = components[1]
         let bodyContent = components.dropFirst(2).joined(separator: "---\n").trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Split body content into user content and preserved sections
-        // Find first line starting with markdown header (# ## ### etc.)
-        let (userContent, preservedSections) = splitContentAtFirstHeader(bodyContent)
 
         // Parse YAML frontmatter
         var dateCreated: Date?
@@ -290,8 +314,7 @@ actor EntryReader {
             people: people,
             placeCallout: nil,  // Will be looked up from Places at display time
             location: location,
-            content: userContent,
-            preservedSections: preservedSections,
+            content: bodyContent,
             temperature: temperature,
             condition: condition,
             aqi: aqi,
@@ -391,33 +414,4 @@ actor EntryReader {
         return .string(cleaned)
     }
 
-    /// Split content at first markdown header (# ## ### etc.)
-    /// Returns (userContent, preservedSections)
-    private func splitContentAtFirstHeader(_ content: String) -> (String, String?) {
-        let lines = content.components(separatedBy: .newlines)
-
-        // Find first line starting with # (markdown header)
-        for (index, line) in lines.enumerated() {
-            // Check if line starts with one or more # followed by space
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("#") {
-                // Find where the actual header text starts (after the #'s and space)
-                if let firstNonHash = trimmed.firstIndex(where: { $0 != "#" }),
-                   trimmed[firstNonHash] == " " {
-                    // This is a valid markdown header
-                    // Split here: everything before = user content, from here onward = preserved sections
-                    let userContentLines = Array(lines[..<index])
-                    let preservedLines = Array(lines[index...])
-
-                    let userContent = userContentLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-                    let preserved = preservedLines.joined(separator: "\n")
-
-                    return (userContent, preserved.isEmpty ? nil : preserved)
-                }
-            }
-        }
-
-        // No header found - all content is user content
-        return (content, nil)
-    }
 }

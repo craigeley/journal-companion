@@ -145,7 +145,6 @@ class WorkoutSyncViewModel: ObservableObject {
                 placeCallout: nil,
                 location: locationString,
                 content: content,
-                preservedSections: nil,
                 temperature: weatherData.temperature,
                 condition: weatherData.condition,
                 aqi: weatherData.aqi,

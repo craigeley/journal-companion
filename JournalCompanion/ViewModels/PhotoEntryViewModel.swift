@@ -304,7 +304,6 @@ class PhotoEntryViewModel: ObservableObject {
                 dateCreated: timestamp,
                 tags: tags,
                 place: selectedPlace?.name,
-                people: [],
                 placeCallout: selectedPlace?.callout.rawValue,
                 location: locationString,
                 content: content,

@@ -141,7 +141,6 @@ class WorkoutSyncViewModel: ObservableObject {
                 dateCreated: workout.startDate,
                 tags: tags,
                 place: nil,
-                people: [],
                 placeCallout: nil,
                 location: locationString,
                 content: content,

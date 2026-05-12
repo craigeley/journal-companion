@@ -47,7 +47,6 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
     var dateCreated: Date
     var tags: [String]
     var place: String?  // Place name (without brackets)
-    var people: [String]  // Array of person names (without brackets)
     var placeCallout: String?  // Place callout type (e.g., "cafe", "park", "home")
     var location: String?  // GPS coordinates in "latitude,longitude" format
     var content: String
@@ -134,7 +133,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
     }
 
     private nonisolated func isKnownField(_ key: String) -> Bool {
-        ["date_created", "tags", "place", "location", "people", "temp", "cond",
+        ["date_created", "tags", "place", "location", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate",
          "bit_depth"].contains(key)
@@ -272,13 +271,12 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
     }
 
     /// Create a new entry with current timestamp
-    static func create(content: String, place: String? = nil, people: [String] = [], location: String? = nil, tags: [String] = ["entry", "iPhone"]) -> Entry {
+    static func create(content: String, place: String? = nil, location: String? = nil, tags: [String] = ["entry", "iPhone"]) -> Entry {
         Entry(
             id: UUID().uuidString,
             dateCreated: Date(),
             tags: tags,
             place: place,
-            people: people,
             placeCallout: nil,
             location: location,
             content: content,

@@ -102,7 +102,6 @@ actor EntryReader {
         var tags: [String] = []
         var place: String?
         var location: String?
-        var people: [String] = []
         var temperature: Int?
         var condition: String?
         var aqi: Int?
@@ -121,7 +120,6 @@ actor EntryReader {
 
         let lines = frontmatter.components(separatedBy: .newlines)
         var inTags = false
-        var inPeople = false
         var inMoodLabels = false
         var inMoodAssociations = false
         var inAudioAttachments = false
@@ -161,63 +159,38 @@ actor EntryReader {
                 tags.append(tag)
             } else if trimmed.hasPrefix("place:") {
                 inTags = false
-                inPeople = false
                 let placeString = trimmed.replacingOccurrences(of: "place:", with: "").trimmingCharacters(in: .whitespaces)
                 // Extract place name from wikilink [[Name]]
                 place = placeString.replacingOccurrences(of: "\"[[", with: "")
                     .replacingOccurrences(of: "]]\"", with: "")
             } else if trimmed.hasPrefix("location:") {
                 inTags = false
-                inPeople = false
                 location = trimmed.replacingOccurrences(of: "location:", with: "").trimmingCharacters(in: .whitespaces)
-            } else if trimmed.hasPrefix("people:") {
-                inTags = false
-                inPeople = true
-                let peopleString = trimmed.replacingOccurrences(of: "people:", with: "").trimmingCharacters(in: .whitespaces)
-
-                // Check if inline format: people: [[[Name1]], [[Name2]]]
-                if !peopleString.isEmpty {
-                    // For inline, we would need to parse multiple wikilinks
-                    // But our YAML format uses multi-line array, so this should be empty
-                    inPeople = true
-                }
-            } else if inPeople && trimmed.hasPrefix("- ") {
-                // Extract person name from wikilink: - "[[Name]]"
-                let value = trimmed.replacingOccurrences(of: "- ", with: "")
-                    .replacingOccurrences(of: "\"[[", with: "")
-                    .replacingOccurrences(of: "]]\"", with: "")
-                people.append(value)
             } else if trimmed.hasPrefix("temp:") {
-                inPeople = false
                 inTags = false
                 let tempString = trimmed.replacingOccurrences(of: "temp:", with: "").trimmingCharacters(in: .whitespaces)
                 temperature = Int(tempString)
             } else if trimmed.hasPrefix("cond:") {
                 inTags = false
-                inPeople = false
                 condition = trimmed.replacingOccurrences(of: "cond:", with: "").trimmingCharacters(in: .whitespaces)
             } else if trimmed.hasPrefix("humidity:") {
                 inTags = false
-                inPeople = false
                 let humidityString = trimmed.replacingOccurrences(of: "humidity:", with: "").trimmingCharacters(in: .whitespaces)
                 humidity = Int(humidityString)
             } else if trimmed.hasPrefix("aqi:") {
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
                 let aqiString = trimmed.replacingOccurrences(of: "aqi:", with: "").trimmingCharacters(in: .whitespaces)
                 aqi = Int(aqiString)
             } else if trimmed.hasPrefix("mood_valence:") {
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
                 let valenceString = trimmed.replacingOccurrences(of: "mood_valence:", with: "").trimmingCharacters(in: .whitespaces)
                 moodValence = Double(valenceString)
             } else if trimmed.hasPrefix("mood_labels:") {
                 inTags = false
-                inPeople = false
                 inMoodLabels = true
                 inMoodAssociations = false
             } else if inMoodLabels && trimmed.hasPrefix("- ") {
@@ -225,7 +198,6 @@ actor EntryReader {
                 moodLabels.append(label)
             } else if trimmed.hasPrefix("mood_associations:") {
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = true
             } else if inMoodAssociations && trimmed.hasPrefix("- ") {
@@ -233,7 +205,6 @@ actor EntryReader {
                 moodAssociations.append(association)
             } else if trimmed.hasPrefix("audio_attachments:") {
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
                 inAudioAttachments = true
@@ -265,7 +236,6 @@ actor EntryReader {
                       let colonIndex = trimmed.firstIndex(of: ":") {
                 // Reset all array flags
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
                 inUnknownArray = false
@@ -291,7 +261,6 @@ actor EntryReader {
             } else if !trimmed.isEmpty {
                 // Reset flags for non-field lines
                 inTags = false
-                inPeople = false
                 inMoodLabels = false
                 inMoodAssociations = false
                 inUnknownArray = false
@@ -311,7 +280,6 @@ actor EntryReader {
             dateCreated: date,
             tags: tags,
             place: place,
-            people: people,
             placeCallout: nil,  // Will be looked up from Places at display time
             location: location,
             content: bodyContent,
@@ -352,7 +320,7 @@ actor EntryReader {
 
     /// Check if a YAML key is a known field
     private func isKnownField(_ key: String) -> Bool {
-        ["date_created", "tags", "place", "location", "people", "temp", "cond",
+        ["date_created", "tags", "place", "location", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate", "bit_depth"].contains(key)
     }

@@ -234,7 +234,6 @@ class QuickEntryViewModel: ObservableObject {
                 dateCreated: timestamp,
                 tags: entryTags,
                 place: selectedPlace?.name,
-                people: [], // Deprecated - people now parsed from wiki-links in content
                 placeCallout: selectedPlace?.callout.rawValue,
                 location: locationString,
                 content: combinedContent,

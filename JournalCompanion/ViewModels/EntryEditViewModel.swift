@@ -155,7 +155,6 @@ class EntryEditViewModel: ObservableObject {
             dateCreated: timestamp,
             tags: tags,
             place: selectedPlace?.name,
-            people: [], // Deprecated - people now parsed from wiki-links in content
             placeCallout: selectedPlace?.callout.rawValue,
             location: finalLocation,
             content: entryText,

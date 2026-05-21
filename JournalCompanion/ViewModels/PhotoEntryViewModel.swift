@@ -318,6 +318,7 @@ class PhotoEntryViewModel: ObservableObject {
                 recordingDevice: nil,
                 sampleRate: nil,
                 bitDepth: nil,
+                remoteAudio: nil,
                 unknownFields: [:],
                 unknownFieldsOrder: []
             )

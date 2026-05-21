@@ -248,6 +248,7 @@ class QuickEntryViewModel: ObservableObject {
                 recordingDevice: nil,
                 sampleRate: nil,
                 bitDepth: nil,
+                remoteAudio: nil,
                 unknownFields: [:], // New entries have no unknown fields
                 unknownFieldsOrder: []
             )

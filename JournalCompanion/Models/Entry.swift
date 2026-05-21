@@ -68,6 +68,9 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
     var sampleRate: Int?  // Sample rate in Hz (e.g., 48000)
     var bitDepth: Int?  // Bit depth for lossless formats (e.g., 24, 32)
 
+    // Remote audio (S3-hosted; playback URL extracted from <audio src="..."> in body)
+    var remoteAudio: String?  // s3:// URL serving as the canonical reference
+
     // Unknown YAML field preservation
     var unknownFields: [String: YAMLValue]
     var unknownFieldsOrder: [String]
@@ -122,7 +125,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
         let knownFieldKeys = ["date_created", "tags", "place", "location", "temp", "cond",
                               "humidity", "aqi", "mood_valence", "mood_labels",
                               "mood_associations", "audio_attachments",
-                              "recording_device", "sample_rate", "bit_depth"]
+                              "recording_device", "sample_rate", "bit_depth", "audio"]
         for fieldKey in knownFieldKeys where !writtenKnownFields.contains(fieldKey) {
             writeKnownField(fieldKey, to: &yaml)
         }
@@ -136,7 +139,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
         ["date_created", "tags", "place", "location", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
          "audio_attachments", "recording_device", "sample_rate",
-         "bit_depth"].contains(key)
+         "bit_depth", "audio"].contains(key)
     }
 
     private nonisolated func writeKnownField(_ key: String, to yaml: inout String) {
@@ -230,6 +233,11 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
                 yaml += "bit_depth: \(depth)\n"
             }
 
+        case "audio":
+            if let audio = remoteAudio, !audio.isEmpty {
+                yaml += "audio: \(audio)\n"
+            }
+
         default:
             break
         }
@@ -291,6 +299,7 @@ struct Entry: Identifiable, Codable, Sendable, Hashable {
             recordingDevice: nil,
             sampleRate: nil,
             bitDepth: nil,
+            remoteAudio: nil,
             unknownFields: [:],
             unknownFieldsOrder: []
         )
@@ -633,6 +642,11 @@ extension Entry {
             return true
         }
 
+        // Check for remote audio (S3-hosted)
+        if hasRemoteAudio {
+            return true
+        }
+
         return false
     }
 
@@ -644,6 +658,10 @@ extension Entry {
             types.append("\(audioFiles.count) audio file\(audioFiles.count == 1 ? "" : "s")")
         }
 
+        if hasRemoteAudio {
+            types.append("remote audio")
+        }
+
         if photoAttachment != nil {
             types.append("photo")
         }
@@ -653,6 +671,34 @@ extension Entry {
         }
 
         return types
+    }
+}
+
+// MARK: - Remote Audio Support
+extension Entry {
+    /// Whether this entry references S3-hosted audio (via `audio:` YAML field)
+    nonisolated var hasRemoteAudio: Bool {
+        guard let url = remoteAudio else { return false }
+        return !url.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Extract the playback URL from the `<audio src="...">` tag in the body.
+    /// The `audio:` YAML field stores the canonical `s3://` reference, but playback
+    /// happens against the signed CloudFront URL embedded in the body.
+    nonisolated var remoteAudioPlaybackURL: URL? {
+        let pattern = #"<audio[^>]*\ssrc=["']([^"']+)["']"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(
+                in: content,
+                options: [],
+                range: NSRange(content.startIndex..., in: content)
+              ),
+              match.numberOfRanges >= 2,
+              let range = Range(match.range(at: 1), in: content)
+        else {
+            return nil
+        }
+        return URL(string: String(content[range]))
     }
 }
 
@@ -687,6 +733,7 @@ extension Entry {
     var entryType: EntryType {
         if isPhotoEntry { return .photo }
         if audioAttachments != nil && !(audioAttachments?.isEmpty ?? true) { return .audio }
+        if hasRemoteAudio { return .audio }
         if isWorkoutEntry { return .workout }
         return .text
     }

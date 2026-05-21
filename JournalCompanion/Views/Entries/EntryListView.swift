@@ -330,9 +330,10 @@ struct EntryRowView: View {
 
     // MARK: - Computed Properties
 
-    /// Check if this is an audio entry
+    /// Check if this is an audio entry (local recordings or S3-hosted remote audio)
     private var isAudioEntry: Bool {
-        entry.audioAttachments != nil && !(entry.audioAttachments?.isEmpty ?? true)
+        let hasLocal = entry.audioAttachments != nil && !(entry.audioAttachments?.isEmpty ?? true)
+        return hasLocal || entry.hasRemoteAudio
     }
 
     /// Check if this is a photo entry
@@ -359,6 +360,19 @@ struct EntryRowView: View {
         // Remove Obsidian photo embeds: ![[photos/filename.ext]]
         let photoEmbedPattern = #"!\[\[photos/[^\]]+\]\]"#
         if let regex = try? NSRegularExpression(pattern: photoEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Remove HTML <audio ...></audio> and self-closing <audio ... /> tags
+        // (used by S3-hosted remote audio entries).
+        let audioTagPattern = #"<audio\b[^>]*>(?:[\s\S]*?</audio>)?"#
+        if let regex = try? NSRegularExpression(pattern: audioTagPattern, options: [.caseInsensitive]) {
             let range = NSRange(cleaned.startIndex..., in: cleaned)
             cleaned = regex.stringByReplacingMatches(
                 in: cleaned,

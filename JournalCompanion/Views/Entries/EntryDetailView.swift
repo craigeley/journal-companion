@@ -19,6 +19,7 @@ struct EntryDetailView: View {
     @State private var showPlaybackView = false
     @State private var selectedAudioIndex: Int?
     @State private var showTranscriptEdit = false
+    @State private var showRemoteAudioPlayback = false
     @State private var sourceImageView: UIView?
     @State private var quickLookPresenter = QuickLookPresenter()
 
@@ -40,6 +41,43 @@ struct EntryDetailView: View {
                         ) { url in
                             quickLookPresenter.present(url: url, sourceView: sourceImageView)
                         }
+                    }
+                }
+
+                // Remote Audio Section (S3-hosted audio referenced via `audio:` YAML)
+                if hasRemoteAudio {
+                    Section("Audio Recording") {
+                        HStack {
+                            Image(systemName: "waveform")
+                                .foregroundStyle(.red)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Remote Recording")
+                                    .font(.subheadline)
+                                if let s3URL = currentEntry.remoteAudio {
+                                    Text(s3URL)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                            }
+
+                            Spacer()
+
+                            Button {
+                                showRemoteAudioPlayback = true
+                            } label: {
+                                Image(systemName: "play.fill")
+                                    .foregroundStyle(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Color.red)
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(currentEntry.remoteAudioPlaybackURL == nil)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
 
@@ -257,6 +295,17 @@ struct EntryDetailView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showRemoteAudioPlayback) {
+                if let playbackURL = currentEntry.remoteAudioPlaybackURL {
+                    NavigationStack {
+                        AudioPlaybackView(
+                            audioURL: playbackURL,
+                            transcription: contentWithoutEmbeds,
+                            timeRanges: []
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -282,6 +331,10 @@ struct EntryDetailView: View {
         currentEntry.audioAttachments != nil && !(currentEntry.audioAttachments?.isEmpty ?? true)
     }
 
+    private var hasRemoteAudio: Bool {
+        currentEntry.hasRemoteAudio
+    }
+
     private var hasPhoto: Bool {
         currentEntry.isPhotoEntry
     }
@@ -304,6 +357,19 @@ struct EntryDetailView: View {
         // Remove Obsidian photo embeds: ![[photos/filename.ext]]
         let photoEmbedPattern = #"!\[\[photos/[^\]]+\]\]"#
         if let regex = try? NSRegularExpression(pattern: photoEmbedPattern, options: []) {
+            let range = NSRange(cleaned.startIndex..., in: cleaned)
+            cleaned = regex.stringByReplacingMatches(
+                in: cleaned,
+                options: [],
+                range: range,
+                withTemplate: ""
+            )
+        }
+
+        // Remove HTML <audio ...></audio> and self-closing <audio ... /> tags
+        // (used by S3-hosted remote audio entries — playback URL is extracted separately).
+        let audioTagPattern = #"<audio\b[^>]*>(?:[\s\S]*?</audio>)?"#
+        if let regex = try? NSRegularExpression(pattern: audioTagPattern, options: [.caseInsensitive]) {
             let range = NSRange(cleaned.startIndex..., in: cleaned)
             cleaned = regex.stringByReplacingMatches(
                 in: cleaned,

@@ -29,9 +29,11 @@ struct AudioPlaybackView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         if timeRanges.isEmpty {
-                            // No time ranges - show plain text
-                            Text(transcription)
+                            // No time ranges - render the body as markdown so
+                            // timestamp markers like **00:06** display as bold.
+                            Text(markdownTranscription)
                                 .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding()
                         } else {
                             // Show flowing text with word-level highlighting
@@ -196,6 +198,18 @@ struct AudioPlaybackView: View {
     }
 
     // MARK: - Formatting
+
+    /// Render the transcription as markdown, preserving paragraph breaks.
+    /// Falls back to plain text if markdown parsing fails.
+    private var markdownTranscription: AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        if let parsed = try? AttributedString(markdown: transcription, options: options) {
+            return parsed
+        }
+        return AttributedString(transcription)
+    }
 
     private func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60

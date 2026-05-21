@@ -113,6 +113,7 @@ actor EntryReader {
         var recordingDevice: String?
         var sampleRate: Int?
         var bitDepth: Int?
+        var remoteAudio: String?
 
         // Track unknown YAML fields for preservation
         var unknownFields: [String: YAMLValue] = [:]
@@ -224,6 +225,13 @@ actor EntryReader {
                 inAudioAttachments = false
                 let depthString = trimmed.replacingOccurrences(of: "bit_depth:", with: "").trimmingCharacters(in: .whitespaces)
                 bitDepth = Int(depthString)
+            } else if trimmed.hasPrefix("audio:") {
+                inAudioAttachments = false
+                let audioString = trimmed.replacingOccurrences(of: "audio:", with: "").trimmingCharacters(in: .whitespaces)
+                    .replacingOccurrences(of: "\"", with: "")
+                if !audioString.isEmpty {
+                    remoteAudio = audioString
+                }
             } else if inUnknownArray && trimmed.hasPrefix("- "),
                       let arrayKey = currentUnknownArrayKey {
                 // Continue parsing unknown array
@@ -294,6 +302,7 @@ actor EntryReader {
             recordingDevice: recordingDevice,
             sampleRate: sampleRate,
             bitDepth: bitDepth,
+            remoteAudio: remoteAudio,
             unknownFields: unknownFields,
             unknownFieldsOrder: unknownFieldsOrder
         )
@@ -322,7 +331,8 @@ actor EntryReader {
     private func isKnownField(_ key: String) -> Bool {
         ["date_created", "tags", "place", "location", "temp", "cond",
          "humidity", "aqi", "mood_valence", "mood_labels", "mood_associations",
-         "audio_attachments", "recording_device", "sample_rate", "bit_depth"].contains(key)
+         "audio_attachments", "recording_device", "sample_rate", "bit_depth",
+         "audio"].contains(key)
     }
 
     /// Check if audio entry content is stale (needs re-mirroring from SRT)
